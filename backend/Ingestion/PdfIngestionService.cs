@@ -1,38 +1,42 @@
-using System;
-using CLARA.Backend.Models;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 
 namespace CLARA.Backend.Ingestion
 {
     public class PdfIngestionService
     {
         private readonly PdfParser _pdfParser;
-        private readonly PatientDataExtractor _extractor;
+        private readonly string _patientsFolderPath;
 
         public PdfIngestionService()
         {
             _pdfParser = new PdfParser();
-            _extractor = new PatientDataExtractor();
+            _patientsFolderPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "Patients");
         }
 
-        public PatientDto Process(string filePath)
+        public IReadOnlyList<ExtractedPdf> ExtractTextFromFolder(string folderName)
         {
-            if (string.IsNullOrEmpty(filePath))
-                throw new ArgumentException("File path cannot be empty.");
+            if (string.IsNullOrWhiteSpace(folderName))
+                throw new ArgumentException("Folder name cannot be empty.", nameof(folderName));
 
-            // 🟦 Step 1: Extract raw text from PDF
-            string rawText = _pdfParser.ExtractText(filePath);
+            var safeFolderName = Path.GetFileName(folderName);
+            if (string.IsNullOrEmpty(safeFolderName) || safeFolderName != folderName)
+                throw new ArgumentException("Invalid folder name.", nameof(folderName));
 
-            if (string.IsNullOrWhiteSpace(rawText))
-                throw new Exception("Failed to extract text from PDF.");
+            var targetFolder = Path.Combine(_patientsFolderPath, safeFolderName);
 
-            // 🟨 Step 2: Convert raw text into structured patient data
-            PatientDto patient = _extractor.Extract(rawText);
+            if (!Directory.Exists(targetFolder))
+                throw new DirectoryNotFoundException($"Folder not found in Patients folder: {safeFolderName}");
 
-            if (patient == null)
-                throw new Exception("Failed to extract patient data.");
+            var pdfFiles = Directory.GetFiles(targetFolder, "*.pdf", SearchOption.AllDirectories);
 
-            // 🟩 Step 3: Return structured result
-            return patient;
+            return pdfFiles
+                .Select(filePath => new ExtractedPdf(filePath, _pdfParser.ExtractText(filePath)))
+                .ToList();
         }
     }
+
+    public sealed record ExtractedPdf(string FilePath, string Text);
 }
