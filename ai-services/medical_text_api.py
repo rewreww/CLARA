@@ -2,7 +2,7 @@ import requests
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from lab_extractors import (
     normalize_text,
@@ -40,7 +40,7 @@ class LabRequest(BaseModel):
 
 class LabResult(BaseModel):
     test_name: str
-    value: float
+    value: Union[float, str]
     unit: str
     reference_low: Optional[float] = None
     reference_high: Optional[float] = None
