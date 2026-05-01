@@ -1,6 +1,15 @@
+import requests
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import Dict, List
+from typing import Dict, List, Optional, Tuple
+
+from lab_extractors import (
+    normalize_text,
+    extract_chemistry_results,
+    extract_hematology_results,
+    extract_microscopy_results,
+)
 
 app = FastAPI()
 
@@ -24,37 +33,22 @@ class ProcessResponse(BaseModel):
     prescriptions: str
 
 
-def normalize_text(raw_text: str) -> str:
-    """Clean spacing and normalize line breaks."""
-    if raw_text is None:
-        return ""
+class LabRequest(BaseModel):
+    patient: str
+    labs: str
 
-    # Convert literal escaped newline sequences into actual newlines
-    # This helps when the input contains text like "Line1\nLine2".
-    text = raw_text.replace("\\r\\n", "\n").replace("\\r", "\n").replace("\\n", "\n")
 
-    # Convert Windows and old Mac line endings to Unix style.
-    text = text.replace("\r\n", "\n").replace("\r", "\n")
+class LabResult(BaseModel):
+    test_name: str
+    value: float
+    unit: str
+    reference_low: Optional[float] = None
+    reference_high: Optional[float] = None
 
-    # Split into lines and remove leading/trailing whitespace from each line.
-    lines = [line.strip() for line in text.split("\n")]
 
-    cleaned_lines: List[str] = []
-    blank_seen = False
-
-    for line in lines:
-        if line == "":
-            # Preserve only one blank line between paragraphs.
-            if not blank_seen:
-                cleaned_lines.append("")
-                blank_seen = True
-        else:
-            # Collapse repeated spaces inside the line.
-            cleaned_line = " ".join(line.split())
-            cleaned_lines.append(cleaned_line)
-            blank_seen = False
-
-    return "\n".join(cleaned_lines).strip()
+class LabResponse(BaseModel):
+    patient: str
+    results: List[LabResult]
 
 
 def categorize_text(clean_text: str) -> Dict[str, object]:
@@ -143,6 +137,139 @@ def categorize_text(clean_text: str) -> Dict[str, object]:
         },
         "prescriptions": "\n".join(sections["prescriptions"]).strip(),
     }
+
+
+def get_extracted_text(data: dict, folder_filter: Optional[str] = None) -> str:
+    """Extract raw text from backend response data, optionally filtering by file path."""
+    files = data.get("files") or data.get("Files") or []
+    if not isinstance(files, list):
+        return ""
+
+    pieces: List[str] = []
+    for file in files:
+        if not isinstance(file, dict):
+            continue
+
+        file_path = (file.get("filePath") or file.get("FilePath") or "")
+        if folder_filter and folder_filter.lower() not in file_path.lower():
+            continue
+
+        text = file.get("text") or file.get("Text") or ""
+        if text:
+            pieces.append(text)
+
+    return "\n".join(pieces)
+
+
+@app.post("/categorize", response_model=ProcessResponse)
+def categorize(request: LabRequest):
+    """Categorize raw text from PDFs for the provided patient and labs type."""
+    if request.labs != "labs":
+        raise HTTPException(status_code=400, detail="Only 'labs' labs type is supported for categorization")
+
+    # Call C# backend to get raw text from patient folder
+    backend_url = "http://localhost:5000/api/pdfingestion/extract"
+    try:
+        response = requests.post(backend_url, json={"FolderName": request.patient}, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        raw_text = get_extracted_text(data, folder_filter="labs")
+    except requests.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch raw text from backend: {str(e)}")
+
+    if not raw_text.strip():
+        raise HTTPException(status_code=400, detail="No raw text found for the patient")
+
+    # Categorize the raw text
+    categorized = categorize_text(raw_text)
+    return ProcessResponse(
+        demographics=categorized["demographics"],
+        discharge=categorized["discharge"],
+        encounters=categorized["encounters"],
+        imaging=categorized["imaging"],
+        labs=LabsResponse(
+            chemistry=categorized["labs"]["chemistry"],
+            hematology=categorized["labs"]["hematology"],
+            microscopy=categorized["labs"]["microscopy"],
+        ),
+        prescriptions=categorized["prescriptions"],
+    )
+
+
+@app.post("/chemistry-results", response_model=LabResponse)
+def chemistry_results(request: LabRequest):
+    """Return structured chemistry lab results for the provided patient and labs type."""
+    if request.labs != "chemistry":
+        raise HTTPException(status_code=400, detail="Only 'chemistry' labs type is supported")
+
+    # Call C# backend to get raw text from patient folder
+    backend_url = "http://localhost:5000/api/pdfingestion/extract"
+    try:
+        response = requests.post(backend_url, json={"FolderName": request.patient}, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        raw_text = get_extracted_text(data, folder_filter="labs")
+    except requests.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch raw text from backend: {str(e)}")
+
+    if not raw_text.strip():
+        raise HTTPException(status_code=400, detail="No raw text found for the patient")
+
+    # Categorize the raw text
+    categorized = categorize_text(raw_text)
+    chemistry_text = categorized["labs"]["chemistry"]
+
+    # Extract chemistry results
+    parsed = extract_chemistry_results(chemistry_text)
+    return LabResponse(patient=request.patient, results=parsed)
+
+
+@app.post("/hematology-results", response_model=LabResponse)
+def hematology_results(request: LabRequest):
+    """Return structured hematology lab results for the provided patient."""
+    if request.labs != "hematology":
+        raise HTTPException(status_code=400, detail="Only 'hematology' labs type is supported")
+
+    backend_url = "http://localhost:5000/api/pdfingestion/extract"
+    try:
+        response = requests.post(backend_url, json={"FolderName": request.patient}, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        raw_text = get_extracted_text(data, folder_filter="labs")
+    except requests.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch raw text from backend: {str(e)}")
+
+    if not raw_text.strip():
+        raise HTTPException(status_code=400, detail="No raw text found for the patient")
+
+    categorized = categorize_text(raw_text)
+    hematology_text = categorized["labs"]["hematology"]
+    parsed = extract_hematology_results(hematology_text)
+    return LabResponse(patient=request.patient, results=parsed)
+
+
+@app.post("/microscopy-results", response_model=LabResponse)
+def microscopy_results(request: LabRequest):
+    """Return structured microscopy lab results for the provided patient."""
+    if request.labs != "microscopy":
+        raise HTTPException(status_code=400, detail="Only 'microscopy' labs type is supported")
+
+    backend_url = "http://localhost:5000/api/pdfingestion/extract"
+    try:
+        response = requests.post(backend_url, json={"FolderName": request.patient}, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        raw_text = get_extracted_text(data, folder_filter="labs")
+    except requests.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch raw text from backend: {str(e)}")
+
+    if not raw_text.strip():
+        raise HTTPException(status_code=400, detail="No raw text found for the patient")
+
+    categorized = categorize_text(raw_text)
+    microscopy_text = categorized["labs"]["microscopy"]
+    parsed = extract_microscopy_results(microscopy_text)
+    return LabResponse(patient=request.patient, results=parsed)
 
 
 @app.post("/process", response_model=ProcessResponse)

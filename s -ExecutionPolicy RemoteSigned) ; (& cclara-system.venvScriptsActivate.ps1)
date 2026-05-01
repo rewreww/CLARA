@@ -1,0 +1,29 @@
+[33mcommit 5204cde15f50597a33892004042ebbf50d03e405[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: rewreww <arronaves8@gmail.com>
+Date:   Wed Apr 29 18:39:38 2026 +0800
+
+    Add categorization from ai-services, when tested in postman input the rawtext and it will be automatically added to which category
+
+[33mcommit c4fbf99f5b5727650d2400ce731f37deb632c92f[m
+Author: rewreww <arronaves8@gmail.com>
+Date:   Wed Apr 29 17:37:42 2026 +0800
+
+    Postman testing successful for extraction of text across all folders
+
+[33mcommit d688f7f2d92b608c54614df030634d1a192c3252[m
+Author: rewreww <arronaves8@gmail.com>
+Date:   Fri Apr 17 18:49:35 2026 +0800
+
+    FileWatcher, PdfParser working.
+
+[33mcommit 761bef4a0134b8915651e641c9befdf106fbbca8[m
+Author: rewreww <arronaves8@gmail.com>
+Date:   Wed Apr 15 18:59:11 2026 +0800
+
+    First commit
+
+[33mcommit bfb1ddbd709ca7799b01417c3c4ff3b4ae7663f9[m
+Author: arroN <arronaves8@gmail.com>
+Date:   Wed Mar 18 18:51:56 2026 +0800
+
+    Initial commit

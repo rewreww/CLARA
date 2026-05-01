@@ -1,0 +1,4 @@
+#RUN AI-SERVICE WITH THIS:
+
+Set-Location c:\clara-system\ai-services
+c:/clara-system/.venv/Scripts/python.exe -m uvicorn medical_text_api:app --reload --port 8000
