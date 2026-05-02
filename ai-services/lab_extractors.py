@@ -1,38 +1,8 @@
-"""
-Lab Extractors Module
-
-This module provides functions to extract structured lab results from raw text.
-It handles chemistry, hematology, and microscopy tests with proper parsing of
-values, units, and reference ranges.
-
-Processing Steps:
-1. Normalize the raw text (clean spacing, normalize line breaks)
-2. Find all test matches in the text and sort by position
-3. For each test, extract a segment from its position to the next test
-4. Parse the value, unit, and references from the segment
-5. Return structured results as list of dictionaries
-"""
-
 import re
 from typing import Dict, List, Optional, Tuple
 
-
+"""Utility function to clean and normalize raw text input."""
 def normalize_text(raw_text: str) -> str:
-    """
-    Normalize raw lab text for consistent parsing.
-
-    Steps:
-    1. Replace various line break formats with \n
-    2. Split into lines and strip whitespace
-    3. Collapse multiple blank lines into single blank lines
-    4. Join back into text
-
-    Args:
-        raw_text: The raw text from PDF extraction
-
-    Returns:
-        Normalized text with clean spacing
-    """
     if raw_text is None:
         return ""
 
@@ -54,20 +24,8 @@ def normalize_text(raw_text: str) -> str:
 
     return "\n".join(cleaned_lines).strip()
 
-
+"""Extracting numeric value and unit from a text window."""
 def _find_value_and_unit(window: str) -> Tuple[Optional[float], str]:
-    """
-    Extract numeric value and unit from a text window.
-
-    Uses regex to find patterns like "155 g/L" or "5.2 x 10^12/L".
-    Validates units against allowed list.
-
-    Args:
-        window: Text segment to search for value and unit
-
-    Returns:
-        Tuple of (value as float or None, unit as string)
-    """
     match = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*([A-Za-z0-9/%°µμ\s\^]+(?:/[A-Za-z]+)?)?", window)
     if not match:
         return None, ""
@@ -81,39 +39,16 @@ def _find_value_and_unit(window: str) -> Tuple[Optional[float], str]:
     return value, unit
 
 
+"""Getting values if there's semi colon"""
 def _find_string_value(window: str) -> str:
-    """
-    Extract string value from a text window (for qualitative results).
-
-    Cleans the text after the test name, removing leading colon and whitespace.
-
-    Args:
-        window: Text segment after the test match
-
-    Returns:
-        Cleaned string value
-    """
     # Remove leading/trailing whitespace and colon if present
     value = window.strip()
     if value.startswith(':'):
         value = value[1:].strip()
     return value
 
-
+"""Parsing reference ranges from text, with optional unit filtering."""
 def _parse_reference_values(text: str, want_unit: Optional[str] = None) -> Tuple[Optional[float], Optional[float]]:
-    """
-    Parse reference ranges from text, like "(120-160)" or "less than 20".
-
-    Handles formats: "120-160", "less than 20", "> 10"
-    Can filter by specific unit if provided.
-
-    Args:
-        text: Text to search for references
-        want_unit: Optional unit to match (e.g., "mg/dL")
-
-    Returns:
-        Tuple of (low, high) or (None, high) for "less than"
-    """
     text = text.lower()
     patterns = []
     if want_unit:
@@ -138,26 +73,7 @@ def _parse_reference_values(text: str, want_unit: Optional[str] = None) -> Tuple
 
 
 def _parse_test(text: str, name: str, pattern: str, preferred_units: List[str], is_string: bool = False) -> Optional[Dict[str, object]]:
-    """
-    Parse a single test from the text segment.
-
-    Steps:
-    1. Find the test pattern match
-    2. Extract window after the match
-    3. Get value (numeric or string) and unit
-    4. Parse reference ranges
-    5. Return structured result or None if no value found
-
-    Args:
-        text: Text segment containing the test
-        name: Test name
-        pattern: Regex pattern to match test
-        preferred_units: List of possible units for this test
-        is_string: Whether this test has string value (qualitative)
-
-    Returns:
-        Dict with test_name, value, unit, references or None
-    """
+    
     match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
     if not match:
         return None

@@ -18,7 +18,7 @@ builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddFluentValidationClientsideAdapters();
 
 // Register application services
-builder.Services.AddScoped<ILLMService, LLMService>();
+builder.Services.AddScoped<OllamaService>();
 builder.Services.AddScoped<IMLService, MLService>();
 builder.Services.AddScoped<IRuleEngine, RuleEngineService>();
 
