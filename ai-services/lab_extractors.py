@@ -187,7 +187,27 @@ def extract_hematology_results(raw_text: str) -> List[Dict[str, object]]:
         ("RH TYPE", r"rh type", [], True),
         ("REMARKS", r"remarks", [], True),
     ]
-    return _extract_lab_values(raw_text, tests)
+    results = _extract_lab_values(raw_text, tests)
+
+    # Normalize decimal fraction values to percentages and proper units
+    # Some PDFs store hematocrit and differentials as 0.0–1.0 instead of 0–100%
+    decimal_tests = {
+        "HEMATOCRIT", "NEUTROPHILS", "LYMPHOCYTES",
+        "MONOCYTES", "EOSINOPHILS", "BASOPHILS", "STABS"
+    }
+    for result in results:
+        if result["test_name"] in decimal_tests:
+            val = result.get("value")
+            if isinstance(val, float) and 0 < val <= 1.0:
+                # Convert to percentage
+                result["value"] = round(val * 100, 1)
+                result["unit"]  = "%"
+                if result.get("reference_low") is not None:
+                    result["reference_low"]  = round(result["reference_low"] * 100, 1)
+                if result.get("reference_high") is not None:
+                    result["reference_high"] = round(result["reference_high"] * 100, 1)
+
+    return results
 
 
 def extract_microscopy_results(raw_text: str) -> List[Dict[str, object]]:

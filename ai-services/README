@@ -1,4 +1,201 @@
-#RUN AI-SERVICE WITH THIS:
+# CLARA — Clinical AI Assistant for Cardiovascular Case Assessment
 
-Set-Location c:\clara-system\ai-services
-c:/clara-system/.venv/Scripts/python.exe -m uvicorn medical_text_api:app --reload --port 8000
+A hybrid AI assistant for doctors. Combines rule-based clinical logic,
+structured lab extraction, and a local LLM to support cardiovascular
+case assessment.
+
+---
+
+## Project Structure
+
+clara-system/
+├── backend/                        # C# — PDF ingestion only
+│   ├── Controllers/
+│   │   └── PdfIngestionController.cs
+│   ├── Ingestion/
+│   │   ├── PdfIngestionService.cs
+│   │   └── PdfParser.cs
+│   └── Program.cs
+│
+├── ai-services/                    # Python — all intelligence
+│   ├── medical_text_api.py         # Text cleaning and lab extraction (port 8000)
+│   ├── lab_extractors.py           # Regex-based lab value parser
+│   ├── llm_service/
+│   │   ├── llm_client.py           # LLM chat service with MCP tool loop (port 8001)
+│   │   └── mcp_tools.py            # Tool definitions and executor
+│   ├── ml_service/
+│   │   └── app.py                  # ML prediction service (port 8002, placeholder)
+│   └── rule_engine/
+│       └── rules.py                # Rule-based clinical flag engine
+│
+├── frontend/                       # UI (not yet connected)
+├── .venv/                          # Python virtual environment
+└── README.md
+
+---
+
+## Services and Ports
+
+| Port | Language | Service | Purpose |
+|------|----------|---------|---------|
+| 5000 | C# | PDF Ingestor | Reads PDFs from patient folders, returns raw text |
+| 8000 | Python | Medical Text API | Cleans text, extracts and structures lab values |
+| 8001 | Python | LLM Service | MCP tool loop, context injection, Ollama chat |
+| 8002 | Python | ML Service | Risk prediction (placeholder) |
+| 11434 | — | Ollama | Local LLM engine (llama3.2:1b) |
+
+---
+
+## Patient Folder Structure
+
+Desktop/
+└── Patients/
+└── 00001/
+├── demographics/
+├── discharge/      ← PDF discharge summaries
+├── encounters/
+├── imaging/
+├── labs/           ← PDF lab results (chemistry, hematology, microscopy)
+└── prescriptions/
+
+## How to Run
+
+### Prerequisites
+- .NET SDK installed
+- Python 3.11+
+- Ollama installed — https://ollama.com
+- llama3.2:1b model pulled
+
+### Pull the model (first time only)
+```powershell
+ollama pull llama3.2:1b
+```
+
+### Step 1 — Start Ollama
+Ollama runs automatically on Windows after install.
+To start manually:
+```powershell
+ollama serve
+```
+If you see "address already in use" it is already running. Proceed to Step 2.
+
+### Step 2 — Start C# backend
+```powershell
+cd C:\clara-system\backend
+dotnet run
+```
+Runs on http://localhost:5000
+
+### Step 3 — Activate Python virtual environment
+```powershell
+cd C:\clara-system
+.venv\Scripts\activate
+```
+You should see `(.venv)` at the start of your prompt.
+
+### Step 4 — Start medical text API
+Open a new terminal, activate venv, then:
+```powershell
+cd C:\clara-system\ai-services
+uvicorn medical_text_api:app --port 8000 --reload
+```
+
+### Step 5 — Start LLM service
+Open a new terminal, activate venv, then:
+```powershell
+cd C:\clara-system\ai-services\llm_service
+uvicorn llm_client:app --port 8001 --reload
+```
+
+---
+
+## Testing with Postman
+
+### Health checks (run these first)
+GET http://localhost:8000/
+GET http://localhost:8001/health
+
+### Extract chemistry lab results
+POST http://localhost:8000/chemistry-results
+Content-Type: application/json
+{
+"patient": "00001",
+"labs": "chemistry"
+}
+
+### Extract hematology lab results
+POST http://localhost:8000/hematology-results
+Content-Type: application/json
+{
+"patient": "00001",
+"labs": "hematology"
+}
+
+### Extract microscopy lab results
+POST http://localhost:8000/microscopy-results
+Content-Type: application/json
+{
+"patient": "00001",
+"labs": "microscopy"
+}
+
+### Categorize all patient text
+POST http://localhost:8000/categorize
+Content-Type: application/json
+{
+"patient": "00001",
+"labs": "labs"
+}
+
+### Chat with CLARA (main endpoint)
+POST http://localhost:8001/chat
+Content-Type: application/json
+{
+"patient_id": "00001",
+"message": "What are this patient's cholesterol and creatinine levels?"
+}
+
+Expected response shape:
+```json
+{
+  "patient_id": "00001",
+  "response": "CREATININE is within normal range at 1.16 mg/dL...",
+  "tools_called": ["get_chemistry"]
+}
+```
+
+
+## How CLARA Works
+
+1. Doctor sends a question and patient ID to the LLM service at port 8001
+2. LLM service builds a prompt with tool definitions and sends it to Ollama
+3. Ollama decides which tool to call based on the question
+4. LLM service executes the tool — calls port 8000 to get structured lab data
+5. Port 8000 calls C# at port 5000 to get raw PDF text
+6. C# reads the PDF files from disk and returns raw text
+7. Port 8000 cleans and extracts structured lab values
+8. Lab data is injected into the prompt as patient context
+9. Ollama generates a clinical response grounded in the actual data
+10. Doctor receives the response with a list of which tools were called
+
+---
+
+
+
+## Current Limitations
+
+- Model is llama3.2:1b — small and fast but limited reasoning ability
+- No conversation history between requests — each chat is stateless
+- Rule engine not yet connected to lab values
+- ML service is a placeholder — no real model trained yet
+- No frontend connected to the chat endpoint yet
+
+---
+
+## Next Steps
+
+- [ ] Connect rule engine to extracted lab values
+- [ ] Add conversation history to the chat endpoint
+- [ ] Wire frontend to port 8001
+- [ ] Replace ML placeholder with trained cardiovascular risk model
+- [ ] Add MCP tools for trends across multiple lab dates
