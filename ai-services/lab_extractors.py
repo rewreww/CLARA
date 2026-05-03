@@ -113,23 +113,6 @@ def _parse_test(text: str, name: str, pattern: str, preferred_units: List[str], 
 
 
 def _extract_lab_values(raw_text: str, tests: List[Tuple[str, str, List[str], bool]]) -> List[Dict[str, object]]:
-    """
-    Main extraction function for lab values.
-
-    Steps:
-    1. Normalize the input text
-    2. Find all test matches and sort by position (to handle order)
-    3. For each test, create a segment from its position to the next test
-    4. Parse each segment individually
-    5. Collect successful parses into results list
-
-    Args:
-        raw_text: Raw lab text
-        tests: List of (name, pattern, units, is_string) tuples
-
-    Returns:
-        List of parsed test results
-    """
     text = normalize_text(raw_text)
     candidates: List[Tuple[int, str, str, List[str], bool]] = []
 
@@ -159,12 +142,7 @@ def _extract_lab_values(raw_text: str, tests: List[Tuple[str, str, List[str], bo
 
 
 def extract_chemistry_results(raw_text: str) -> List[Dict[str, object]]:
-    """
-    Extract chemistry lab results.
 
-    Tests include metabolic panel, lipids, enzymes, electrolytes.
-    All are numeric values with units and references.
-    """
     tests = [
         ("CREATININE", r"creatinine", ["mg/dL"], False),
         ("BLOOD URIC ACID", r"blood uric acid", ["mg/dL"], False),
@@ -184,12 +162,6 @@ def extract_chemistry_results(raw_text: str) -> List[Dict[str, object]]:
 
 
 def extract_hematology_results(raw_text: str) -> List[Dict[str, object]]:
-    """
-    Extract hematology lab results.
-
-    Includes CBC parameters, coagulation tests, blood grouping.
-    Mix of numeric values and string results (blood types, remarks).
-    """
     tests = [
         ("HEMOGLOBIN", r"hemoglobin", ["g/L"], False),
         ("HEMATOCRIT", r"hematocrit", ["%"], False),
@@ -219,12 +191,6 @@ def extract_hematology_results(raw_text: str) -> List[Dict[str, object]]:
 
 
 def extract_microscopy_results(raw_text: str) -> List[Dict[str, object]]:
-    """
-    Extract urine microscopy results.
-
-    Includes physical examination, chemical tests, and microscopic findings.
-    Mix of qualitative strings and quantitative counts.
-    """
     tests = [
         ("COLOR", r"\bcolor\b", [], True),
         ("TRANSPARENCY", r"transparency", [], True),

@@ -14,10 +14,6 @@ from lab_extractors import (
 app = FastAPI()
 
 
-class ProcessRequest(BaseModel):
-    raw_text: str
-
-
 class LabsResponse(BaseModel):
     chemistry: str
     hematology: str
@@ -270,30 +266,6 @@ def microscopy_results(request: LabRequest):
     microscopy_text = categorized["labs"]["microscopy"]
     parsed = extract_microscopy_results(microscopy_text)
     return LabResponse(patient=request.patient, results=parsed)
-
-
-@app.post("/process", response_model=ProcessResponse)
-def process_text(request: ProcessRequest):
-    """Process raw extracted text and return a structured JSON response."""
-    cleaned = normalize_text(request.raw_text)
-
-    if not cleaned:
-        raise HTTPException(status_code=400, detail="raw_text must not be empty")
-
-    categorized = categorize_text(cleaned)
-
-    return ProcessResponse(
-        demographics=categorized["demographics"],
-        discharge=categorized["discharge"],
-        encounters=categorized["encounters"],
-        imaging=categorized["imaging"],
-        labs=LabsResponse(
-            chemistry=categorized["labs"]["chemistry"],
-            hematology=categorized["labs"]["hematology"],
-            microscopy=categorized["labs"]["microscopy"],
-        ),
-        prescriptions=categorized["prescriptions"],
-    )
 
 
 @app.get("/")
