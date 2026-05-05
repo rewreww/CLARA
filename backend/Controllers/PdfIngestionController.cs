@@ -1,4 +1,3 @@
-using System.Linq;
 using CLARA.Backend.Ingestion;
 using Microsoft.AspNetCore.Mvc;
 

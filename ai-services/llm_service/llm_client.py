@@ -9,11 +9,20 @@ from typing import Optional, Dict, Any
 from collections import defaultdict
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from mcp_tools import TOOL_DEFINITIONS, execute_tool, build_tools_prompt
+from mcp_tools import TOOL_DEFINITIONS, execute_tool, build_tools_prompt, fetch_all_lab_blocks
 from rag.retriever import retrieve_guidelines
 from rule_engine.rules import rule_engine
 
 app = FastAPI()
+
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 OLLAMA_URL   = "http://localhost:11434"
 OLLAMA_MODEL = "llama3.2:1b"
@@ -21,19 +30,30 @@ OLLAMA_MODEL = "llama3.2:1b"
 conversation_store: dict[str, list[dict]] = defaultdict(list)
 MAX_HISTORY = 10
 
-SYSTEM_PROMPT = """You are CLARA, a clinical AI assistant specialized in cardiovascular case assessment.
-Your job is to help doctors interpret lab findings, identify trends, and flag concerns.
+SYSTEM_PROMPT = """You are CLARA, a clinical AI assistant specialized in cardiovascular assessment.
 
-Rules you must follow:
-- Always cite specific lab values when making a statement.
-- Flag any value marked *** HIGH *** or *** LOW *** explicitly.
-- If data is missing or unclear, say so — do not guess.
-- Do not prescribe or give final diagnoses — support the doctor's judgment.
-- Where relevant, reference the clinical guidelines provided to support your answer.
-- You have memory of the current conversation — use it to answer follow-up questions.
-- Be concise. Doctors are busy.
+STRICT RULES:
+- You MUST call all relevant tools to retrieve patient data before answering ANY clinical question.
+- Do NOT answer without data unless explicitly told no data is available.
+- Do NOT rely only on ***HIGH*** or ***LOW*** flags — interpret their clinical meaning.
 
-{tools_section}"""
+When analyzing labs:
+1. Identify abnormal values (HIGH/LOW)
+2. Explain WHY they are clinically significant
+3. Link abnormalities to possible conditions or risks
+4. Prioritize findings (most concerning first)
+5. Reference exact values and units
+6. If multiple abnormalities exist, explain relationships between them
+
+Output style:
+- Start with the most critical finding
+- Be concise but clinically meaningful
+- Avoid generic statements like "this is high" — always explain impact
+
+If data is incomplete:
+- Clearly state what is missing and what is needed
+
+When [ALL LAB DATA — PRELOADED] appears in the prompt, that data is already complete for chemistry, hematology, and urinalysis/microscopy — answer from it. Do not ask the doctor to call tools for those labs.{tools_section}"""
 
 
 class ChatRequest(BaseModel):
@@ -116,31 +136,45 @@ def build_history_block(history: list[dict]) -> str:
 
 
 def run_rule_engine(patient_id: str) -> Dict[str, Any]:
-    """Fetch lab results and evaluate clinical rules."""
-    all_results = []
-    for lab_type in ["chemistry", "hematology"]:
+    """Fetch lab results (chemistry, hematology, microscopy) and evaluate clinical rules."""
+    all_results: list = []
+    for lab_type in ("chemistry", "hematology", "microscopy"):
         try:
             r = requests.post(
                 f"http://localhost:8000/{lab_type}-results",
                 json={"patient": patient_id, "labs": lab_type},
-                timeout=30
+                timeout=30,
             )
             r.raise_for_status()
             results = r.json().get("results", [])
-            all_results.extend(results)
+            if isinstance(results, list):
+                all_results.extend(results)
         except Exception:
             continue
     return rule_engine.evaluate_labs(all_results)
 
-    # Print exact test names so we can see what the rule engine receives
-    print(f"[RULE ENGINE] Test names in data:")
-    for result in all_results:
-        print(f"  '{result.get('test_name')}' = {result.get('value')} {result.get('unit')}")
 
-    print(f"[RULE ENGINE] Total results: {len(all_results)}")
-    rule_result = rule_engine.evaluate_labs(all_results)
-    print(f"[RULE ENGINE] Flags: {rule_result.get('flags', [])}")
-    return rule_result
+_LAB_TOPIC = re.compile(
+    r"\b(labs?|laboratory|chemistry|hematology|cbc\b|urinalysis|microscopy|blood work|lab work|"
+    r"lab results?|lab values?|lab tests?|metabolic panel)\b",
+    re.IGNORECASE,
+)
+_BROAD_LAB_ASK = re.compile(
+    r"\b(any|all|everything|abnormal|out of range|o\.?r\.?|concern(ed)?|worried|worry|worrisome|"
+    r"red flag|screen|overview|should i|findings|values?|review|flagged|elevated|decreased|high|low|"
+    r"panic|critical)\b",
+    re.IGNORECASE,
+)
+
+
+def wants_full_lab_scan(message: str) -> bool:
+    """
+    Detect questions that imply reviewing the full laboratory picture, so we can
+    preload all lab modalities without relying on the LLM to chain tool calls.
+    """
+    if not message or not message.strip():
+        return False
+    return bool(_LAB_TOPIC.search(message) and _BROAD_LAB_ASK.search(message))
 
 
 def build_prompt(
@@ -170,12 +204,15 @@ def build_prompt(
     parts.append(f"Doctor's question: {message}")
     parts.append("")
     parts.append(
-        "If you need patient data, call a tool using the format: "
+        "If you still need patient data not shown above, retrieve it using exactly one line in this format: "
         "TOOL: <tool_name> PATIENT: <patient_id>"
     )
     parts.append(
-        "If you already have enough to answer, answer directly. "
-        "Use conversation history above to answer follow-up questions."
+        "For a broad lab review, prefer TOOL: get_all_labs PATIENT: <patient_id> so all lab modalities load at once."
+    )
+    parts.append(
+        "If you already have enough information in the prompt to answer, respond directly. "
+        "Use conversation history for follow-up questions."
     )
 
     return "\n".join(parts)
@@ -214,15 +251,38 @@ def chat(request: ChatRequest):
     history       = conversation_store[session_id]
     history_block = build_history_block(history)
 
-    # 5. Build initial prompt using safe helper
+    # 5. Broad lab-review questions: preload all lab modalities (chemistry, hematology, microscopy)
+    #    so the model answers from real data instead of deferring with "call get_chemistry".
+    pid = (request.patient_id or "").strip()
+    if pid and wants_full_lab_scan(request.message):
+        preload_lines = [
+            "[ALL LAB DATA — PRELOADED BY SERVER]",
+            "The following blocks contain chemistry, hematology, and microscopy/urinalysis (when available).",
+            "Interpret abnormalities with clinical context. Cite specific values and *** HIGH *** / *** LOW *** flags.",
+            "",
+        ]
+        for tool_name, block in fetch_all_lab_blocks(pid):
+            if tool_name not in tools_called:
+                tools_called.append(tool_name)
+            collected_data.append(block)
+            preload_lines.append(f"[{tool_name}]")
+            preload_lines.append(block)
+            preload_lines.append("")
+        preload_block = "\n".join(preload_lines).strip()
+    else:
+        preload_block = ""
+
+    # 6. Build initial prompt using safe helper
     prompt = build_prompt(
         system, guidelines, emergency_block,
         history_block, request.patient_id, request.message
     )
+    if preload_block:
+        prompt = preload_block + "\n\n" + prompt
 
     final_response = "I was unable to generate a response."
 
-    # 6. Tool-use loop
+    # 7. Tool-use loop
     for _ in range(4):
         response_text = call_ollama(prompt)
         tool_call     = parse_tool_call(response_text)
@@ -256,14 +316,17 @@ def chat(request: ChatRequest):
             f"[DATA RETRIEVED - {tool_name}]",
             tool_result,
             "",
-            "Now answer the doctor's question directly using this data.",
-            "Do not call another tool unless the question requires data you still do not have.",
-            "Begin your answer with the clinical finding.",
-            "Do not repeat the patient ID or question.",
+            "Now analyze the retrieved lab data clinically:"
+            "Identify abnormal values"
+            "Explain their significance"
+            "Prioritize risks"
+            "Reference exact values and units"
+            "Do not just label HIGH/LOW — interpret them medically"
+            "Start with the most critical issue"
             ""
         ])
 
-    # 7. Save to memory
+    # 8. Save to memory
     conversation_store[session_id].append({"role": "doctor",  "content": request.message})
     conversation_store[session_id].append({"role": "clara",   "content": final_response})
 

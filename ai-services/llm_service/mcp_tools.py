@@ -6,6 +6,10 @@ CLEANER_URL = "http://localhost:8000"
 
 # Tool definitions — these are what we show Ollama so it knows what's available.
 # Each tool has a name, a description the AI reads, and the parameters it needs.
+# Used for automatic full-lab pull (broad lab-review questions).
+ALL_LAB_TOOL_NAMES = ("get_chemistry", "get_hematology", "get_microscopy")
+
+
 TOOL_DEFINITIONS = [
     {
         "name": "get_chemistry",
@@ -46,6 +50,17 @@ TOOL_DEFINITIONS = [
             "Fetches the discharge summary for a patient. "
             "Use this when the doctor asks about diagnosis, discharge notes, "
             "clinical history, or what happened during the hospital stay."
+        ),
+        "parameters": {
+            "patient_id": "The patient folder ID, e.g. 00001"
+        }
+    },
+    {
+        "name": "get_all_labs",
+        "description": (
+            "Fetches chemistry, hematology, AND microscopy/urinalysis in one step. "
+            "Use this when the doctor asks for a broad lab review: any abnormalities, "
+            "labs to worry about, screening all results, or overview of laboratory data."
         ),
         "parameters": {
             "patient_id": "The patient folder ID, e.g. 00001"
@@ -120,6 +135,12 @@ def execute_tool(tool_name: str, patient_id: str) -> str:
             return f"[DISCHARGE SUMMARY]\n{discharge[:2000]}" if discharge \
                    else "No discharge summary found."
 
+        elif tool_name == "get_all_labs":
+            parts = []
+            for sub in ALL_LAB_TOOL_NAMES:
+                parts.append(execute_tool(sub, patient_id))
+            return "\n\n".join(parts)
+
         else:
             return f"Unknown tool: {tool_name}"
 
@@ -145,8 +166,21 @@ def build_tools_prompt() -> str:
     lines += [
         "",
         "Rules for tool use:",
+        "- If the question is a broad lab review (any abnormals, all labs, worried about labs), "
+        "call get_all_labs once instead of separate chemistry/hematology/microscopy calls.",
         "- Only call a tool if you need data you do not already have.",
         "- After receiving tool results, answer the doctor's question directly.",
         "- If you have enough data already, skip the tool and answer immediately.",
     ]
     return "\n".join(lines)
+
+
+def fetch_all_lab_blocks(patient_id: str) -> list[tuple[str, str]]:
+    """
+    Run all three lab extractors. Returns [(tool_name, formatted_block), ...].
+    Never raises — failed endpoints become error strings in the block.
+    """
+    out: list[tuple[str, str]] = []
+    for sub in ALL_LAB_TOOL_NAMES:
+        out.append((sub, execute_tool(sub, patient_id)))
+    return out

@@ -3,6 +3,7 @@ import requests
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Any, Dict, List, Optional, Tuple, Union
+from fastapi.middleware.cors import CORSMiddleware
 
 from lab_extractors import (
     normalize_text,
@@ -13,6 +14,12 @@ from lab_extractors import (
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class LabsResponse(BaseModel):
     chemistry: str

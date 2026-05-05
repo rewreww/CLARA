@@ -9,7 +9,7 @@ case assessment.
 ## Project Structure
 
 clara-system/
-├── backend/                        # C# — PDF ingestion only
+├── backend/                        # C# — PDF ingestion only, this finds all the PDFs across all folders
 │   ├── Controllers/
 │   │   └── PdfIngestionController.cs
 │   ├── Ingestion/
