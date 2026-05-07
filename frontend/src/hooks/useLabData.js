@@ -24,14 +24,26 @@ export function useLabData() {
         setData({ type: section, results: json.results || [] })
 
       } else if (section === 'discharge') {
-        const res = await fetch(`${LABS_URL}/categorize`, {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ patient: patientId, labs: 'labs' }),
-        })
-        if (!res.ok) throw new Error(`Server error ${res.status}`)
-        const json = await res.json()
-        setData({ type: 'discharge', text: json.discharge || '' })
+            const res = await fetch(`${LABS_URL}/discharge-parsed`, {
+              method:  'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body:    JSON.stringify({ patient: patientId }),
+              })
+            if (!res.ok) throw new Error(`Server error ${res.status}`)
+              const json = await res.json()
+                setData({
+                  type:               'discharge',
+                  found:               json.found,
+                  condition_discharge: json.condition_discharge,
+                  chief_complaint:     json.chief_complaint,
+                  admitting_dx:        json.admitting_dx,
+                  final_dx:            json.final_dx,
+                  hpi:                 json.hpi,
+                  pmh:                 json.pmh,
+                  physical_exam:       json.physical_exam,
+                  labs:                json.labs || [],
+                  raw_text:            json.raw_text,
+            })
 
       } else {
         setData(null)

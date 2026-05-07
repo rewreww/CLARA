@@ -66,6 +66,19 @@ TOOL_DEFINITIONS = [
             "patient_id": "The patient folder ID, e.g. 00001"
         }
     },
+
+    {
+        "name": "get_trends",
+        "description": (
+            "Fetches lab results across multiple dates for a patient to show trends over time. "
+            "Use this when the doctor asks about changes, trends, improvement, worsening, "
+            "or comparison of lab values over time."
+    ),
+        "parameters": {
+            "patient_id": "The patient folder ID, e.g. 00001",
+            "lab_type":   "One of: chemistry, hematology, microscopy"
+    }
+},
 ]
 
 
@@ -140,6 +153,37 @@ def execute_tool(tool_name: str, patient_id: str) -> str:
             for sub in ALL_LAB_TOOL_NAMES:
                 parts.append(execute_tool(sub, patient_id))
             return "\n\n".join(parts)
+        
+        elif tool_name == "get_trends":
+            # lab_type defaults to chemistry if not specified
+            # patient_id is passed as the second arg — lab_type needs special handling
+            # We try chemistry first as the most common trend request
+            try:
+                r = requests.post(
+                    f"{CLEANER_URL}/labs-timeline",
+                    json={"patient": patient_id, "lab_type": "chemistry"},
+                    timeout=30
+                )
+                r.raise_for_status()
+                data = r.json()
+                timeline = data.get("timeline", [])
+                if not timeline:
+                    return "No trend data found — ensure labs are stored in date subfolders (YYYY-MM-DD)."
+
+                lines = ["[LAB TRENDS OVER TIME — CHEMISTRY]"]
+                for entry in timeline:
+                    lines.append(f"\n  Date: {entry['date']}")
+                    for res in entry["results"]:
+                        low  = res.get("reference_low")
+                        high = res.get("reference_high")
+                        flag = ""
+                        if isinstance(res["value"], (int, float)):
+                            if high and res["value"] > high: flag = " *** HIGH ***"
+                            if low  and res["value"] < low:  flag = " *** LOW ***"
+                        lines.append(f"    {res['test_name']}: {res['value']} {res['unit']}{flag}")
+                    return "\n".join(lines)
+            except requests.RequestException as e:
+                return f"Error fetching trends: {str(e)}"
 
         else:
             return f"Unknown tool: {tool_name}"
