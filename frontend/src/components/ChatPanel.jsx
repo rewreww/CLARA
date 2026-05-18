@@ -10,12 +10,26 @@ function MessageBubble({ msg }) {
       </div>
       <div className="max-w-[92%] px-[13px] py-[10px] text-[12.5px] leading-[1.6]"
         style={{
-          borderRadius:    isDoctor ? '10px 10px 4px 10px' : '10px 10px 10px 4px',
-          background:      isDoctor ? 'rgba(37,99,235,0.15)' : '#0d1526',
-          border:          isDoctor ? '1px solid rgba(37,99,235,0.25)' : '1px solid #1a2d4e',
-          color:           '#dde4f0',
+          borderRadius: isDoctor
+            ? '10px 10px 4px 10px'
+            : '10px 10px 10px 4px',
+          background: isDoctor
+            ? 'rgba(37,99,235,0.15)'
+            : '#0d1526',
+          border: isDoctor
+            ? '1px solid rgba(37,99,235,0.25)'
+            : '1px solid #1a2d4e',
+          color: '#dde4f0',
         }}>
+
         {msg.text}
+
+        {msg.streaming && (
+          <span
+            className="inline-block w-[2px] h-[14px]
+      bg-accent2 ml-[2px] align-middle animate-pulse-dot"
+          />
+        )}
       </div>
 
       {/* Meta tags — only for CLARA messages */}
@@ -60,9 +74,9 @@ function TypingIndicator() {
 }
 
 export default function ChatPanel({ patient, ruleFlags, isEmergency, messages, loading, onSend, onClear }) {
-  const [input,  setInput]  = useState('')
+  const [input, setInput] = useState('')
   const bottomRef = useRef(null)
-  const taRef     = useRef(null)
+  const taRef = useRef(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -111,9 +125,9 @@ export default function ChatPanel({ patient, ruleFlags, isEmergency, messages, l
       {ruleFlags.length > 0 && (
         <div className="mx-3 mt-2 px-3 py-2 rounded-[8px] font-mono text-[10px] shrink-0"
           style={{
-            background:   isEmergency ? 'rgba(239,68,68,0.1)'  : 'rgba(245,158,11,0.08)',
-            border:       `1px solid ${isEmergency ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.2)'}`,
-            color:        isEmergency ? '#ef4444' : '#f59e0b',
+            background: isEmergency ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.08)',
+            border: `1px solid ${isEmergency ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.2)'}`,
+            color: isEmergency ? '#ef4444' : '#f59e0b',
           }}>
           <div className="tracking-[0.1em] uppercase mb-[5px]">⚠ Rule Engine Alerts</div>
           {ruleFlags.map((f, i) => (
@@ -125,7 +139,7 @@ export default function ChatPanel({ patient, ruleFlags, isEmergency, messages, l
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-[10px]">
         {messages.map((m, i) => <MessageBubble key={i} msg={m} />)}
-        {loading && <TypingIndicator />}
+        {loading && !messages.some(m => m.streaming) && <TypingIndicator />}
         <div ref={bottomRef} />
       </div>
 

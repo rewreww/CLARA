@@ -67,6 +67,11 @@ class PhysicalExam(BaseModel):
     vitals:   Optional[str] = None
     findings: Optional[str] = None
 
+class HospitalCourseItem(BaseModel):
+    label: Optional[str] = None
+    date: Optional[str] = None
+    content: Optional[str] = None
+
 class ParsedDischargeResponse(BaseModel):
     patient:              str
     found:                bool
@@ -77,7 +82,9 @@ class ParsedDischargeResponse(BaseModel):
     hpi:                  Optional[str] = None
     pmh:                  Optional[str] = None
     physical_exam:        PhysicalExam  = PhysicalExam()
+    laboratory_data:      Optional[str] = None
     labs:                 List[ParsedLabItem] = []
+    hospital_course:      List[HospitalCourseItem] = []
     raw_text:             Optional[str] = None
 
 
@@ -469,6 +476,11 @@ class PhysicalExam(BaseModel):
     vitals:   Optional[str] = None
     findings: Optional[str] = None
 
+class HospitalCourseItem(BaseModel):
+    label: Optional[str] = None
+    date: Optional[str] = None
+    content: Optional[str] = None
+
 class ParsedDischargeResponse(BaseModel):
     patient:              str
     found:                bool
@@ -479,7 +491,9 @@ class ParsedDischargeResponse(BaseModel):
     hpi:                  Optional[str] = None
     pmh:                  Optional[str] = None
     physical_exam:        PhysicalExam  = PhysicalExam()
+    laboratory_data:      Optional[str] = None
     labs:                 List[ParsedLabItem] = []
+    hospital_course:      List[HospitalCourseItem] = []
     raw_text:             Optional[str] = None   # included for debugging
 
 
@@ -526,8 +540,10 @@ def discharge_parsed(request: DischargeRequest):
             vitals   = parsed["physical_exam"].get("vitals"),
             findings = parsed["physical_exam"].get("findings"),
         ),
-        labs     = [ParsedLabItem(**lab) for lab in parsed.get("labs", [])],
-        raw_text = raw_text[:500] + "..." if len(raw_text) > 500 else raw_text,
+        laboratory_data      = parsed.get("laboratory_data"),
+        labs                 = [ParsedLabItem(**lab) for lab in parsed.get("labs", [])],
+        hospital_course      = [HospitalCourseItem(**item) for item in parsed.get("hospital_course", [])],
+        raw_text             = raw_text,
     )
 
 @app.get("/")

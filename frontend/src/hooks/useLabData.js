@@ -41,7 +41,9 @@ export function useLabData() {
                   hpi:                 json.hpi,
                   pmh:                 json.pmh,
                   physical_exam:       json.physical_exam,
+                  laboratory_data:     json.laboratory_data,
                   labs:                json.labs || [],
+                  hospital_course:     json.hospital_course || [],
                   raw_text:            json.raw_text,
             })
 

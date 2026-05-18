@@ -7,6 +7,7 @@ generates embeddings using Ollama, and stores them in ChromaDB.
 
 import os
 import sys
+from xmlrpc import client
 import fitz  # pymupdf
 import chromadb
 import requests
@@ -20,8 +21,8 @@ CHROMA_DIR     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chrom
 OLLAMA_URL     = "http://localhost:11434"
 EMBED_MODEL    = "nomic-embed-text"
 COLLECTION     = "clara_guidelines"
-CHUNK_SIZE     = 400   # words per chunk
-CHUNK_OVERLAP  = 80    # words of overlap between chunks so context is not lost
+CHUNK_SIZE     = 250  # words per chunk
+CHUNK_OVERLAP  = 60   # words of overlap between chunks so context is not lost
 
 
 def extract_text_from_pdf(pdf_path: str) -> str:
@@ -87,16 +88,10 @@ def ingest():
     os.makedirs(CHROMA_DIR, exist_ok=True)
     client = chromadb.PersistentClient(path=CHROMA_DIR)
 
-    # Delete existing collection so re-running ingest is always clean
-    try:
-        client.delete_collection(COLLECTION)
-        print("Cleared existing collection.\n")
-    except Exception:
-        pass
-
-    collection = client.create_collection(
+    # Create collection only if it does not exist
+    collection = client.get_or_create_collection(
         name=COLLECTION,
-        metadata={"hnsw:space": "cosine"}  # cosine similarity for medical text
+        metadata={"hnsw:space": "cosine"}
     )
 
     # ── Process each PDF ──────────────────────────────────────────────────────
