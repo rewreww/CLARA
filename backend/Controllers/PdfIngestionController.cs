@@ -17,6 +17,15 @@ public class PdfIngestionController : ControllerBase
     public sealed record ExtractTextRequest(string FolderName);
     public sealed record ExtractTextResponse(string FolderName, IReadOnlyList<ExtractedPdfResult> Files);
     public sealed record ExtractedPdfResult(string FilePath, string Text);
+    public sealed record PatientFoldersResponse(IReadOnlyList<string> Patients);
+
+    [HttpGet("patients")]
+    [ProducesResponseType(typeof(PatientFoldersResponse), 200)]
+    public IActionResult Patients()
+    {
+        var patients = _pdfIngestionService.ListPatientFolders();
+        return Ok(new PatientFoldersResponse(patients));
+    }
 
     [HttpPost("extract")]
     [ProducesResponseType(typeof(ExtractTextResponse), 200)]

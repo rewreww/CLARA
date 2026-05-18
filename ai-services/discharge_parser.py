@@ -13,6 +13,23 @@ from typing import Optional
 
 def empty_schema() -> dict:
     return {
+        "header": {
+            "facility": None,
+            "document_title": None,
+            "patient_name": None,
+            "age": None,
+            "sex": None,
+            "civil_status": None,
+            "hospital_no": None,
+            "service": None,
+            "room_ward": None,
+            "attending_physician": None,
+            "referral_doctors": None,
+            "date_admitted": None,
+            "time_admitted": None,
+            "date_discharged": None,
+            "time_discharged": None,
+        },
         "condition_discharge": None,
         "chief_complaint": None,
         "admitting_dx": None,
@@ -41,10 +58,40 @@ SECTION_PATTERNS = [
     ("hospital_course", r"(?:hospital\s+course|course\s+in\s+the\s+ward|course\s+in\s+ward)"),
 ]
 
+HEADER_PATTERNS = [
+    ("patient_name", r"(?:patient(?:'s)?\s+name|patient|name)"),
+    ("age", r"age"),
+    ("sex", r"(?:sex|gender)"),
+    ("civil_status", r"status"),
+    ("hospital_no", r"hospital\s+no"),
+    ("service", r"service/s"),
+    ("room_ward", r"room/ward"),
+    ("attending_physician", r"attending\s+physician"),
+    ("referral_doctors", r"referral\s+doctor/s"),
+    ("date_admitted", r"(?:date\s+admitted|date\s+of\s+admission)"),
+    ("time_admitted", r"time\s+admitted"),
+    ("date_discharged", r"(?:date\s+discharged|date\s+of\s+discharge)"),
+    ("time_discharged", r"time\s+discharged"),
+]
+
+COLON_SECTION_PATTERNS = [
+    pattern for key, pattern in SECTION_PATTERNS if key != "hospital_course"
+]
+FREE_SECTION_PATTERNS = [
+    pattern for key, pattern in SECTION_PATTERNS if key == "hospital_course"
+]
+
 SECTION_RE = re.compile(
-    r"(?im)(?:^|\n)\s*("
-    + "|".join(pattern for _, pattern in SECTION_PATTERNS)
-    + r")\s*:?\s*"
+    r"(?i)(?<![A-Za-z0-9])(?:"
+    r"(?P<label>" + "|".join(COLON_SECTION_PATTERNS) + r")\s*:"
+    r"|(?P<free_label>" + "|".join(FREE_SECTION_PATTERNS) + r")\s*:?"
+    r")\s*"
+)
+
+HEADER_RE = re.compile(
+    r"(?i)(?<![A-Za-z0-9])("
+    + "|".join(pattern for _, pattern in HEADER_PATTERNS)
+    + r")\s*:\s*"
 )
 
 
@@ -79,21 +126,73 @@ def section_key(label: str) -> Optional[str]:
     return None
 
 
-def extract_sections(text: str) -> dict:
+def header_key(label: str) -> Optional[str]:
+    for key, pattern in HEADER_PATTERNS:
+        if re.fullmatch(pattern, label.strip(), flags=re.IGNORECASE):
+            return key
+    return None
+
+
+def section_matches(text: str) -> list:
     matches = []
     for match in SECTION_RE.finditer(text):
-        key = section_key(match.group(1))
+        label = match.group("label") or match.group("free_label")
+        key = section_key(label)
         if key:
             matches.append((key, match.start(), match.end()))
+    return matches
+
+
+def extract_sections(text: str) -> dict:
+    matches = section_matches(text)
 
     sections = {}
     for index, (key, _heading_start, content_start) in enumerate(matches):
-        next_start = matches[index + 1][1] if index + 1 < len(matches) else len(text)
+        next_start = len(text)
+        for next_key, next_heading_start, _next_content_start in matches[index + 1:]:
+            if next_key != key:
+                next_start = next_heading_start
+                break
         content = text[content_start:next_start].strip(" :\n\t")
         if content:
             sections.setdefault(key, content)
 
     return sections
+
+
+def extract_header(text: str) -> dict:
+    header = empty_schema()["header"]
+    matches = section_matches(text)
+    header_text = text[:matches[0][1]].strip() if matches else text.strip()
+    if not header_text:
+        return header
+
+    title_match = re.search(
+        r"\bDISCHARGE\s+SUMMARY(?:\s*/\s*MEDICAL\s+ABSTRACT)?\b",
+        header_text,
+        flags=re.IGNORECASE,
+    )
+    if title_match:
+        header["facility"] = clean_field(header_text[:title_match.start()])
+        header["document_title"] = clean_field(title_match.group(0))
+    else:
+        header["facility"] = clean_field(header_text)
+
+    label_matches = []
+    for match in HEADER_RE.finditer(header_text):
+        key = header_key(match.group(1))
+        if key:
+            label_matches.append((key, match.start(), match.end()))
+
+    for index, (key, _label_start, content_start) in enumerate(label_matches):
+        next_start = (
+            label_matches[index + 1][1]
+            if index + 1 < len(label_matches)
+            else len(header_text)
+        )
+        header[key] = clean_field(header_text[content_start:next_start])
+
+    return header
 
 
 def extract_physical_exam(section_text: Optional[str]) -> dict:
@@ -175,8 +274,9 @@ def extract_hospital_course(text: Optional[str]) -> list:
 
     pattern = re.compile(
         r"((?:on\s+the\s+day\s+of\s+admission)|"
-        r"(?:(?:on\s+the\s+)?\d+(?:st|nd|rd|th)?\s+hospital\s+day))"
-        r"\s*\((\d{2}/\d{2})\)",
+        r"(?:(?:on\s+the\s+)?\d+(?:st|nd|rd|th)?"
+        r"(?:\s+to\s+\d+(?:st|nd|rd|th)?)?\s+hospital\s+day))"
+        r"\s*\((\d{2}/\d{2}(?:-\d{2}/\d{2})?)\)",
         re.IGNORECASE,
     )
 
@@ -186,7 +286,7 @@ def extract_hospital_course(text: Optional[str]) -> list:
     for index, match in enumerate(matches):
         start = match.end()
         end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
-        content = text[start:end].strip()
+        content = text[start:end].strip(" :\n\t")
 
         results.append({
             "label": clean_field(match.group(1)),
@@ -205,6 +305,7 @@ def parse_discharge(raw_text: str) -> dict:
 
     text = normalize_text(raw_text)
     sections = extract_sections(text)
+    schema["header"] = extract_header(text)
 
     for key in [
         "condition_discharge",

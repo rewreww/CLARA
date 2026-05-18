@@ -147,6 +147,36 @@ function HospitalCourse({ course }) {
   )
 }
 
+function patientDetailLine(header, patient) {
+  const age = header.age || patient?.age
+  const sex = header.sex || patient?.sex
+  const ward = header.room_ward || patient?.ward
+
+  return [
+    header.hospital_no ? `Hospital No: ${header.hospital_no}` : patient?.id ? `ID: ${patient.id}` : null,
+    age ? `${age}${String(age).match(/[a-z]/i) ? '' : 'y'}` : null,
+    sex,
+    header.civil_status,
+    ward,
+    header.service,
+  ].filter(Boolean).join(' / ')
+}
+
+function HeaderMeta({ label, value }) {
+  if (!value) return null
+
+  return (
+    <div className="min-w-0">
+      <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted mb-[3px]">
+        {label}
+      </div>
+      <div className="text-[12px] text-[#d7e2f0] truncate">
+        {value}
+      </div>
+    </div>
+  )
+}
+
 export default function DischargePanel({ data, patient }) {
   if (!data) {
     return (
@@ -163,6 +193,15 @@ export default function DischargePanel({ data, patient }) {
       </div>
     )
   }
+
+  const header = data.header || {}
+  const documentTitle = header.document_title || 'Discharge Summary'
+  const admissionDate = header.date_admitted
+    ? `Admitted: ${header.date_admitted}${header.time_admitted ? ` ${header.time_admitted}` : ''}`
+    : null
+  const dischargeDate = header.date_discharged
+    ? `Discharged: ${header.date_discharged}${header.time_discharged ? ` ${header.time_discharged}` : ''}`
+    : null
 
   const summarySections = [
     {
@@ -209,12 +248,28 @@ export default function DischargePanel({ data, patient }) {
 
   return (
     <div className="p-4 space-y-3">
-      <div className="mb-4">
-        <div className="text-[12px] text-muted uppercase tracking-wider">
-          Discharge Summary - {patient?.name || 'Patient'}
+      <div className="mb-4 border border-border bg-card rounded-[8px] overflow-hidden">
+        <div className="px-4 py-3 border-b border-border flex items-start justify-between gap-3">
+          <div>
+            <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-accent2">
+              {documentTitle}
+            </div>
+            {header.facility && (
+              <div className="text-[11px] text-muted mt-1">
+                {header.facility}
+              </div>
+            )}
+          </div>
+          <div className="font-mono text-[10px] text-muted shrink-0">
+            {patient?.id}
+          </div>
         </div>
-        <div className="text-[11px] text-muted">
-          ID: {patient?.id} / {patient?.age}y / {patient?.sex}
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 px-4 py-3 bg-bg">
+          <HeaderMeta label="Patient Details" value={patientDetailLine(header, patient)} />
+          <HeaderMeta label="Admission" value={admissionDate} />
+          <HeaderMeta label="Discharge" value={dischargeDate} />
+          <HeaderMeta label="Attending" value={header.attending_physician} />
         </div>
       </div>
 

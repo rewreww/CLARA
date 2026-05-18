@@ -1,8 +1,10 @@
 import requests
 import re as _re
+import os
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from collections import Counter
 from typing import Any, Dict, List, Optional, Tuple, Union
 from fastapi.middleware.cors import CORSMiddleware
 from discharge_parser import parse_discharge
@@ -56,6 +58,27 @@ class LabResponse(BaseModel):
     results: List[LabResult]
 
 
+class PatientFileItem(BaseModel):
+    file_path: str
+    file_name: str
+    section: str
+    lab_type: Optional[str] = None
+    date: Optional[str] = None
+
+
+class PatientSummary(BaseModel):
+    id: str
+    name: str
+    age: Optional[str] = None
+    sex: Optional[str] = None
+    available_sections: List[str] = []
+    files: List[PatientFileItem] = []
+
+
+class PatientsResponse(BaseModel):
+    patients: List[PatientSummary]
+
+
 class ParsedLabItem(BaseModel):
     test: str
     date: Optional[str] = None
@@ -72,9 +95,27 @@ class HospitalCourseItem(BaseModel):
     date: Optional[str] = None
     content: Optional[str] = None
 
+class DischargeHeader(BaseModel):
+    facility: Optional[str] = None
+    document_title: Optional[str] = None
+    patient_name: Optional[str] = None
+    age: Optional[str] = None
+    sex: Optional[str] = None
+    civil_status: Optional[str] = None
+    hospital_no: Optional[str] = None
+    service: Optional[str] = None
+    room_ward: Optional[str] = None
+    attending_physician: Optional[str] = None
+    referral_doctors: Optional[str] = None
+    date_admitted: Optional[str] = None
+    time_admitted: Optional[str] = None
+    date_discharged: Optional[str] = None
+    time_discharged: Optional[str] = None
+
 class ParsedDischargeResponse(BaseModel):
     patient:              str
     found:                bool
+    header:               DischargeHeader = DischargeHeader()
     condition_discharge:  Optional[str] = None
     chief_complaint:      Optional[str] = None
     admitting_dx:         Optional[str] = None
@@ -198,6 +239,191 @@ def get_extracted_text(data: dict, folder_filter: Optional[str] = None) -> str:
             pieces.append(text)
 
     return "\n".join(pieces)
+
+
+def compact_text(text: str) -> str:
+    return _re.sub(r"\s+", " ", text or "").strip()
+
+
+def title_case_name(name: str) -> str:
+    cleaned = compact_text(name).strip(" :")
+    if not cleaned:
+        return cleaned
+    if cleaned.upper() != cleaned:
+        return cleaned
+    return " ".join(part.capitalize() for part in cleaned.split(" "))
+
+
+def extract_metadata_value(text: str, labels: List[str], stop_labels: List[str]) -> Optional[str]:
+    label_pattern = "|".join(labels)
+    stop_pattern = "|".join(stop_labels)
+    match = _re.search(
+        rf"(?:{label_pattern})\s*:?\s*(.*?)(?=\s+(?:{stop_pattern})\s*:?\s|$)",
+        text,
+        flags=_re.IGNORECASE,
+    )
+    return compact_text(match.group(1)) if match else None
+
+
+def extract_patient_metadata(text: str) -> Dict[str, Optional[str]]:
+    compact = compact_text(text)
+    stop_labels = [
+        r"date\s+requested",
+        r"date\s+rendered",
+        r"date\s+performed",
+        r"date\s+released",
+        r"age",
+        r"gender",
+        r"sex",
+        r"birth\s*date",
+        r"birthdate",
+        r"time\s+released",
+        r"requesting\s+physician",
+        r"physician",
+        r"clinical\s+chemistry",
+        r"hematology",
+        r"clinical\s+microscopy",
+        r"urinalysis",
+        r"test",
+    ]
+
+    name = extract_metadata_value(compact, [r"patient(?:'s)?\s+name", r"name"], stop_labels)
+    age = extract_metadata_value(compact, [r"age"], stop_labels)
+    sex = extract_metadata_value(compact, [r"gender", r"sex"], stop_labels)
+
+    if sex:
+        normalized_sex = sex.upper()
+        if normalized_sex.startswith("MALE"):
+            sex = "M"
+        elif normalized_sex.startswith("FEMALE"):
+            sex = "F"
+        else:
+            sex = normalized_sex[:1]
+
+    return {
+        "name": title_case_name(name or ""),
+        "age": age,
+        "sex": sex,
+    }
+
+
+def classify_patient_file(file_path: str) -> PatientFileItem:
+    normalized = file_path.replace("\\", "/")
+    lower = normalized.lower()
+    file_name = normalized.split("/")[-1]
+    section = "other"
+    lab_type = None
+
+    for candidate in ["discharge", "encounters", "imaging", "prescriptions"]:
+        if f"/{candidate}/" in lower:
+            section = candidate
+            break
+
+    if "/labs/" in lower:
+        section = "labs"
+        for candidate in ["chemistry", "hematology", "microscopy"]:
+            if candidate in lower:
+                lab_type = candidate
+                break
+
+    return PatientFileItem(
+        file_path=file_path,
+        file_name=file_name,
+        section=section,
+        lab_type=lab_type,
+        date=extract_date_from_path(file_path),
+    )
+
+
+def list_patient_folder_names(backend_base_url: str) -> List[str]:
+    try:
+        response = requests.get(f"{backend_base_url}/patients", timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        patients = data.get("patients") or data.get("Patients") or []
+        if isinstance(patients, list):
+            return [str(patient) for patient in patients]
+    except requests.RequestException:
+        pass
+
+    patients_path = os.path.join(os.path.expanduser("~"), "Desktop", "Patients")
+    if not os.path.isdir(patients_path):
+        return []
+
+    return sorted(
+        folder_name
+        for folder_name in os.listdir(patients_path)
+        if os.path.isdir(os.path.join(patients_path, folder_name))
+    )
+
+
+@app.get("/patients", response_model=PatientsResponse)
+def patients():
+    backend_base_url = "http://localhost:5000/api/pdfingestion"
+    folder_names = list_patient_folder_names(backend_base_url)
+    summaries: List[PatientSummary] = []
+
+    for folder_name in folder_names:
+        try:
+            response = requests.post(
+                f"{backend_base_url}/extract",
+                json={"FolderName": folder_name},
+                timeout=30,
+            )
+            response.raise_for_status()
+            data = response.json()
+        except requests.RequestException:
+            summaries.append(PatientSummary(id=folder_name, name=folder_name))
+            continue
+
+        files = data.get("files") or data.get("Files") or []
+        file_items: List[PatientFileItem] = []
+        lab_metadata: List[Dict[str, Optional[str]]] = []
+        fallback_metadata: List[Dict[str, Optional[str]]] = []
+
+        for file in files:
+            if not isinstance(file, dict):
+                continue
+
+            file_path = file.get("filePath") or file.get("FilePath") or ""
+            text = file.get("text") or file.get("Text") or ""
+            if not file_path:
+                continue
+
+            item = classify_patient_file(file_path)
+            file_items.append(item)
+
+            metadata = extract_patient_metadata(text)
+            if metadata.get("name"):
+                if item.section == "labs":
+                    lab_metadata.append(metadata)
+                else:
+                    fallback_metadata.append(metadata)
+
+        metadata_source = lab_metadata or fallback_metadata
+        name_counts = Counter(
+            item["name"] for item in metadata_source if item.get("name")
+        )
+        name = name_counts.most_common(1)[0][0] if name_counts else folder_name
+        age = next((item.get("age") for item in metadata_source if item.get("age")), None)
+        sex = next((item.get("sex") for item in metadata_source if item.get("sex")), None)
+
+        available_sections = sorted({
+            file_item.lab_type or file_item.section
+            for file_item in file_items
+            if file_item.section != "other"
+        })
+
+        summaries.append(PatientSummary(
+            id=folder_name,
+            name=name,
+            age=age,
+            sex=sex,
+            available_sections=available_sections,
+            files=file_items,
+        ))
+
+    return PatientsResponse(patients=summaries)
 
 
 @app.post("/categorize", response_model=ProcessResponse)
@@ -484,6 +710,7 @@ class HospitalCourseItem(BaseModel):
 class ParsedDischargeResponse(BaseModel):
     patient:              str
     found:                bool
+    header:               DischargeHeader = DischargeHeader()
     condition_discharge:  Optional[str] = None
     chief_complaint:      Optional[str] = None
     admitting_dx:         Optional[str] = None
@@ -530,6 +757,7 @@ def discharge_parsed(request: DischargeRequest):
     return ParsedDischargeResponse(
         patient              = request.patient,
         found                = True,
+        header               = DischargeHeader(**(parsed.get("header") or {})),
         condition_discharge  = parsed.get("condition_discharge"),
         chief_complaint      = parsed.get("chief_complaint"),
         admitting_dx         = parsed.get("admitting_dx"),

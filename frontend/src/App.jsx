@@ -1,24 +1,46 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import TopBar      from './components/TopBar'
 import Sidebar     from './components/SideBar'
 import MainContent from './components/MainContent'
 import ChatPanel   from './components/ChatPanel'
 import { useLabData } from './hooks/useLabData'
 import { useChat }    from './hooks/useChat'
+import { usePatients } from './hooks/usePatients'
 
 export default function App() {
   const [selectedPatient, setSelectedPatient] = useState(null)
   const [activeSection,   setActiveSection]   = useState('overview')
   const sessionId = useRef('session_' + Date.now()).current
 
+  const { patients, loading: patientsLoading, error: patientsError } = usePatients()
   const { data: labData, loading: labLoading, error: labError, load, reset } = useLabData()
   const { messages, loading: chatLoading, ruleFlags, isEmergency, send, clear } = useChat(sessionId)
 
+  useEffect(() => {
+    if (!selectedPatient) return
+
+    const currentPatient = patients.find(patient => patient.id === selectedPatient.id)
+    if (currentPatient) {
+      setSelectedPatient(currentPatient)
+    } else if (!patientsLoading) {
+      setSelectedPatient(null)
+      setActiveSection('overview')
+      reset()
+    }
+  }, [patients, patientsLoading, selectedPatient?.id, reset])
+
   const handleSelectPatient = useCallback((patient) => {
+    if (selectedPatient?.id === patient.id) {
+      setSelectedPatient(null)
+      setActiveSection('overview')
+      reset()
+      return
+    }
+
     setSelectedPatient(patient)
     setActiveSection('overview')
     reset()
-  }, [reset])
+  }, [selectedPatient?.id, reset])
 
   const handleSelectSection = useCallback((section) => {
     setActiveSection(section)
@@ -27,6 +49,16 @@ export default function App() {
 
   const handleLoad = useCallback(() => {
     if (selectedPatient) load(activeSection, selectedPatient.id)
+  }, [selectedPatient, activeSection, load])
+
+  useEffect(() => {
+    if (!selectedPatient || activeSection !== 'discharge') return undefined
+
+    const intervalId = window.setInterval(() => {
+      load('discharge', selectedPatient.id, { silent: true })
+    }, 10000)
+
+    return () => window.clearInterval(intervalId)
   }, [selectedPatient, activeSection, load])
 
   const handleSend = useCallback((message) => {
@@ -42,6 +74,9 @@ export default function App() {
       <div className="flex flex-1 overflow-hidden">
 
         <Sidebar
+          patients={patients}
+          loading={patientsLoading}
+          error={patientsError}
           selectedPatient={selectedPatient}
           onSelectPatient={handleSelectPatient}
           activeSection={activeSection}

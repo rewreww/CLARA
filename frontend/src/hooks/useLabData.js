@@ -6,11 +6,12 @@ export function useLabData() {
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState(null)
 
-  const load = useCallback(async (section, patientId) => {
+  const load = useCallback(async (section, patientId, options = {}) => {
     if (!patientId) return
-    setData(null)
+    const silent = options.silent === true
+    if (!silent) setData(null)
     setError(null)
-    setLoading(true)
+    if (!silent) setLoading(true)
 
     try {
       if (['chemistry', 'hematology', 'microscopy'].includes(section)) {
@@ -34,6 +35,7 @@ export function useLabData() {
                 setData({
                   type:               'discharge',
                   found:               json.found,
+                  header:              json.header || {},
                   condition_discharge: json.condition_discharge,
                   chief_complaint:     json.chief_complaint,
                   admitting_dx:        json.admitting_dx,
@@ -54,7 +56,7 @@ export function useLabData() {
       setError(e.message)
     }
 
-    setLoading(false)
+    if (!silent) setLoading(false)
   }, [])
 
   const reset = useCallback(() => {

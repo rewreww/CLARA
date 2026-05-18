@@ -1,5 +1,4 @@
 import { useEffect } from 'react'
-import { STATUS_COLOR } from '../constants'
 import OverviewPanel  from './OverviewPanel'
 import LabTable       from './LabTable'
 import TrendChart     from './TrendChart'
@@ -7,6 +6,20 @@ import DischargePanel from './DischargePanel'
 import { useTrends }  from '../hooks/useTrends'
 
 const LAB_TYPES = ['chemistry', 'hematology', 'microscopy']
+
+function formatAge(age) {
+  if (!age) return null
+  return String(age).match(/[a-z]/i) ? age : `${age}y`
+}
+
+function patientDetails(patient) {
+  return [
+    formatAge(patient.age),
+    patient.sex,
+    patient.ward,
+    patient.status?.toUpperCase(),
+  ].filter(Boolean).join(' · ')
+}
 
 export default function MainContent({
   patient, activeSection,
@@ -48,10 +61,7 @@ export default function MainContent({
               <div>
                 <div className="text-[14px] font-semibold">{patient.name}</div>
                 <div className="font-mono text-[10px] text-muted">
-                  {patient.age}y · {patient.sex} · {patient.ward} ·{' '}
-                  <span style={{ color: STATUS_COLOR[patient.status] }}>
-                    {patient.status.toUpperCase()}
-                  </span>
+                  {patientDetails(patient)}
                 </div>
               </div>
             </div>
