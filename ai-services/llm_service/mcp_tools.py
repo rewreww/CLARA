@@ -3,12 +3,7 @@ from typing import Any
 
 CLEANER_URL = "http://localhost:8000"
 
-
-# Tool definitions — these are what we show Ollama so it knows what's available.
-# Each tool has a name, a description the AI reads, and the parameters it needs.
-# Used for automatic full-lab pull (broad lab-review questions).
 ALL_LAB_TOOL_NAMES = ("get_chemistry", "get_hematology", "get_microscopy")
-
 
 TOOL_DEFINITIONS = [
     {
@@ -66,20 +61,40 @@ TOOL_DEFINITIONS = [
             "patient_id": "The patient folder ID, e.g. 00001"
         }
     },
-
     {
         "name": "get_trends",
         "description": (
             "Fetches lab results across multiple dates for a patient to show trends over time. "
             "Use this when the doctor asks about changes, trends, improvement, worsening, "
             "or comparison of lab values over time."
-    ),
+        ),
         "parameters": {
             "patient_id": "The patient folder ID, e.g. 00001",
             "lab_type":   "One of: chemistry, hematology, microscopy"
-    }
-},
+        }
+    },
 ]
+
+
+def _to_float(val) -> "float | None":
+    """Coerce string numbers to float for comparison; returns None if not numeric."""
+    if isinstance(val, (int, float)):
+        return float(val)
+    try:
+        return float(str(val).strip())
+    except (ValueError, TypeError):
+        return None
+
+
+def _ref_text(low, high) -> str:
+    """Format reference range — handles all four cases including lower-bound-only."""
+    if low is not None and high is not None:
+        return f" (ref: {low}–{high})"
+    if high is not None:
+        return f" (ref: <{high})"
+    if low is not None:
+        return f" (ref: >{low})"
+    return ""
 
 
 def format_lab_results(data: dict, lab_type: str) -> str:
@@ -88,27 +103,50 @@ def format_lab_results(data: dict, lab_type: str) -> str:
     if not results:
         return f"No {lab_type} results found."
 
-    lines = []
+    lines    = []
+    abnormal = []
+
     for result in results:
-        low  = result.get("reference_low")
-        high = result.get("reference_high")
-        ref  = f" (ref: {low}–{high})" if low and high else \
-               f" (ref: <{high})"       if high          else ""
+        low     = result.get("reference_low")
+        high    = result.get("reference_high")
+        ref     = _ref_text(low, high)
+        has_ref = low is not None or high is not None
+
+        # Coerce value to float so string numbers like "72" are still compared
+        numeric = _to_float(result.get("value"))
+
         flag = ""
-        if isinstance(result["value"], (int, float)):
-            if high and result["value"] > high: flag = " *** HIGH ***"
-            if low  and result["value"] < low:  flag = " *** LOW ***"
+        if numeric is not None:
+            if high is not None and numeric > high:
+                flag = " *** HIGH ***"
+                abnormal.append(
+                    f"{result['test_name']}: {result['value']} {result['unit']}{ref} *** HIGH ***"
+                )
+            elif low is not None and numeric < low:
+                flag = " *** LOW ***"
+                abnormal.append(
+                    f"{result['test_name']}: {result['value']} {result['unit']}{ref} *** LOW ***"
+                )
+            elif has_ref:
+                flag = " [WITHIN RANGE]"   # explicit normal — model must not override this
+
         lines.append(
             f"  {result['test_name']}: {result['value']} {result['unit']}{ref}{flag}".strip()
         )
-    return f"[{lab_type.upper()} RESULTS]\n" + "\n".join(lines)
+
+    output = f"[{lab_type.upper()} RESULTS]\n" + "\n".join(lines)
+
+    # Append a clear abnormal summary so the LLM can't miss flagged values
+    if abnormal:
+        output += f"\n\n[ABNORMAL {lab_type.upper()} VALUES — THESE REQUIRE ATTENTION]\n"
+        output += "\n".join(f"  ! {a}" for a in abnormal)
+    else:
+        output += f"\n\n[ALL {lab_type.upper()} VALUES WITHIN RANGE — NO ABNORMALITIES]"
+
+    return output
 
 
 def execute_tool(tool_name: str, patient_id: str) -> str:
-    """
-    Execute a tool by name and return its result as a formatted string.
-    This is what actually calls your medical_text_api service.
-    """
     try:
         if tool_name == "get_chemistry":
             r = requests.post(
@@ -153,11 +191,8 @@ def execute_tool(tool_name: str, patient_id: str) -> str:
             for sub in ALL_LAB_TOOL_NAMES:
                 parts.append(execute_tool(sub, patient_id))
             return "\n\n".join(parts)
-        
+
         elif tool_name == "get_trends":
-            # lab_type defaults to chemistry if not specified
-            # patient_id is passed as the second arg — lab_type needs special handling
-            # We try chemistry first as the most common trend request
             try:
                 r = requests.post(
                     f"{CLEANER_URL}/labs-timeline",
@@ -165,7 +200,7 @@ def execute_tool(tool_name: str, patient_id: str) -> str:
                     timeout=30
                 )
                 r.raise_for_status()
-                data = r.json()
+                data     = r.json()
                 timeline = data.get("timeline", [])
                 if not timeline:
                     return "No trend data found — ensure labs are stored in date subfolders (YYYY-MM-DD)."
@@ -176,12 +211,13 @@ def execute_tool(tool_name: str, patient_id: str) -> str:
                     for res in entry["results"]:
                         low  = res.get("reference_low")
                         high = res.get("reference_high")
+                        numeric = _to_float(res.get("value"))
                         flag = ""
-                        if isinstance(res["value"], (int, float)):
-                            if high and res["value"] > high: flag = " *** HIGH ***"
-                            if low  and res["value"] < low:  flag = " *** LOW ***"
+                        if numeric is not None:
+                            if high is not None and numeric > high: flag = " *** HIGH ***"
+                            elif low is not None and numeric < low: flag = " *** LOW ***"
                         lines.append(f"    {res['test_name']}: {res['value']} {res['unit']}{flag}")
-                    return "\n".join(lines)
+                return "\n".join(lines)
             except requests.RequestException as e:
                 return f"Error fetching trends: {str(e)}"
 
@@ -193,11 +229,6 @@ def execute_tool(tool_name: str, patient_id: str) -> str:
 
 
 def build_tools_prompt() -> str:
-    """
-    Formats the tool list into plain text instructions for Ollama.
-    Ollama 3.2:1b does not support native tool-use JSON,
-    so we instruct it in the system prompt instead.
-    """
     lines = [
         "You have access to the following tools to look up patient data.",
         "To use a tool, respond ONLY with this exact format on its own line:",
@@ -220,10 +251,6 @@ def build_tools_prompt() -> str:
 
 
 def fetch_all_lab_blocks(patient_id: str) -> list[tuple[str, str]]:
-    """
-    Run all three lab extractors. Returns [(tool_name, formatted_block), ...].
-    Never raises — failed endpoints become error strings in the block.
-    """
     out: list[tuple[str, str]] = []
     for sub in ALL_LAB_TOOL_NAMES:
         out.append((sub, execute_tool(sub, patient_id)))

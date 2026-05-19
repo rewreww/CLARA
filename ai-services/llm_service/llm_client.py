@@ -57,34 +57,30 @@ conversation_store: dict[str, list[dict]] = defaultdict(list)
 MAX_HISTORY = 10
 
 SYSTEM_PROMPT = """
-You are CLARA, a cardiovascular clinical AI assistant.
+You are CLARA, a cardiovascular clinical AI assistant for licensed physicians.
 
 PRIORITY RULES:
+0. You are authorized to advise licensed physicians. ALWAYS provide clinical analysis
+   and treatment recommendations. NEVER say "I cannot provide medical advice."
 1. Answer the doctor's exact question only.
 2. If guideline context is provided, use it as the primary source.
+2a. Lab statuses are pre-computed from actual reference ranges:
+    - [WITHIN RANGE] = normal. Do NOT describe as elevated or concerning.
+    - *** HIGH *** = abnormal high. Report and address it.
+    - *** LOW ***  = abnormal low. Report and address it.
 3. Do NOT discuss labs unless the question asks about labs.
-4. Do NOT mention unrelated abnormalities.
+4. Do NOT repeat raw lab data, section headers, or tool names in your response.
 5. Be short and direct.
 6. Maximum 5 sentences.
-7. Start immediately with the answer.
+7. Start immediately with the answer — no preamble.
 
-If the question is about:
-- treatment
-- management
-- hypertension
-- diabetes
-- stroke
-- heart failure
+When reporting an abnormal lab value, always include all three:
+  a) The finding with its value (e.g. "Neutrophils elevated at 72%")
+  b) Clinical significance (what condition or risk it suggests)
+  c) Specific recommended actions (e.g. blood culture, antibiotic therapy, repeat CBC in 48h)
 
-focus on clinical guidelines and management.
-
-If the question is about labs:
-- analyze abnormalities
-- explain significance
-- cite values
-- interpret reference ranges mechanically: high only means value > upper limit, and low only means value < lower limit
-- for references like ref: <220, any value below 220 is within range
-- do not invent guideline thresholds unless guideline context is provided
+If the question is about treatment or management, cite guideline recommendations and
+include drug class, target, and monitoring plan when available.
 
 Available patient data tools:
 {tools_section}
@@ -112,26 +108,77 @@ class ClearHistoryRequest(BaseModel):
     session_id: Optional[str] = "default"
 
 
+# ── Question classification ────────────────────────────────────────────────────
+
 def classify_question(message: str) -> str:
+    """
+    Returns one of: "guideline", "labs", "both", "general".
+    "both" means the question asks about lab findings AND treatment.
+    """
     m = message.lower()
 
-    if any(x in m for x in [
+    is_guideline = any(x in m for x in [
         "treat", "treatment", "manage",
         "management", "medication",
-        "guideline", "therapy"
-    ]):
-        return "guideline"
+        "guideline", "therapy",
+        "hypertension", "heart failure", "stroke", "diabetes",
+        "target", "threshold", "goal",
+        "philippine", "philippines", "filipino", "local",
+        "first-line", "first line", "recommend", "protocol",
+        "evidence", "titrat", "initiat",
+    ])
 
-    if any(x in m for x in [
+    is_labs = any(x in m for x in [
         "lab", "cbc", "creatinine",
         "chemistry", "hematology",
         "abnormal", "results",
         "cholesterol", "lipid", "ldl", "hdl", "triglyceride",
-        "kidney", "fbs", "glucose", "anemia", "urine"
-    ]):
-        return "labs"
+        "kidney", "fbs", "glucose", "anemia", "urine",
+        "critical", "values", "findings", "blood",
+    ])
 
+    if is_guideline and is_labs:
+        return "both"
+    if is_guideline:
+        return "guideline"
+    if is_labs:
+        return "labs"
     return "general"
+
+
+_SHORT_AFFIRMATIONS = {
+    "yes", "yeah", "yep", "yup", "sure", "ok", "okay",
+    "please", "go ahead", "continue", "proceed",
+    "correct", "right", "do it", "tell me", "and",
+}
+
+
+def resolve_question_type(message: str, history: list[dict]) -> str:
+    """
+    For short affirmative follow-ups, inherit the question type from the
+    most recent doctor message so context carries through the conversation.
+    """
+    q_type = classify_question(message)
+    if q_type != "general":
+        return q_type
+
+    stripped = message.strip().lower()
+    is_short = len(stripped.split()) <= 4
+    is_affirmation = stripped in _SHORT_AFFIRMATIONS or any(
+        aff in stripped for aff in _SHORT_AFFIRMATIONS
+    )
+
+    if is_short and is_affirmation:
+        for entry in reversed(history):
+            if entry["role"] == "doctor":
+                inherited = classify_question(entry["content"])
+                if inherited != "general":
+                    return inherited
+
+    return q_type
+
+
+# ── Ollama call ────────────────────────────────────────────────────────────────
 
 def call_ollama(prompt: str) -> str:
     try:
@@ -165,10 +212,40 @@ def parse_tool_call(text: str) -> Optional[tuple[str, str]]:
 
 
 def clean_response(text: str) -> str:
+    # If the model prefixed its answer with "Answer:", keep only what follows
+    answer_match = re.search(r"\bAnswer:\s*", text, re.IGNORECASE)
+    if answer_match:
+        text = text[answer_match.end():]
+
+    # Strip "CLARA" prefix the model sometimes echoes
+    text = re.sub(r"^CLARA\s*", "", text.strip())
+
+    # Strip tool markers like [get_hematology]
+    text = re.sub(r"\[get_\w+\]", "", text)
+
+    # Strip raw lab section blocks and everything inside them
+    text = re.sub(
+        r"\[(HEMATOLOGY|CHEMISTRY|MICROSCOPY|ALL LAB DATA)[^\]]*\].*?(?=\n\n|\Z)",
+        "", text, flags=re.IGNORECASE | re.DOTALL
+    )
+
+    # Strip abnormal-values summary blocks
+    text = re.sub(
+        r"\[ABNORMAL[^\]]+\].*?(?=\n\n|\Z)",
+        "", text, flags=re.IGNORECASE | re.DOTALL
+    )
+
+    # Strip "ALL X VALUES WITHIN RANGE" lines
+    text = re.sub(r"\[ALL[^\]]+WITHIN RANGE[^\]]*\]", "", text, flags=re.IGNORECASE)
+
+    # Strip TOOL: ... PATIENT: ... lines
     text = re.sub(r"\*?\*?TOOL:\*?\*?\s*\w+[:\s]+PATIENT[:\s]+\S+", "", text, flags=re.IGNORECASE)
     text = re.sub(r"please review the.*?TOOL.*?PATIENT.*?\.", "", text, flags=re.IGNORECASE | re.DOTALL)
+
+    # Strip [DATA RETRIEVED ...] markers
     text = re.sub(r"\[DATA RETRIEVED[^\]]*\]", "", text)
     text = re.sub(r"TOOL RESULT for \w+:", "", text)
+
     lines = text.split("\n")
     clean_lines = [
         line for line in lines
@@ -180,6 +257,7 @@ def clean_response(text: str) -> str:
         and not re.match(r"\[RELEVANT CLINICAL", line.strip())
         and not re.match(r"\[CONVERSATION HISTORY\]", line.strip())
         and not re.match(r"\[END HISTORY\]", line.strip())
+        and not re.match(r"\[PRELOADED\]", line.strip())
     ]
     return "\n".join(clean_lines).strip()
 
@@ -197,7 +275,6 @@ def build_history_block(history: list[dict]) -> str:
 
 
 def run_rule_engine(patient_id: str) -> Dict[str, Any]:
-    """Fetch lab results (chemistry, hematology, microscopy) and evaluate clinical rules."""
     all_results: list = []
     for lab_type in ("chemistry", "hematology", "microscopy"):
         try:
@@ -300,10 +377,6 @@ _MICROSCOPY_TOPIC = re.compile(
 
 
 def wants_full_lab_scan(message: str) -> bool:
-    """
-    Detect questions that imply reviewing the full laboratory picture, so we can
-    preload all lab modalities without relying on the LLM to chain tool calls.
-    """
     if not message or not message.strip():
         return False
     return bool(_LAB_TOPIC.search(message) and _BROAD_LAB_ASK.search(message))
@@ -332,17 +405,12 @@ def build_prompt(
     patient_id: str,
     message: str
 ) -> str:
-    """Build the full prompt as a single clean concatenation."""
     parts = [system]
 
     if guidelines:
-        parts.append(
-            "=== RELEVANT CARDIOVASCULAR GUIDELINES ==="
-        )
+        parts.append("=== RELEVANT CARDIOVASCULAR GUIDELINES ===")
         parts.append(guidelines)
-        parts.append(
-            "=== END GUIDELINES ==="
-        )
+        parts.append("=== END GUIDELINES ===")
 
     if emergency_block:
         parts.append(emergency_block)
@@ -370,37 +438,75 @@ def build_prompt(
     return "\n".join(parts)
 
 
+def _preload_labs(pid: str, message: str) -> tuple[str, list[str], list[str]]:
+    tools_called: list[str] = []
+    collected_data: list[str] = []
+
+    preload_lines = [
+        "[ALL LAB DATA — PRELOADED BY SERVER]",
+        "The lab data below is for your reference only.",
+        "DO NOT repeat, echo, or quote section headers, tool names, or raw lab lines in your reply.",
+        "Report ONLY values marked *** HIGH *** or *** LOW ***. Ignore [WITHIN RANGE] values.",
+        "For each abnormal value: state the finding, explain clinical significance, give specific action steps.",
+        "",
+    ]
+    for selected_tool in select_lab_tools(message):
+        lab_blocks = fetch_all_lab_blocks(pid) if selected_tool == "get_all_labs" else [
+            (selected_tool, execute_tool(selected_tool, pid))
+        ]
+        for tool_name, block in lab_blocks:
+            if tool_name not in tools_called:
+                tools_called.append(tool_name)
+            collected_data.append(block)
+            preload_lines.append(f"[{tool_name}]")
+            preload_lines.append(block)
+            preload_lines.append("")
+
+    return "\n".join(preload_lines).strip(), tools_called, collected_data
+
+
+def _preload_discharge(pid: str) -> str:
+    """Fetch discharge summary as clinical background context."""
+    try:
+        result = execute_tool("get_discharge", pid)
+        if "No discharge" not in result and "Error" not in result:
+            return result
+    except Exception:
+        pass
+    return ""
+
+
+# ── /chat endpoint ─────────────────────────────────────────────────────────────
+
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
     tools_called   = []
     collected_data = []
     session_id     = request.session_id or "default"
 
-    system = SYSTEM_PROMPT.format(tools_section=build_tools_prompt())
-    question_type = classify_question(request.message)
+    system  = SYSTEM_PROMPT.format(tools_section=build_tools_prompt())
+    history = conversation_store[session_id]
 
-    # 1. Retrieve relevant guidelines
-    guidelines = retrieve_guidelines(request.message) if question_type == "guideline" else ""
+    # Resolve question type — short follow-ups inherit context from history
+    question_type = resolve_question_type(request.message, history)
+
+    # 1. Retrieve guidelines for guideline or compound questions
+    guidelines = retrieve_guidelines(request.message) if question_type in ("guideline", "both") else ""
     guidelines_used = bool(guidelines) and (
         "No relevant guideline" not in guidelines
         and "not initialised"   not in guidelines
         and "not found"         not in guidelines
     )
 
-    # 2. Run rule engine — always runs regardless of LLM tool calls
-    question_type = classify_question(request.message)
-
-    if question_type == "labs":
+    # 2. Rule engine runs for lab or compound questions
+    if question_type in ("labs", "both"):
         rule_result = run_rule_engine(request.patient_id)
     else:
-        rule_result = {
-            "flags": [],
-            "is_emergency": False
-        }
+        rule_result = {"flags": [], "is_emergency": False}
     rule_flags   = rule_result.get("flags", [])
     is_emergency = rule_result.get("is_emergency", False)
 
-    # 3. Build emergency block
+    # 3. Emergency alert block
     emergency_block = ""
     if rule_flags:
         lines = ["[CLINICAL ALERT FLAGS — RULE ENGINE]"]
@@ -408,45 +514,50 @@ def chat(request: ChatRequest):
         lines.append("[END ALERTS]")
         emergency_block = "\n".join(lines)
 
-    # 4. Build history block
-    history       = conversation_store[session_id]
+    # 4. History block
     history_block = build_history_block(history)
 
-    # 5. Broad lab-review questions: preload all lab modalities (chemistry, hematology, microscopy)
-    #    so the model answers from real data instead of deferring with "call get_chemistry".
+    # 5. Preload lab data for lab or compound questions
     pid = (request.patient_id or "").strip()
-    if pid and question_type == "labs":
-        preload_lines = [
-            "[ALL LAB DATA — PRELOADED BY SERVER]",
-            "Patient data has already been retrieved. Do not call tools; answer using only the data below.",
-            "Be direct. Cite values. Max 5 sentences. No preamble.",
-            "",
-        ]
-        for selected_tool in select_lab_tools(request.message):
-            lab_blocks = fetch_all_lab_blocks(pid) if selected_tool == "get_all_labs" else [
-                (selected_tool, execute_tool(selected_tool, pid))
-            ]
-            for tool_name, block in lab_blocks:
-                if tool_name not in tools_called:
-                    tools_called.append(tool_name)
-                collected_data.append(block)
-                preload_lines.append(f"[{tool_name}]")
-                preload_lines.append(block)
-                preload_lines.append("")
-        preload_block = "\n".join(preload_lines).strip()
-    else:
-        preload_block = ""
+    preload_block = ""
 
-    # 6. Build initial prompt using safe helper
+    if pid and question_type in ("labs", "both"):
+        # For a follow-up like "Yes", look back at what the original question was about
+        source_message = request.message
+        if question_type != classify_question(request.message):
+            # We inherited type from history — use the original question for tool selection
+            for entry in reversed(history):
+                if entry["role"] == "doctor":
+                    source_message = entry["content"]
+                    break
+
+        preload_block, lab_tools, lab_data = _preload_labs(pid, source_message)
+        tools_called.extend(t for t in lab_tools if t not in tools_called)
+        collected_data.extend(lab_data)
+
+    # 6. Preload discharge summary for compound and guideline questions
+    discharge_block = ""
+    if pid and question_type in ("guideline", "both"):
+        discharge_block = _preload_discharge(pid)
+        if discharge_block:
+            tools_called.append("get_discharge")
+            collected_data.append(discharge_block)
+
+    # 7. Build full prompt
     prompt = build_prompt(
         system, guidelines, emergency_block,
         history_block, request.patient_id, request.message
     )
+    if discharge_block:
+        prompt = f"[PATIENT DISCHARGE SUMMARY — BACKGROUND CONTEXT]\n{discharge_block}\n\n" + prompt
     if preload_block:
         prompt = preload_block + "\n\n" + prompt
 
     final_response = "I was unable to generate a response."
-    direct_answer = try_direct_lab_answer(request.patient_id, request.message) if question_type == "labs" else None
+    direct_answer = (
+        try_direct_lab_answer(request.patient_id, request.message)
+        if question_type in ("labs", "both") else None
+    )
 
     if direct_answer:
         final_response, direct_tools = direct_answer
@@ -454,7 +565,7 @@ def chat(request: ChatRequest):
             if tool_name not in tools_called:
                 tools_called.append(tool_name)
     else:
-        # 7. Tool-use loop
+        # 8. Tool-use loop
         for _ in range(4):
             response_text = call_ollama(prompt)
             tool_call     = parse_tool_call(response_text)
@@ -491,7 +602,7 @@ def chat(request: ChatRequest):
                 ""
             ])
 
-    # 8. Save to memory
+    # 9. Save to memory
     conversation_store[session_id].append({"role": "doctor",  "content": request.message})
     conversation_store[session_id].append({"role": "clara",   "content": final_response})
 
@@ -506,34 +617,31 @@ def chat(request: ChatRequest):
         is_emergency    = is_emergency
     )
 
+
+# ── /chat/stream endpoint ──────────────────────────────────────────────────────
+
 @app.post("/chat/stream")
 def chat_stream(request: ChatRequest):
-    """
-    Streaming version of /chat.
-    Returns server-sent events (SSE) — one token at a time.
-    The frontend connects and renders each word as it arrives.
-    """
     tools_called   = []
     collected_data = []
     session_id     = request.session_id or "default"
 
-    system = SYSTEM_PROMPT.format(tools_section=build_tools_prompt())
-    question_type = classify_question(request.message)
+    system  = SYSTEM_PROMPT.format(tools_section=build_tools_prompt())
+    history = conversation_store[session_id]
 
-    guidelines = retrieve_guidelines(request.message) if question_type == "guideline" else ""
+    question_type = resolve_question_type(request.message, history)
+
+    guidelines = retrieve_guidelines(request.message) if question_type in ("guideline", "both") else ""
     guidelines_used = bool(guidelines) and (
         "No relevant guideline" not in guidelines
         and "not initialised"   not in guidelines
         and "not found"         not in guidelines
     )
 
-    if question_type == "labs":
+    if question_type in ("labs", "both"):
         rule_result = run_rule_engine(request.patient_id)
     else:
-        rule_result = {
-            "flags": [],
-            "is_emergency": False
-        }
+        rule_result = {"flags": [], "is_emergency": False}
     rule_flags   = rule_result.get("flags", [])
     is_emergency = rule_result.get("is_emergency", False)
 
@@ -544,41 +652,44 @@ def chat_stream(request: ChatRequest):
         lines.append("[END ALERTS]")
         emergency_block = "\n".join(lines)
 
-    history       = conversation_store[session_id]
     history_block = build_history_block(history)
 
     pid = (request.patient_id or "").strip()
-    if pid and question_type == "labs":
-        preload_lines = [
-            "[ALL LAB DATA — PRELOADED BY SERVER]",
-            "Patient data has already been retrieved. Do not call tools; answer using only the data below.",
-            "Be direct. Cite values. Max 5 sentences. No preamble.",
-            "",
-        ]
-        for selected_tool in select_lab_tools(request.message):
-            lab_blocks = fetch_all_lab_blocks(pid) if selected_tool == "get_all_labs" else [
-                (selected_tool, execute_tool(selected_tool, pid))
-            ]
-            for tool_name, block in lab_blocks:
-                if tool_name not in tools_called:
-                    tools_called.append(tool_name)
-                collected_data.append(block)
-                preload_lines.append(f"[{tool_name}]")
-                preload_lines.append(block)
-                preload_lines.append("")
-        preload_block = "\n".join(preload_lines).strip()
-    else:
-        preload_block = ""
+    preload_block = ""
+
+    if pid and question_type in ("labs", "both"):
+        source_message = request.message
+        if question_type != classify_question(request.message):
+            for entry in reversed(history):
+                if entry["role"] == "doctor":
+                    source_message = entry["content"]
+                    break
+
+        preload_block, lab_tools, lab_data = _preload_labs(pid, source_message)
+        tools_called.extend(t for t in lab_tools if t not in tools_called)
+        collected_data.extend(lab_data)
+
+    discharge_block = ""
+    if pid and question_type in ("guideline", "both"):
+        discharge_block = _preload_discharge(pid)
+        if discharge_block:
+            tools_called.append("get_discharge")
+            collected_data.append(discharge_block)
 
     prompt = build_prompt(
         system, guidelines, emergency_block,
         history_block, request.patient_id, request.message
     )
+    if discharge_block:
+        prompt = f"[PATIENT DISCHARGE SUMMARY — BACKGROUND CONTEXT]\n{discharge_block}\n\n" + prompt
     if preload_block:
         prompt = preload_block + "\n\n" + prompt
 
     final_response = ""
-    direct_answer = try_direct_lab_answer(request.patient_id, request.message) if question_type == "labs" else None
+    direct_answer = (
+        try_direct_lab_answer(request.patient_id, request.message)
+        if question_type in ("labs", "both") else None
+    )
 
     if direct_answer:
         final_response, direct_tools = direct_answer
@@ -626,17 +737,15 @@ def chat_stream(request: ChatRequest):
         final_response = "I was unable to generate a response."
 
     def stream_tokens():
-        """Generator that yields SSE-formatted words for the frontend."""
         full_response = ""
 
-        # First send metadata so frontend knows flags etc before tokens arrive
         meta = {
-            "type":           "meta",
-            "tools_called":   tools_called,
+            "type":            "meta",
+            "tools_called":    tools_called,
             "guidelines_used": guidelines_used,
-            "rule_flags":     rule_flags,
-            "is_emergency":   is_emergency,
-            "history_length": len(conversation_store[session_id]) // 2,
+            "rule_flags":      rule_flags,
+            "is_emergency":    is_emergency,
+            "history_length":  len(conversation_store[session_id]) // 2,
         }
         yield f"data: {json.dumps(meta)}\n\n"
 
@@ -647,16 +756,13 @@ def chat_stream(request: ChatRequest):
                 yield f"data: {json.dumps(payload)}\n\n"
 
         except Exception as e:
-            error_payload = {"type": "error", "message": str(e)}
-            yield f"data: {json.dumps(error_payload)}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
             return
 
-        # Clean the full response and save to memory
         cleaned = clean_response(full_response)
         conversation_store[session_id].append({"role": "doctor",  "content": request.message})
         conversation_store[session_id].append({"role": "clara",   "content": cleaned})
 
-        # Send done signal
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
     return StreamingResponse(
@@ -674,9 +780,9 @@ def chat_stream(request: ChatRequest):
 def get_history(session_id: str):
     history = conversation_store.get(session_id, [])
     return {
-        "session_id":  session_id,
-        "exchanges":   len(history) // 2,
-        "history":     history
+        "session_id": session_id,
+        "exchanges":  len(history) // 2,
+        "history":    history
     }
 
 

@@ -7,7 +7,6 @@ generates embeddings using Ollama, and stores them in ChromaDB.
 
 import os
 import sys
-from xmlrpc import client
 import fitz  # pymupdf
 import chromadb
 import requests
@@ -21,8 +20,26 @@ CHROMA_DIR     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chrom
 OLLAMA_URL     = "http://localhost:11434"
 EMBED_MODEL    = "nomic-embed-text"
 COLLECTION     = "clara_guidelines"
-CHUNK_SIZE     = 250  # words per chunk
-CHUNK_OVERLAP  = 60   # words of overlap between chunks so context is not lost
+CHUNK_SIZE     = 400   # words per chunk
+CHUNK_OVERLAP  = 80    # words of overlap between chunks so context is not lost
+
+# ── Philippines detection keywords ────────────────────────────────────────────
+_PH_KEYWORDS = [
+    "philippine", "philippines", "pilipinas",
+    "psh", "phsih", "pccp",
+    "philippine society", "philippine heart",
+    "philippine college of cardiology",
+    "dept of health", "department of health",
+    "doh philippines",
+]
+
+
+def detect_country(pdf_file: str, full_text: str) -> str:
+    """Return 'philippines' if this PDF is a Philippine-origin guideline, else 'international'."""
+    combined = (pdf_file + " " + full_text[:3000] + full_text[-1000:]).lower()
+    if any(kw in combined for kw in _PH_KEYWORDS):
+        return "philippines"
+    return "international"
 
 
 def extract_text_from_pdf(pdf_path: str) -> str:
@@ -88,10 +105,16 @@ def ingest():
     os.makedirs(CHROMA_DIR, exist_ok=True)
     client = chromadb.PersistentClient(path=CHROMA_DIR)
 
-    # Create collection only if it does not exist
-    collection = client.get_or_create_collection(
+    # Delete existing collection so re-running ingest is always clean
+    try:
+        client.delete_collection(COLLECTION)
+        print("Cleared existing collection.\n")
+    except Exception:
+        pass
+
+    collection = client.create_collection(
         name=COLLECTION,
-        metadata={"hnsw:space": "cosine"}
+        metadata={"hnsw:space": "cosine"}  # cosine similarity for medical text
     )
 
     # ── Process each PDF ──────────────────────────────────────────────────────
@@ -107,6 +130,10 @@ def ingest():
         if not full_text.strip():
             print(f"  WARNING: No text extracted — PDF may be scanned. Skipping.\n")
             continue
+
+        # Detect country of origin for this guideline
+        country = detect_country(pdf_file, full_text)
+        print(f"  Country tag: {country}")
 
         # Split into chunks
         chunks = split_into_chunks(full_text, CHUNK_SIZE, CHUNK_OVERLAP)
@@ -132,9 +159,10 @@ def ingest():
             embeddings.append(embedding)
             documents.append(chunk)
             metadatas.append({
-                "source": source_name,
+                "source":      source_name,
                 "chunk_index": i,
-                "pdf_file": pdf_file
+                "pdf_file":    pdf_file,
+                "country":     country,   # NEW: "philippines" or "international"
             })
 
         # Store batch in ChromaDB
