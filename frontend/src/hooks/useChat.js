@@ -13,10 +13,10 @@ export function useChat(sessionId) {
   const [ruleFlags,   setRuleFlags]   = useState([])
   const [isEmergency, setIsEmergency] = useState(false)
 
-  const abortRef = useRef(null)
-  const wordQueueRef = useRef([])
+  const abortRef      = useRef(null)
+  const wordQueueRef  = useRef([])
   const wordBufferRef = useRef('')
-  const wordTimerRef = useRef(null)
+  const wordTimerRef  = useRef(null)
   const streamDoneRef = useRef(false)
 
   const updateLastMessage = useCallback((updater) => {
@@ -39,15 +39,13 @@ export function useChat(sessionId) {
 
   const resetWordStream = useCallback(() => {
     stopWordTimer()
-    wordQueueRef.current = []
+    wordQueueRef.current  = []
     wordBufferRef.current = ''
     streamDoneRef.current = false
   }, [stopWordTimer])
 
   const completeStreaming = useCallback(() => {
-    updateLastMessage(last => {
-      last.streaming = false
-    })
+    updateLastMessage(last => { last.streaming = false })
     setLoading(false)
   }, [updateLastMessage])
 
@@ -96,7 +94,8 @@ export function useChat(sessionId) {
     flushWords()
   }, [flushWords])
 
-  const send = useCallback(async (message, patientId) => {
+  // ↓ activeSection added as third parameter
+  const send = useCallback(async (message, patientId, activeSection = null) => {
     if (!message.trim() || loading) return
 
     if (!patientId) {
@@ -130,22 +129,19 @@ export function useChat(sessionId) {
       const res = await fetch(`${LLM_URL}/chat/stream`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          patient_id: patientId,
+        body: JSON.stringify({
+          patient_id:     patientId,
           message,
-          session_id: sessionId,
+          session_id:     sessionId,
+          active_section: activeSection,   // ← added
         }),
         signal: controller.signal,
       })
 
-      if (!res.ok) {
-        throw new Error(`LLM service returned ${res.status}`)
-      }
-      if (!res.body) {
-        throw new Error('LLM service did not return a stream')
-      }
+      if (!res.ok)   throw new Error(`LLM service returned ${res.status}`)
+      if (!res.body) throw new Error('LLM service did not return a stream')
 
-      const reader = res.body.getReader()
+      const reader  = res.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
 
@@ -163,8 +159,7 @@ export function useChat(sessionId) {
           if (!raw) continue
 
           let event
-          try { event = JSON.parse(raw) }
-          catch { continue }
+          try { event = JSON.parse(raw) } catch { continue }
 
           if (event.type === 'meta') {
             setRuleFlags(event.rule_flags || [])
@@ -177,13 +172,9 @@ export function useChat(sessionId) {
             })
           }
 
-          if (event.type === 'token') {
-            enqueueText(event.token || '')
-          }
+          if (event.type === 'token') enqueueText(event.token || '')
 
-          if (event.type === 'done') {
-            finishTextStream()
-          }
+          if (event.type === 'done') finishTextStream()
 
           if (event.type === 'error') {
             resetWordStream()
@@ -196,15 +187,11 @@ export function useChat(sessionId) {
         }
       }
 
-      if (!streamDoneRef.current) {
-        finishTextStream()
-      }
+      if (!streamDoneRef.current) finishTextStream()
+
     } catch (e) {
       resetWordStream()
-      if (e.name === 'AbortError') {
-        setLoading(false)
-        return
-      }
+      if (e.name === 'AbortError') { setLoading(false); return }
       updateLastMessage(last => {
         last.text      = `Connection error: ${e.message}`
         last.streaming = false

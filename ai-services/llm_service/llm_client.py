@@ -64,10 +64,11 @@ PRIORITY RULES:
    and treatment recommendations. NEVER say "I cannot provide medical advice."
 1. Answer the doctor's exact question only.
 2. If guideline context is provided, use it as the primary source.
-2a. Lab statuses are pre-computed from actual reference ranges:
-    - [WITHIN RANGE] = normal. Do NOT describe as elevated or concerning.
-    - *** HIGH *** = abnormal high. Report and address it.
-    - *** LOW ***  = abnormal low. Report and address it.
+2a. When asked about critical, abnormal, or concerning values:
+    - Report EVERY value in the [ABNORMAL VALUES] block, not just the first one
+    - Group by type: chemistry findings first, then hematology
+    - For each: state the value, why it matters clinically, and one action
+    - [WITHIN RANGE] values are NORMAL — do not mention them
 3. Do NOT discuss labs unless the question asks about labs.
 4. Do NOT repeat raw lab data, section headers, or tool names in your response.
 5. Be short and direct.
@@ -91,6 +92,7 @@ class ChatRequest(BaseModel):
     patient_id: str
     message: str
     session_id: Optional[str] = "default"
+    active_section: Optional[str] = None   
 
 
 class ChatResponse(BaseModel):
@@ -382,7 +384,16 @@ def wants_full_lab_scan(message: str) -> bool:
     return bool(_LAB_TOPIC.search(message) and _BROAD_LAB_ASK.search(message))
 
 
-def select_lab_tools(message: str) -> list[str]:
+def select_lab_tools(message: str, active_section: str = None) -> list[str]:
+    # If doctor is actively viewing a lab section, load that first
+    SECTION_TOOL = {
+        "chemistry":  "get_chemistry",
+        "hematology": "get_hematology",
+        "microscopy": "get_microscopy",
+    }
+    if active_section and active_section in SECTION_TOOL:
+        return [SECTION_TOOL[active_section]]
+
     if wants_full_lab_scan(message):
         return ["get_all_labs"]
 
@@ -393,8 +404,8 @@ def select_lab_tools(message: str) -> list[str]:
         tools.append("get_hematology")
     if _MICROSCOPY_TOPIC.search(message):
         tools.append("get_microscopy")
-
     return tools or ["get_all_labs"]
+
 
 
 def build_prompt(
@@ -438,19 +449,12 @@ def build_prompt(
     return "\n".join(parts)
 
 
-def _preload_labs(pid: str, message: str) -> tuple[str, list[str], list[str]]:
+def _preload_labs(pid: str, message: str, active_section: str = None) -> tuple[str, list[str], list[str]]:
     tools_called: list[str] = []
     collected_data: list[str] = []
+    all_blocks: list[str] = []
 
-    preload_lines = [
-        "[ALL LAB DATA — PRELOADED BY SERVER]",
-        "The lab data below is for your reference only.",
-        "DO NOT repeat, echo, or quote section headers, tool names, or raw lab lines in your reply.",
-        "Report ONLY values marked *** HIGH *** or *** LOW ***. Ignore [WITHIN RANGE] values.",
-        "For each abnormal value: state the finding, explain clinical significance, give specific action steps.",
-        "",
-    ]
-    for selected_tool in select_lab_tools(message):
+    for selected_tool in select_lab_tools(message, active_section):
         lab_blocks = fetch_all_lab_blocks(pid) if selected_tool == "get_all_labs" else [
             (selected_tool, execute_tool(selected_tool, pid))
         ]
@@ -458,12 +462,33 @@ def _preload_labs(pid: str, message: str) -> tuple[str, list[str], list[str]]:
             if tool_name not in tools_called:
                 tools_called.append(tool_name)
             collected_data.append(block)
-            preload_lines.append(f"[{tool_name}]")
-            preload_lines.append(block)
-            preload_lines.append("")
+            all_blocks.append(block)
+
+    # Build explicit abnormal summary the model cannot miss
+    abnormal_lines = []
+    for block in all_blocks:
+        for line in block.splitlines():
+            if "*** HIGH ***" in line or "*** LOW ***" in line:
+                abnormal_lines.append(line.strip())
+
+    preload_lines = [
+        "[LAB DATA — PRELOADED BY SERVER]",
+        "Do NOT call tools. Answer using only the data below.",
+        "Do NOT comment on [WITHIN RANGE] values.",
+        "",
+    ]
+
+    if abnormal_lines:
+        preload_lines.append("[ABNORMAL VALUES — REPORT ALL OF THESE, NOT JUST THE FIRST]")
+        preload_lines.extend(f"  {l}" for l in abnormal_lines)
+        preload_lines.append("")
+
+    for tool_name, block in zip(tools_called, collected_data):
+        preload_lines.append(f"[{tool_name}]")
+        preload_lines.append(block)
+        preload_lines.append("")
 
     return "\n".join(preload_lines).strip(), tools_called, collected_data
-
 
 def _preload_discharge(pid: str) -> str:
     """Fetch discharge summary as clinical background context."""

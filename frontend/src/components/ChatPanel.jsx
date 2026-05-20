@@ -10,29 +10,18 @@ function MessageBubble({ msg }) {
       </div>
       <div className="max-w-[92%] px-[13px] py-[10px] text-[12.5px] leading-[1.6]"
         style={{
-          borderRadius: isDoctor
-            ? '10px 10px 4px 10px'
-            : '10px 10px 10px 4px',
-          background: isDoctor
-            ? 'rgba(37,99,235,0.15)'
-            : '#0d1526',
-          border: isDoctor
-            ? '1px solid rgba(37,99,235,0.25)'
-            : '1px solid #1a2d4e',
+          borderRadius: isDoctor ? '10px 10px 4px 10px' : '10px 10px 10px 4px',
+          background:   isDoctor ? 'rgba(37,99,235,0.15)' : '#0d1526',
+          border:       isDoctor ? '1px solid rgba(37,99,235,0.25)' : '1px solid #1a2d4e',
           color: '#dde4f0',
         }}>
-
         {msg.text}
-
         {msg.streaming && (
-          <span
-            className="inline-block w-[2px] h-[14px]
-      bg-accent2 ml-[2px] align-middle animate-pulse-dot"
-          />
+          <span className="inline-block w-[2px] h-[14px] bg-accent2 ml-[2px]
+            align-middle animate-pulse-dot" />
         )}
       </div>
 
-      {/* Meta tags — only for CLARA messages */}
       {!isDoctor && (msg.tools?.length > 0 || msg.guidelines || msg.emergency || msg.flags?.length > 0) && (
         <div className="flex gap-[5px] flex-wrap px-1">
           {msg.tools?.map(t => (
@@ -73,7 +62,8 @@ function TypingIndicator() {
   )
 }
 
-export default function ChatPanel({ patient, ruleFlags, isEmergency, messages, loading, onSend, onClear }) {
+// ↓ activeSection added to props
+export default function ChatPanel({ patient, activeSection, ruleFlags, isEmergency, messages, loading, onSend, onClear }) {
   const [input, setInput] = useState('')
   const bottomRef = useRef(null)
   const taRef = useRef(null)
@@ -84,7 +74,7 @@ export default function ChatPanel({ patient, ruleFlags, isEmergency, messages, l
 
   const handleSend = () => {
     if (!input.trim() || loading) return
-    onSend(input.trim())
+    onSend(input.trim(), activeSection)   // ← pass activeSection here
     setInput('')
     if (taRef.current) taRef.current.style.height = 'auto'
   }
@@ -101,7 +91,6 @@ export default function ChatPanel({ patient, ruleFlags, isEmergency, messages, l
   return (
     <div className="flex flex-col h-full bg-panel border-l border-border">
 
-      {/* Header */}
       <div className="px-4 py-[13px] border-b border-border shrink-0">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2 text-[13px] font-semibold">
@@ -117,11 +106,12 @@ export default function ChatPanel({ patient, ruleFlags, isEmergency, messages, l
           </button>
         </div>
         <div className="font-mono text-[10px] text-muted">
-          {patient ? `patient: ${patient.id} · session active` : 'no patient selected'}
+          {patient
+            ? `patient: ${patient.id} · ${activeSection ?? 'overview'} · session active`
+            : 'no patient selected'}
         </div>
       </div>
 
-      {/* Rule flags */}
       {ruleFlags.length > 0 && (
         <div className="mx-3 mt-2 px-3 py-2 rounded-[8px] font-mono text-[10px] shrink-0"
           style={{
@@ -136,14 +126,12 @@ export default function ChatPanel({ patient, ruleFlags, isEmergency, messages, l
         </div>
       )}
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-[10px]">
         {messages.map((m, i) => <MessageBubble key={i} msg={m} />)}
         {loading && !messages.some(m => m.streaming) && <TypingIndicator />}
         <div ref={bottomRef} />
       </div>
 
-      {/* Quick prompts */}
       <div className="px-3 pt-2 flex gap-[6px] flex-wrap shrink-0">
         {QUICK_PROMPTS.map(q => (
           <button key={q} onClick={() => setInput(q)}
@@ -155,7 +143,6 @@ export default function ChatPanel({ patient, ruleFlags, isEmergency, messages, l
         ))}
       </div>
 
-      {/* Input area */}
       <div className="p-3 shrink-0">
         <div className="flex gap-2 items-end">
           <textarea ref={taRef} value={input}
@@ -179,7 +166,6 @@ export default function ChatPanel({ patient, ruleFlags, isEmergency, messages, l
           </button>
         </div>
       </div>
-
     </div>
   )
 }
