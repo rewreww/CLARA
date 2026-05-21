@@ -1,0 +1,48 @@
+{
+  "features": [
+    "age_at_ecg",
+    "sex_encoded",
+    "ventricular_rate",
+    "atrial_rate",
+    "pr_interval",
+    "qrs_duration",
+    "qt_corrected",
+    "rate_difference",
+    "pr_missing"
+  ],
+  "targets": [
+    "lvef_lte_45_flag",
+    "shd_moderate_or_greater_flag",
+    "lvwt_gte_13_flag",
+    "pasp_gte_45_flag"
+  ],
+  "target_labels": {
+    "lvef_lte_45_flag": "Reduced Ejection Fraction (LVEF \u2264 45%)",
+    "shd_moderate_or_greater_flag": "Structural Heart Disease",
+    "lvwt_gte_13_flag": "LV Hypertrophy (wall \u2265 13 mm)",
+    "pasp_gte_45_flag": "Pulmonary Hypertension (PASP \u2265 45 mmHg)"
+  },
+  "metrics": {
+    "lvef_lte_45_flag": {
+      "auroc": 0.7892,
+      "auprc": 0.4645,
+      "prevalence": 0.1768
+    },
+    "shd_moderate_or_greater_flag": {
+      "auroc": 0.7602,
+      "auprc": 0.7002,
+      "prevalence": 0.4259
+    },
+    "lvwt_gte_13_flag": {
+      "auroc": 0.6882,
+      "auprc": 0.3195,
+      "prevalence": 0.195
+    },
+    "pasp_gte_45_flag": {
+      "auroc": 0.6983,
+      "auprc": 0.2618,
+      "prevalence": 0.1284
+    }
+  },
+  "note": "Trained on EchoNext 100k dataset. For research/demo use only."
+}

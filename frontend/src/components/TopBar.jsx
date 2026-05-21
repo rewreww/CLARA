@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-export default function TopBar() {
+export default function TopBar({ onOpenEcgTool }) {
   const [clock, setClock] = useState('')
 
   useEffect(() => {
@@ -31,6 +31,15 @@ export default function TopBar() {
         <span>·</span>
         <span>{clock}</span>
       </div>
+
+      {/* ECG Tool button */}
+      <button
+        onClick={onOpenEcgTool}
+        className="flex items-center gap-[6px] px-[12px] py-[5px] rounded-[6px]
+          bg-card border border-border font-mono text-[10px] text-muted
+          cursor-pointer hover:border-accent hover:text-accent2 transition-colors">
+        ⚡ ECG Risk Tool
+      </button>
 
       {/* User */}
       <div className="flex items-center gap-2 text-[13px]">

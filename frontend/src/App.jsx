@@ -1,14 +1,16 @@
 import { useState, useRef, useCallback } from 'react'
-import TopBar      from './components/TopBar'
-import Sidebar     from './components/SideBar'
-import MainContent from './components/MainContent'
-import ChatPanel   from './components/ChatPanel'
+import TopBar       from './components/TopBar'
+import Sidebar      from './components/SideBar'
+import MainContent  from './components/MainContent'
+import ChatPanel    from './components/ChatPanel'
+import EcgRiskTool  from './components/EcgRiskTool'
 import { useLabData } from './hooks/useLabData'
 import { useChat }    from './hooks/useChat'
 
 export default function App() {
   const [selectedPatient, setSelectedPatient] = useState(null)
   const [activeSection,   setActiveSection]   = useState('overview')
+  const [showEcgTool,     setShowEcgTool]     = useState(false)
   const sessionId = useRef('session_' + Date.now()).current
 
   const { data: labData, loading: labLoading, error: labError, load, reset } = useLabData()
@@ -37,7 +39,7 @@ export default function App() {
     <div className="flex flex-col h-screen overflow-hidden bg-bg text-[#dde4f0]"
       style={{ fontFamily: 'Syne, sans-serif' }}>
 
-      <TopBar />
+      <TopBar onOpenEcgTool={() => setShowEcgTool(true)} />
 
       <div className="flex flex-1 overflow-hidden">
 
@@ -70,6 +72,9 @@ export default function App() {
         </div>
 
       </div>
+
+      {/* ECG Risk Tool — removable overlay */}
+      {showEcgTool && <EcgRiskTool onClose={() => setShowEcgTool(false)} />}
     </div>
   )
 }
