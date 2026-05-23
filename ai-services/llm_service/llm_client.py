@@ -818,6 +818,101 @@ def clear_history(request: ClearHistoryRequest):
         del conversation_store[session_id]
     return {"session_id": session_id, "status": "cleared"}
 
+# ── Diagnostic Tool endpoint ────────────────────────────────────────────────
+
+class DiagnoseRequest(BaseModel):
+    chief_complaint:    Optional[str]  = None
+    chemistry_results:  list           = []
+    hematology_results: list           = []
+    microscopy_results: list           = []
+    discharge_parsed:   Optional[dict] = None
+    imaging_text:       Optional[str]  = None
+    # fallback raw texts if diagnose-prep was skipped
+    lab_text:           Optional[str]  = None
+    discharge_text:     Optional[str]  = None
+
+class DiagnoseResponse(BaseModel):
+    result: str
+
+@app.post("/diagnose", response_model=DiagnoseResponse)
+def diagnose(req: DiagnoseRequest):
+    sections = []
+
+    if req.chief_complaint:
+        sections.append(f"CHIEF COMPLAINT:\n{req.chief_complaint}")
+
+    if req.discharge_parsed:
+        dp = req.discharge_parsed
+        if dp.get("admitting_dx"):  sections.append(f"ADMITTING DIAGNOSIS:\n{dp['admitting_dx']}")
+        if dp.get("final_dx"):      sections.append(f"FINAL DIAGNOSIS:\n{dp['final_dx']}")
+        pe = dp.get("physical_exam") or {}
+        if pe.get("vitals"):        sections.append(f"VITALS:\n{pe['vitals']}")
+        if pe.get("findings"):      sections.append(f"PHYSICAL EXAMINATION:\n{pe['findings']}")
+        if dp.get("hpi"):           sections.append(f"HISTORY OF PRESENT ILLNESS:\n{dp['hpi']}")
+        if dp.get("pmh"):           sections.append(f"PAST MEDICAL HISTORY:\n{dp['pmh']}")
+    elif req.discharge_text:
+        sections.append(f"DISCHARGE SUMMARY (raw):\n{req.discharge_text[:3000]}")
+
+    def fmt_labs(label, results):
+        if not results:
+            return ""
+        lines = []
+        for r in results:
+            flag = str(r.get("flag") or "").upper()
+            tag  = " [HIGH]" if flag in ("H", "HIGH") else " [LOW]" if flag in ("L", "LOW") else ""
+            lines.append(f"  {r.get('test_name','?')}: {r.get('value','?')} {r.get('unit','')}{tag}")
+        return f"{label}:\n" + "\n".join(lines)
+
+    for block in [
+        fmt_labs("CHEMISTRY",           req.chemistry_results),
+        fmt_labs("HEMATOLOGY",          req.hematology_results),
+        fmt_labs("MICROSCOPY/URINALYSIS",req.microscopy_results),
+    ]:
+        if block:
+            sections.append(block)
+
+    if not sections and req.lab_text:
+        sections.append(f"LAB RESULTS (raw):\n{req.lab_text[:3000]}")
+
+    if req.imaging_text:
+        sections.append(f"IMAGING / RADIOLOGY:\n{req.imaging_text[:2000]}")
+
+    if not sections:
+        return DiagnoseResponse(result="No clinical data provided.")
+
+    clinical_context = "\n\n".join(sections)
+
+    system_prompt = (
+        "You are CLARA, a clinical decision-support AI for a Philippine hospital. "
+        "A physician has uploaded patient documents for independent diagnostic assessment. "
+        "Based strictly on the clinical data provided, produce a structured summary covering:\n"
+        "1. Most likely primary diagnosis with brief reasoning\n"
+        "2. Differential diagnoses to consider\n"
+        "3. Notable abnormal findings\n"
+        "4. Recommended next steps (investigations or management)\n\n"
+        "Use concise clinical language. Do not invent values not in the data. "
+        "If data is insufficient for a conclusion, state so explicitly."
+    )
+
+    prompt = (
+        f"{system_prompt}\n\n"
+        f"---\nCLINICAL DATA:\n\n{clinical_context}\n\n"
+        f"---\nDIAGNOSTIC SUMMARY:"
+    )
+
+    try:
+        response = requests.post(
+            f"{OLLAMA_URL}/api/generate",
+            json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
+            timeout=120,
+        )
+        response.raise_for_status()
+        result_text = response.json().get("response", "").strip()
+    except Exception as e:
+        result_text = f"LLM service unavailable: {e}"
+
+    return DiagnoseResponse(result=result_text)
+
 
 @app.get("/health")
 def health():

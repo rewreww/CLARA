@@ -1,8 +1,10 @@
 import requests
 import re as _re
 import os
+import io
 
 from fastapi import FastAPI, HTTPException
+from fastapi import File, UploadFile
 from pydantic import BaseModel
 from collections import Counter
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -129,6 +131,11 @@ class ParsedDischargeResponse(BaseModel):
     hospital_course:      List[HospitalCourseItem] = []
     raw_text:             Optional[str] = None
 
+class PdfExtractResponse(BaseModel):
+    filename:   str
+    pages:      int
+    char_count: int
+    text:       str
 
 
 
@@ -680,16 +687,6 @@ def discharge_summary(request: DischargeRequest):
         found=True
     )
 
-
-"""
-Add these imports and endpoint to medical_text_api.py.
-
-Step 1 — add this import at the top of medical_text_api.py:
-  from discharge_parser import parse_discharge
-
-Step 2 — add these models and endpoint before the root() function.
-"""
-
 # ── Pydantic models ───────────────────────────────────────────────────────────
 
 class ParsedLabItem(BaseModel):
@@ -1005,6 +1002,64 @@ def vitals_endpoint(request: DischargeRequest):
         temp=VitalEntry(**v["temp"]) if v["temp"] else None,
         o2=VitalEntry(**v["o2"]) if v["o2"] else None,
     )
+
+@app.post("/extract-pdf", response_model=PdfExtractResponse)
+async def extract_pdf_upload(file: UploadFile = File(...)):
+    try:
+        import pypdf
+    except ImportError:
+        raise HTTPException(500, "pypdf not installed — run: pip install pypdf")
+    data   = await file.read()
+    reader = pypdf.PdfReader(io.BytesIO(data))
+    pages  = [p.extract_text() or "" for p in reader.pages]
+    text   = "\n\n".join(pages)
+    return PdfExtractResponse(
+        filename   = file.filename or "upload.pdf",
+        pages      = len(reader.pages),
+        char_count = len(text),
+        text       = text,
+    )
+
+
+# ═══════════════════════════════════════════════════════════
+# Diagnostic prep — structure raw texts for LLM / ML
+# ═══════════════════════════════════════════════════════════
+
+class DiagnosePrepRequest(BaseModel):
+    chief_complaint: Optional[str] = None
+    lab_text:        Optional[str] = None
+    discharge_text:  Optional[str] = None
+    imaging_text:    Optional[str] = None
+
+class DiagnosePrepResponse(BaseModel):
+    chief_complaint:    Optional[str]       = None
+    chemistry_results:  List[Dict[str, Any]] = []
+    hematology_results: List[Dict[str, Any]] = []
+    microscopy_results: List[Dict[str, Any]] = []
+    discharge_parsed:   Optional[Dict]      = None
+    imaging_text:       Optional[str]       = None
+
+@app.post("/diagnose-prep", response_model=DiagnosePrepResponse)
+def diagnose_prep(req: DiagnosePrepRequest):    
+    out = DiagnosePrepResponse(chief_complaint=req.chief_complaint)
+
+    if req.lab_text and req.lab_text.strip():
+        clean = normalize_text(req.lab_text)
+        chem  = extract_chemistry_results(clean)
+        hema  = extract_hematology_results(clean)
+        mic   = extract_microscopy_results(clean)
+        out.chemistry_results  = [r.dict() for r in chem]  if chem  else []
+        out.hematology_results = [r.dict() for r in hema]  if hema  else []
+        out.microscopy_results = [r.dict() for r in mic]   if mic   else []
+
+    if req.discharge_text and req.discharge_text.strip():
+        clean = normalize_text(req.discharge_text)
+        out.discharge_parsed = parse_discharge(clean)
+
+    if req.imaging_text and req.imaging_text.strip():
+        out.imaging_text = req.imaging_text.strip()
+
+    return out
 
     
 @app.get("/")

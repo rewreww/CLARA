@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, Component } from 'react'
+import { useState, useCallback } from 'react'
 import TopBar          from './components/TopBar'
 import Sidebar         from './components/SideBar'
 import MainContent     from './components/MainContent'
@@ -7,31 +7,10 @@ import DiagnosticTool  from './components/DiagnosticTool'
 import { useLabData }  from './hooks/useLabData'
 import { useChat }     from './hooks/useChat'
 
-class EcgErrorBoundary extends Component {
-  state = { crashed: false }
-  static getDerivedStateFromError() { return { crashed: true } }
-  render() {
-    if (this.state.crashed) return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-        <div className="bg-panel border border-border rounded-[12px] p-6 font-mono text-[12px] text-center">
-          <div className="text-warning mb-2">⚠ ECG Tool Error</div>
-          <div className="text-muted mb-4">ML service is not running (port 8002).<br/>Start it with: <span className="text-accent2">python app.py</span></div>
-          <button onClick={() => { this.setState({ crashed: false }); this.props.onClose() }}
-            className="px-4 py-2 rounded-[6px] bg-card border border-border text-muted cursor-pointer hover:border-accent">
-            Close
-          </button>
-        </div>
-      </div>
-    )
-    return this.props.children
-  }
-}
-
 export default function App() {
   const [activeApp,       setActiveApp]       = useState('patients')
   const [selectedPatient, setSelectedPatient] = useState(null)
   const [activeSection,   setActiveSection]   = useState('overview')
-  const [showEcgTool,     setShowEcgTool]     = useState(false)
   const sessionId = useRef('session_' + Date.now()).current
 
   const { data: labData, loading: labLoading, error: labError, load, reset } = useLabData()
@@ -60,7 +39,7 @@ export default function App() {
     <div className="flex flex-col h-screen overflow-hidden bg-bg text-[#dde4f0]"
       style={{ fontFamily: 'Syne, sans-serif' }}>
 
-      <TopBar onOpenEcgTool={() => setShowEcgTool(true)} />
+      <TopBar />
 
       <div className="flex flex-1 overflow-hidden">
 
@@ -100,12 +79,6 @@ export default function App() {
         )}
 
       </div>
-
-      {showEcgTool && (
-        <EcgErrorBoundary onClose={() => setShowEcgTool(false)}>
-          <EcgRiskTool onClose={() => setShowEcgTool(false)} />
-        </EcgErrorBoundary>
-      )}
     </div>
   )
 }
