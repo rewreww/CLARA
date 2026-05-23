@@ -48,7 +48,7 @@ export default function Sidebar({ selectedPatient, onSelectPatient, activeSectio
 
       {/* ── Secondary panel — only for patients icon ── */}
       {secondaryOpen && activeIcon === 'patients' && (
-        <div className="w-[220px] bg-card border-r border-border flex flex-col
+        <div className="w-[220px] h-full bg-card border-r border-border flex flex-col
           shrink-0 overflow-hidden animate-fade-up">
 
           {/* Search header */}
