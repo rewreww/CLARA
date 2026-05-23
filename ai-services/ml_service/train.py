@@ -7,7 +7,7 @@ CLARA ML Training — EchoNext ECG-to-Echo Dataset
 """
 
 import json
-import pickle
+import joblib
 import warnings
 from pathlib import Path
 
@@ -120,10 +120,9 @@ def train():
             subsample       = 0.8,
             colsample_bytree= 0.8,
             eval_metric     = "logloss",
-            use_label_encoder=False,
+            verbosity        = 1, 
             n_jobs          = -1,
             random_state    = 42,
-            verbosity       = 0,
         )
         print("\nUsing XGBoost")
     except ImportError:
@@ -167,8 +166,8 @@ def train():
         metrics[name] = {"auroc": auroc, "label": label}
 
     # ── Save ───────────────────────────────────────────────────────────────
-    with open(BASE / "model.pkl", "wb") as f:
-        pickle.dump(pipeline, f)
+    joblib.dump(pipeline, BASE / "model.pkl")
+
 
     meta = {
         "feature_names": feature_names,

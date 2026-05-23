@@ -1,19 +1,16 @@
 {
-  "csv_file": "data/echoecg_dataset.csv",
-
+  "csv_file": "data/echonext_metadata_100k.csv",
   "split_column": "split",
   "split_train_value": "train",
-
   "feature_columns": {
-    "age_at_ecg":      "age_at_ecg",
-    "sex":             "sex",
-    "ventricular_rate":"ventricular_rate",
-    "atrial_rate":     "atrial_rate",
-    "pr_interval":     "pr_interval",
-    "qrs_duration":    "qrs_duration",
-    "qt_corrected":    "qt_corrected"
+    "age_at_ecg":       "age_at_ecg",
+    "sex":              "sex",
+    "ventricular_rate": "ventricular_rate",
+    "atrial_rate":      "atrial_rate",
+    "pr_interval":      "pr_interval",
+    "qrs_duration":     "qrs_duration",
+    "qt_corrected":     "qt_corrected"
   },
-
   "target_columns": {
     "lvef_lte_45_flag":                                "lvef_lte_45_flag",
     "shd_moderate_or_greater_flag":                    "shd_moderate_or_greater_flag",
@@ -24,11 +21,7 @@
     "aortic_stenosis_moderate_or_greater_flag":        "aortic_stenosis_moderate_or_greater_flag",
     "pericardial_effusion_moderate_large_flag":        "pericardial_effusion_moderate_large_flag"
   },
-
   "categorical_encodings": {
-    "sex": {
-      "M": 1, "Male": 1, "male": 1, "MALE": 1,
-      "F": 0, "Female": 0, "female": 0, "FEMALE": 0
-    }
+    "sex": {"M":1,"Male":1,"male":1,"MALE":1,"F":0,"Female":0,"female":0,"FEMALE":0}
   }
 }

@@ -1,5 +1,5 @@
 import json
-import pickle
+import joblib
 import warnings
 from pathlib import Path
 from typing import List, Optional
@@ -19,44 +19,42 @@ META  = None
 
 def load_model():
     global MODEL, META
-    mp, mm = BASE / "model.pkl", BASE / "model_meta.json"
+    mp = BASE / "model.pkl"
+    mm = BASE / "model_meta.json"
     if not mp.exists():
         print("  ⚠  model.pkl not found — run train.py first")
         return
-    with open(mp, "rb") as f:
-        MODEL = pickle.load(f)
+    MODEL = joblib.load(mp)
     with open(mm) as f:
         META = json.load(f)
     print(f"  ✓ Model loaded | features: {META['feature_names']}")
     print(f"  ✓ Targets ({len(META['target_names'])}): {META['target_names']}")
 
 
-load_model()
+load_model()   # called here, before app starts
+
 
 app = FastAPI(title="CLARA ML Service — EchoNext ECG Predictor")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 
 class PredictRequest(BaseModel):
-    # Core ECG features — matches training data
-    age_at_ecg:      Optional[float] = None
-    sex:             Optional[str]   = None   # M/F
-    ventricular_rate:Optional[float] = None
-    atrial_rate:     Optional[float] = None
-    pr_interval:     Optional[float] = None
-    qrs_duration:    Optional[float] = None
-    qt_corrected:    Optional[float] = None
-
-    # Legacy field names (from DiagnosticTool ECG text extraction)
-    age:             Optional[float] = None   # fallback for age_at_ecg
-    heart_rate:      Optional[float] = None   # fallback for ventricular_rate
+    age_at_ecg:       Optional[float] = None
+    sex:              Optional[str]   = None
+    ventricular_rate: Optional[float] = None
+    atrial_rate:      Optional[float] = None
+    pr_interval:      Optional[float] = None
+    qrs_duration:     Optional[float] = None
+    qt_corrected:     Optional[float] = None
+    age:              Optional[float] = None   # fallback for age_at_ecg
+    heart_rate:       Optional[float] = None   # fallback for ventricular_rate
 
 
 class RiskPrediction(BaseModel):
     key:         str
     label:       str
     probability: float
-    risk:        str   # low / moderate / high
+    risk:        str
 
 
 class PredictResponse(BaseModel):
@@ -68,8 +66,7 @@ class PredictResponse(BaseModel):
 def sex_encode(val) -> Optional[float]:
     if val is None:
         return None
-    m = {"m": 1, "male": 1, "f": 0, "female": 0}
-    return m.get(str(val).lower().strip())
+    return {"m": 1, "male": 1, "f": 0, "female": 0}.get(str(val).lower().strip())
 
 
 def risk_label(p: float) -> str:
@@ -82,12 +79,12 @@ def predict(req: PredictRequest):
         raise HTTPException(503, "Model not loaded — run train.py first")
 
     feature_names = META["feature_names"]
+    target_names  = META["target_names"]
     target_labels = META.get("target_labels", {})
 
-    # Resolve aliases
-    age  = req.age_at_ecg or req.age
-    vr   = req.ventricular_rate or req.heart_rate
-    sex  = sex_encode(req.sex)
+    age = req.age_at_ecg or req.age
+    vr  = req.ventricular_rate or req.heart_rate
+    sex = sex_encode(req.sex)
 
     raw = {
         "age_at_ecg":       age,
@@ -107,8 +104,8 @@ def predict(req: PredictRequest):
         raise HTTPException(500, f"Prediction failed: {e}")
 
     predictions = []
-    for i, name in enumerate(META["target_names"]):
-        prob = float(proba_list[i][0][1])   # probability of positive class
+    for i, name in enumerate(target_names):
+        prob = float(proba_list[i][0][1])
         predictions.append(RiskPrediction(
             key         = name,
             label       = target_labels.get(name, name.replace("_", " ").title()),
@@ -116,7 +113,6 @@ def predict(req: PredictRequest):
             risk        = risk_label(prob),
         ))
 
-    # Sort by probability descending
     predictions.sort(key=lambda x: x.probability, reverse=True)
     overall = round(float(np.mean([p.probability for p in predictions])), 4)
 
@@ -147,4 +143,4 @@ def health():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8002, reload=True)
+    uvicorn.run("app:app", host="0.0.0.0", port=8002)

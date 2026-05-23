@@ -241,3 +241,31 @@ def extract_microscopy_results(raw_text: str) -> List[Dict[str, object]]:
         ("TRIPLE PHOSPHATES", r"triple phosphates", [], True),
     ]
     return _extract_lab_values(raw_text, tests)
+
+
+def extract_ecg_values(raw_text: str) -> Optional[Dict[str, float]]:
+    """Extract ECG parameters from lab report text for ML model prediction."""
+    if not raw_text or not isinstance(raw_text, str):
+        return None
+    
+    text_lower = raw_text.lower()
+    ecg_params = {}
+    
+    # Define regex patterns for common ECG measurements
+    patterns = {
+        "ventricular_rate":  r"(?:ventricular\s+rate|hr|heart\s+rate)[\s:]*(\d+(?:\.\d+)?)\s*(?:bpm)?",
+        "atrial_rate":       r"(?:atrial\s+rate|pr\s+rate)[\s:]*(\d+(?:\.\d+)?)\s*(?:bpm)?",
+        "pr_interval":       r"(?:pr\s+interval)[\s:]*(\d+(?:\.\d+)?)\s*(?:ms)?",
+        "qrs_duration":      r"(?:qrs\s+duration|qrs)[\s:]*(\d+(?:\.\d+)?)\s*(?:ms)?",
+        "qt_corrected":      r"(?:qt\s+(?:corrected|interval)|qtc)[\s:]*(\d+(?:\.\d+)?)\s*(?:ms)?",
+    }
+    
+    for param_name, pattern in patterns.items():
+        match = re.search(pattern, text_lower)
+        if match:
+            try:
+                ecg_params[param_name] = float(match.group(1))
+            except (ValueError, IndexError):
+                pass
+    
+    return ecg_params if ecg_params else None

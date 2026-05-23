@@ -3,6 +3,7 @@ import sys
 import os
 import requests
 import json
+import re as _re_diag
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -827,12 +828,20 @@ class DiagnoseRequest(BaseModel):
     microscopy_results: list           = []
     discharge_parsed:   Optional[dict] = None
     imaging_text:       Optional[str]  = None
+    ecg_values:         Optional[dict] = None
     # fallback raw texts if diagnose-prep was skipped
     lab_text:           Optional[str]  = None
     discharge_text:     Optional[str]  = None
 
+class RiskItem(BaseModel):
+    label: str
+    probability: float
+    risk: str
+
 class DiagnoseResponse(BaseModel):
     result: str
+    guidelines: Optional[str] = None
+    ml_risks: Optional[list] = None
 
 @app.post("/diagnose", response_model=DiagnoseResponse)
 def diagnose(req: DiagnoseRequest):
@@ -878,26 +887,70 @@ def diagnose(req: DiagnoseRequest):
         sections.append(f"IMAGING / RADIOLOGY:\n{req.imaging_text[:2000]}")
 
     if not sections:
-        return DiagnoseResponse(result="No clinical data provided.")
+        return DiagnoseResponse(result="No clinical data provided.", guidelines=None, ml_risks=None)
 
     clinical_context = "\n\n".join(sections)
 
+    # Retrieve clinical guidelines based on chief complaint and findings
+    guidelines = None
+    try:
+        combined_text = f"{req.chief_complaint or ''} {req.lab_text or ''} {req.discharge_text or ''}"
+        raw_guidelines = retrieve_guidelines(combined_text)
+        if raw_guidelines and ("No relevant guideline" not in raw_guidelines and "not found" not in raw_guidelines and "not initialised" not in raw_guidelines):
+            # Summarize guidelines to just first 2-3 paragraphs (roughly 500 chars)
+            guideline_lines = raw_guidelines.split('\n')
+            summary_lines = []
+            char_count = 0
+            for line in guideline_lines:
+                if not line.strip():
+                    if summary_lines and len(summary_lines[-1].strip()) > 0:
+                        summary_lines.append(line)
+                else:
+                    summary_lines.append(line)
+                    char_count += len(line)
+                    if char_count > 400:  # Stop after ~400 chars
+                        break
+            guidelines = '\n'.join(summary_lines).strip()
+            if len(guidelines) > 800:
+                guidelines = guidelines[:800] + "..."
+    except Exception:
+        pass
+
+    # Try to get ML predictions if ECG data is available
+    ml_risks = None
+    if req.ecg_values and len(req.ecg_values) > 0:
+        try:
+            ml_response = requests.post(
+                "http://localhost:8002/predict",
+                json=req.ecg_values,
+                timeout=5
+            )
+            if ml_response.ok:
+                data = ml_response.json()
+                if data.get("predictions") and isinstance(data["predictions"], list):
+                    ml_risks = []
+                    for p in data["predictions"]:
+                        ml_risks.append({
+                            "label": str(p.get("label", p.get("key", "Unknown"))),
+                            "probability": float(p.get("probability", 0)),
+                            "risk": str(p.get("risk", "unknown"))
+                        })
+        except Exception as e:
+            # Silently fail - ml_risks will remain None
+            pass
+
     system_prompt = (
-        "You are CLARA, a clinical decision-support AI for a Philippine hospital. "
-        "A physician has uploaded patient documents for independent diagnostic assessment. "
-        "Based strictly on the clinical data provided, produce a structured summary covering:\n"
-        "1. Most likely primary diagnosis with brief reasoning\n"
-        "2. Differential diagnoses to consider\n"
-        "3. Notable abnormal findings\n"
-        "4. Recommended next steps (investigations or management)\n\n"
-        "Use concise clinical language. Do not invent values not in the data. "
-        "If data is insufficient for a conclusion, state so explicitly."
+        "You are CLARA, a clinical decision-support AI. Based on the clinical data provided, "
+        "generate a concise diagnostic assessment in 2-3 sentences maximum. "
+        "Start with the most likely diagnosis and key reasoning. Include differential diagnoses if relevant. "
+        "Focus on what is clinically significant. Be direct and avoid lengthy explanations. "
+        "Do not use bullet points or structured lists. Do not invent values not in the data."
     )
 
     prompt = (
         f"{system_prompt}\n\n"
-        f"---\nCLINICAL DATA:\n\n{clinical_context}\n\n"
-        f"---\nDIAGNOSTIC SUMMARY:"
+        f"CLINICAL DATA:\n{clinical_context}\n\n"
+        f"CONCISE DIAGNOSTIC ASSESSMENT:"
     )
 
     try:
@@ -911,7 +964,7 @@ def diagnose(req: DiagnoseRequest):
     except Exception as e:
         result_text = f"LLM service unavailable: {e}"
 
-    return DiagnoseResponse(result=result_text)
+    return DiagnoseResponse(result=result_text, guidelines=guidelines, ml_risks=ml_risks)
 
 
 @app.get("/health")

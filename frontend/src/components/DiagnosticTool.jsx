@@ -142,8 +142,26 @@ function ChiefComplaintBox({ value, onChange }) {
   )
 }
 
+function RiskBar({ label, probability, risk }) {
+  const color = risk === 'high' ? '#ef4444' : risk === 'moderate' ? '#f59e0b' : '#10b981'
+  const pct   = Math.round(probability * 100)
+  return (
+    <div className="mb-[7px]">
+      <div className="flex justify-between items-center mb-[2px]">
+        <span className="font-mono text-[9px] text-[#8899b0] truncate pr-2 leading-tight">{label}</span>
+        <span className="font-mono text-[9px] shrink-0 font-semibold" style={{ color }}>{pct}%</span>
+      </div>
+      <div className="h-[3px] rounded-full bg-[#1a2d4e] overflow-hidden">
+        <div className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${pct}%`, background: color }} />
+      </div>
+    </div>
+  )
+}
+
+
 // ── Center diagnosis panel ───────────────────────────────────────────────────
-function DiagnosisPanel({ result, loading, onStop }) {
+function DiagnosisPanel({ data, loading, onStop }) {
   if (loading) {
     return (
       <div className="bg-[#060b14] rounded-[10px] w-full h-full
@@ -160,6 +178,75 @@ function DiagnosisPanel({ result, loading, onStop }) {
       </div>
     )
   }
+
+if (data) {
+  return (
+    <div className="bg-[#060b14] rounded-[10px] w-full h-full flex flex-col overflow-hidden">
+
+      {/* Header */}
+      <div className="px-[14px] py-[9px] border-b border-border/40 shrink-0 flex items-center gap-2">
+        <span className="w-[6px] h-[6px] rounded-full bg-success" />
+        <span className="font-mono text-[10px] text-accent2 uppercase tracking-[0.1em]">
+          Diagnostic Result
+        </span>
+      </div>
+
+      <div className="flex-1 overflow-y-auto flex flex-col min-h-0">
+
+        {/* Guidelines box */}
+        {data.guidelines && (
+          <div className="mx-[12px] mt-[10px] bg-[#0a1628] border border-blue-900/40
+            rounded-[8px] p-[10px] shrink-0">
+            <div className="font-mono text-[8px] uppercase tracking-[0.12em] text-blue-400 mb-[5px]">
+              ● Clinical Guidelines
+            </div>
+            <div className="text-[10px] leading-[1.6] text-[#7a9acc]">
+              {data.guidelines}
+            </div>
+          </div>
+        )}
+
+        {/* ML risk bars */}
+        {data.mlRisks?.length > 0 && (
+          <div className="mx-[12px] mt-[10px] bg-[#0d1a2e] border border-border
+            rounded-[8px] p-[10px] shrink-0">
+            <div className="font-mono text-[8px] uppercase tracking-[0.12em] text-muted mb-[8px]">
+              ● ML Cardiac Risk (ECG-based)
+            </div>
+
+            {data.mlRisks.map(r => (
+              <RiskBar
+                key={r.label}
+                label={r.label}
+                probability={r.probability}
+                risk={r.risk}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* LLM narrative */}
+        <div className="px-[14px] py-[12px] text-[12px] leading-[1.8]
+          text-[#dde4f0] whitespace-pre-wrap font-sans">
+          {data.result}
+        </div>
+
+      </div>
+    </div>
+  )
+} // <-- YOU WERE MISSING THIS
+
+return (
+  <div className="bg-[#060b14] rounded-[10px] w-full h-full
+    flex items-center justify-center">
+    <div className="text-[52px] select-none" style={{ opacity: 0.06 }}>
+      ⚕
+    </div>
+  </div>
+)
+  
+
+
 
   if (result) {
     return (
@@ -212,16 +299,17 @@ export default function DiagnosticTool() {
       if (!gridRef.current || !centerRef.current) return
       const gRect = gridRef.current.getBoundingClientRect()
       const cRect = centerRef.current.getBoundingClientRect()
-      const cLeft = cRect.left - gRect.left
-      const cRight = cRect.right - gRect.left
+      const PADDING = 14 // matches p-[14px] on the grid div
+      const cLeft = cRect.left - gRect.left - PADDING
+      const cRight = cRect.right - gRect.left - PADDING
 
       const next = []
       for (const [key, el] of Object.entries(chipRefs.current)) {
         if (!el) continue
         const r = el.getBoundingClientRect()
-        const midY = r.top - gRect.top + r.height / 2
-        const rL = r.left - gRect.left
-        const rR = r.right - gRect.left
+        const midY = r.top - gRect.top - PADDING + r.height / 2
+        const rL = r.left - gRect.left - PADDING
+        const rR = r.right - gRect.left - PADDING
 
         if (rR < cLeft) {
           // chip is left of center panel
@@ -238,7 +326,7 @@ export default function DiagnosticTool() {
     const ro = new ResizeObserver(calc)
     if (gridRef.current) ro.observe(gridRef.current)
     return () => { clearTimeout(t); ro.disconnect() }
-  }, [labFiles, dischargeFiles])
+  }, [labFiles, dischargeFiles, imagingFiles])
 
   const handleAdd = useCallback((setter, fieldName) => async (incoming) => {
     const pdfs = Array.from(incoming).filter(f => f.type === 'application/pdf')
@@ -290,47 +378,57 @@ export default function DiagnosticTool() {
   const stopDiagnostic = () => abortRef.current?.abort()
 
   const runDiagnostic = async () => {
-    const ctrl = new AbortController()
-    abortRef.current = ctrl
-    setDiagLoading(true)
-    setDiagnosis(null)
-    try {
-      const prepRes = await fetch(`${LABS_URL}/diagnose-prep`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chief_complaint: chiefComplaint,
-          lab_text: collect(labFiles),
-          discharge_text: collect(dischargeFiles),
-          imaging_text: collect(imagingFiles),
-        }),
-        signal: ctrl.signal,
-      })
-      const prep = prepRes.ok ? await prepRes.json() : {}
+  const ctrl = new AbortController()
+  abortRef.current = ctrl
+  setDiagLoading(true)
+  setDiagnosis(null)
+  try {
+    const prepRes = await fetch(`${LABS_URL}/diagnose-prep`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chief_complaint: chiefComplaint,
+        lab_text:        collect(labFiles),
+        discharge_text:  collect(dischargeFiles),
+        imaging_text:    collect(imagingFiles),
+      }),
+      signal: ctrl.signal,
+    })
+    const prep = prepRes.ok ? await prepRes.json() : {}
 
-      const diagRes = await fetch('/api/llm/diagnose', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...prep,
-          chief_complaint: chiefComplaint,
-          lab_text: collect(labFiles),
-          discharge_text: collect(dischargeFiles),
-          imaging_text: collect(imagingFiles),
-        }),
-        signal: ctrl.signal,
+    const diagRes = await fetch('/api/llm/diagnose', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...prep,
+        chief_complaint: chiefComplaint,
+        imaging_text:    collect(imagingFiles),
+      }),
+      signal: ctrl.signal,
+    })
+    if (!diagRes.ok) throw new Error(`LLM service ${diagRes.status}`)
+    const d = await diagRes.json()
+
+    setDiagnosis({
+      result:     d.result,
+      guidelines: d.guidelines,
+      mlRisks:    d.ml_risks,
+    })
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      setDiagnosis({ result: 'Analysis stopped by user.', guidelines: null, mlRisks: null })
+    } else {
+      setDiagnosis({
+        result: `⚠ ${e.message}\n\nEnsure both services are running (ports 8000 and 8001).`,
+        guidelines: null,
+        mlRisks: null,
       })
-      if (!diagRes.ok) throw new Error(`LLM service ${diagRes.status}`)
-      const d = await diagRes.json()
-      setDiagnosis(d.result)
-    } catch (e) {
-      if (e.name === 'AbortError') setDiagnosis('Analysis stopped by user.')
-      else setDiagnosis(`⚠ ${e.message}\n\nEnsure both services are running (ports 8000 and 8001).`)
-    } finally {
-      setDiagLoading(false)
-      abortRef.current = null
     }
+  } finally {
+    setDiagLoading(false)
+    abortRef.current = null
   }
+}
 
   const totalFiles = labFiles.length + dischargeFiles.length + imagingFiles.length
   const anyExtracting = [...labFiles, ...dischargeFiles, ...imagingFiles].some(f => f.loading)
@@ -377,12 +475,12 @@ export default function DiagnosticTool() {
       {/* Grid */}
       <div
         ref={gridRef}
-        className="flex-1 min-h-0 p-[14px] relative"
+        className="flex-1 min-h-0 relative overflow-hidden"
       >
-        {/* SVG overlay */}
+        {/* SVG overlay - positioned to account for inner padding */}
         <svg
-          className="absolute inset-0 w-full h-full pointer-events-none"
-          style={{ zIndex: 30 }}
+          className="absolute w-full h-full pointer-events-none"
+          style={{ zIndex: 30, top: 0, left: 0 }}
         >
           {lines.map(l => (
             <line
@@ -398,9 +496,9 @@ export default function DiagnosticTool() {
             />
           ))}
         </svg>
-        {/* MAIN GRID */}
+        {/* MAIN GRID with padding */}
         <div
-          className="w-full h-full grid gap-[12px]"
+          className="w-full h-full grid gap-[12px] p-[14px]"
           style={{
             gridTemplateColumns: '320px 1fr 320px',
             gridTemplateRows: '1fr 1fr',
@@ -473,7 +571,7 @@ export default function DiagnosticTool() {
             }}
           >
             <DiagnosisPanel
-              result={diagnosis}
+              data={diagnosis}
               loading={diagLoading}
               onStop={stopDiagnostic}
             />

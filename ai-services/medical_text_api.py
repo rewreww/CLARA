@@ -16,6 +16,7 @@ from lab_extractors import (
     extract_chemistry_results,
     extract_hematology_results,
     extract_microscopy_results,
+    extract_ecg_values,
 )
 
 app = FastAPI()
@@ -1038,6 +1039,7 @@ class DiagnosePrepResponse(BaseModel):
     microscopy_results: List[Dict[str, Any]] = []
     discharge_parsed:   Optional[Dict]      = None
     imaging_text:       Optional[str]       = None
+    ecg_values:         Optional[Dict]      = None
 
 @app.post("/diagnose-prep", response_model=DiagnosePrepResponse)
 def diagnose_prep(req: DiagnosePrepRequest):    
@@ -1048,13 +1050,20 @@ def diagnose_prep(req: DiagnosePrepRequest):
         chem  = extract_chemistry_results(clean)
         hema  = extract_hematology_results(clean)
         mic   = extract_microscopy_results(clean)
-        out.chemistry_results  = [r.dict() for r in chem]  if chem  else []
-        out.hematology_results = [r.dict() for r in hema]  if hema  else []
-        out.microscopy_results = [r.dict() for r in mic]   if mic   else []
+        ecg   = extract_ecg_values(clean)
+        out.chemistry_results  = chem if chem else []
+        out.hematology_results = hema if hema else []
+        out.microscopy_results = mic if mic else []
+        out.ecg_values         = ecg
 
     if req.discharge_text and req.discharge_text.strip():
         clean = normalize_text(req.discharge_text)
         out.discharge_parsed = parse_discharge(clean)
+        # Also try to extract ECG from discharge if not already found
+        if not out.ecg_values:
+            ecg = extract_ecg_values(clean)
+            if ecg:
+                out.ecg_values = ecg
 
     if req.imaging_text and req.imaging_text.strip():
         out.imaging_text = req.imaging_text.strip()

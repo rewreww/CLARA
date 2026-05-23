@@ -1,0 +1,67 @@
+{
+  "feature_names": [
+    "age_at_ecg",
+    "sex",
+    "ventricular_rate",
+    "atrial_rate",
+    "pr_interval",
+    "qrs_duration",
+    "qt_corrected"
+  ],
+  "target_names": [
+    "lvef_lte_45_flag",
+    "shd_moderate_or_greater_flag",
+    "lvwt_gte_13_flag",
+    "pasp_gte_45_flag",
+    "rv_systolic_dysfunction_moderate_or_greater_flag",
+    "mitral_regurgitation_moderate_or_greater_flag",
+    "aortic_stenosis_moderate_or_greater_flag",
+    "pericardial_effusion_moderate_large_flag"
+  ],
+  "target_labels": {
+    "lvef_lte_45_flag": "Reduced Ejection Fraction (LVEF \u2264 45%)",
+    "shd_moderate_or_greater_flag": "Structural Heart Disease",
+    "lvwt_gte_13_flag": "LV Hypertrophy (Wall \u2265 13 mm)",
+    "pasp_gte_45_flag": "Pulmonary Hypertension (PASP \u2265 45 mmHg)",
+    "rv_systolic_dysfunction_moderate_or_greater_flag": "RV Systolic Dysfunction",
+    "mitral_regurgitation_moderate_or_greater_flag": "Mitral Regurgitation (Moderate+)",
+    "aortic_stenosis_moderate_or_greater_flag": "Aortic Stenosis (Moderate+)",
+    "pericardial_effusion_moderate_large_flag": "Pericardial Effusion (Moderate/Large)"
+  },
+  "metrics": {
+    "lvef_lte_45_flag": {
+      "auroc": 0.7396264521537645,
+      "label": "Reduced Ejection Fraction (LVEF \u2264 45%)"
+    },
+    "shd_moderate_or_greater_flag": {
+      "auroc": 0.7249613096189845,
+      "label": "Structural Heart Disease"
+    },
+    "lvwt_gte_13_flag": {
+      "auroc": 0.6626531705168778,
+      "label": "LV Hypertrophy (Wall \u2265 13 mm)"
+    },
+    "pasp_gte_45_flag": {
+      "auroc": 0.6364369366154389,
+      "label": "Pulmonary Hypertension (PASP \u2265 45 mmHg)"
+    },
+    "rv_systolic_dysfunction_moderate_or_greater_flag": {
+      "auroc": 0.7276984574152502,
+      "label": "RV Systolic Dysfunction"
+    },
+    "mitral_regurgitation_moderate_or_greater_flag": {
+      "auroc": 0.7062474992823748,
+      "label": "Mitral Regurgitation (Moderate+)"
+    },
+    "aortic_stenosis_moderate_or_greater_flag": {
+      "auroc": 0.8492753562706472,
+      "label": "Aortic Stenosis (Moderate+)"
+    },
+    "pericardial_effusion_moderate_large_flag": {
+      "auroc": 0.5990084313760498,
+      "label": "Pericardial Effusion (Moderate/Large)"
+    }
+  },
+  "n_train": 72475,
+  "n_test": 27525
+}
