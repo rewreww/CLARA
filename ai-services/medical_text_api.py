@@ -122,6 +122,7 @@ class ParsedDischargeResponse(BaseModel):
     final_dx:             Optional[str] = None
     hpi:                  Optional[str] = None
     pmh:                  Optional[str] = None
+    allergies:            Optional[str] = None   # ← add this line
     physical_exam:        PhysicalExam  = PhysicalExam()
     laboratory_data:      Optional[str] = None
     labs:                 List[ParsedLabItem] = []
@@ -726,6 +727,68 @@ class ParsedDischargeResponse(BaseModel):
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────
 
+def _extract_allergies(text: str) -> Optional[str]:
+    """Extract allergy information from discharge summary text."""
+    match = _re.search(
+        r'(?:drug\s+)?allergi(?:es|c\s+to|a)\s*:?\s*([^\n\r]{2,80})',
+        text, flags=_re.IGNORECASE
+    )
+    if match:
+        val = compact_text(match.group(1))
+        return val if val else None
+
+    # Check for NKDA anywhere in text
+    if _re.search(r'\bNKDA\b', text, flags=_re.IGNORECASE):
+        return 'NKDA (No Known Drug Allergies)'
+
+    return None
+
+def _extract_condition_upon_discharge(text: str) -> Optional[str]:
+    """
+    Extract the marked condition upon discharge from Philippine discharge summaries.
+    Looks for: Recovered, Improved, Unimproved, Others
+    Handles both checkbox formats and plain text declarations.
+    """
+    CONDITIONS = ['recovered', 'improved', 'unimproved', 'others']
+
+    # Format 1: "Condition upon discharge: Improved"
+    match = _re.search(
+        r'condition\s+(?:upon|on|at|of)\s+discharge\s*:?\s*([^\n\r]{2,40})',
+        text, flags=_re.IGNORECASE
+    )
+    if match:
+        val = match.group(1).strip()
+        for c in CONDITIONS:
+            if c in val.lower():
+                return c.capitalize()
+
+    # Format 2: checked box — "(x) Improved" or "[x] Improved" or "✓ Improved"
+    match = _re.search(
+        r'(?:\(x\)|\[x\]|✓|✗|\/)\s*(recovered|improved|unimproved|others)',
+        text, flags=_re.IGNORECASE
+    )
+    if match:
+        return match.group(1).capitalize()
+
+    # Format 3: condition keyword followed by a marker on same line
+    for c in CONDITIONS:
+        match = _re.search(
+            rf'{c}\s*(?:\(x\)|\[x\]|✓|:?\s*yes|\*)',
+            text, flags=_re.IGNORECASE
+        )
+        if match:
+            return c.capitalize()
+
+    # Format 4: bare declaration anywhere near "discharge"
+    match = _re.search(
+        r'discharged?\s+(?:as\s+)?:?\s*(recovered|improved|unimproved)',
+        text, flags=_re.IGNORECASE
+    )
+    if match:
+        return match.group(1).capitalize()
+
+    return None
+
 @app.post("/discharge-parsed", response_model=ParsedDischargeResponse)
 def discharge_parsed(request: DischargeRequest):
     """
@@ -758,12 +821,13 @@ def discharge_parsed(request: DischargeRequest):
         patient              = request.patient,
         found                = True,
         header               = DischargeHeader(**(parsed.get("header") or {})),
-        condition_discharge  = parsed.get("condition_discharge"),
+        condition_discharge  = _extract_condition_upon_discharge(raw_text),
         chief_complaint      = parsed.get("chief_complaint"),
         admitting_dx         = parsed.get("admitting_dx"),
         final_dx             = parsed.get("final_dx"),
         hpi                  = parsed.get("hpi"),
         pmh                  = parsed.get("pmh"),
+        allergies            = _extract_allergies(raw_text),
         physical_exam        = PhysicalExam(
             vitals   = parsed["physical_exam"].get("vitals"),
             findings = parsed["physical_exam"].get("findings"),

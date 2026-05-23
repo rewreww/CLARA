@@ -1,8 +1,9 @@
-import { useVitals } from '../hooks/useVitals'
+import { useVitals }    from '../hooks/useVitals'
+import { useDischarge } from '../hooks/useDischarge'
 
 const STATUS_HEX = { normal: '#10b981', warning: '#f59e0b', critical: '#ef4444' }
 
-// ── SparkLine — single point shows dashed line + dot ─────────────────────────
+// ── SparkLine ─────────────────────────────────────────────────────────────────
 function SparkLine({ data, color, width = 80, height = 22 }) {
   if (!data?.length) return null
 
@@ -60,7 +61,6 @@ function VitalTile({ label, value, unit, statusLabel, status, sparkData }) {
   )
 }
 
-// ── Skeleton while loading ────────────────────────────────────────────────────
 function SkeletonTile() {
   return (
     <div className="bg-[#0d1526] border border-border rounded-[10px] p-[12px_14px]
@@ -74,11 +74,11 @@ function SkeletonTile() {
 
 // ── 5-tile vitals row ─────────────────────────────────────────────────────────
 const VITAL_CONFIG = [
-  { key: 'bp',   label: 'Blood Pressure',  unit: 'mmHg' },
-  { key: 'hr',   label: 'Heart Rate',      unit: 'bpm'  },
-  { key: 'rr',   label: 'Respiratory',     unit: '/min' },
-  { key: 'temp', label: 'Temperature',     unit: '°C'   },
-  { key: 'o2',   label: 'O₂ Saturation',   unit: '%'    },
+  { key: 'bp',   label: 'Blood Pressure', unit: 'mmHg' },
+  { key: 'hr',   label: 'Heart Rate',     unit: 'bpm'  },
+  { key: 'rr',   label: 'Respiratory',    unit: '/min' },
+  { key: 'temp', label: 'Temperature',    unit: '°C'   },
+  { key: 'o2',   label: 'O₂ Saturation',  unit: '%'    },
 ]
 
 function VitalsRow({ vitals, loading }) {
@@ -89,7 +89,6 @@ function VitalsRow({ vitals, loading }) {
       </div>
     )
   }
-
   return (
     <div className="grid grid-cols-5 gap-[10px] mb-[20px]">
       {VITAL_CONFIG.map(({ key, label, unit }) => {
@@ -110,6 +109,33 @@ function VitalsRow({ vitals, loading }) {
   )
 }
 
+// ── Medical info tile ─────────────────────────────────────────────────────────
+function MedTile({ icon, title, body, loading, accent }) {
+  return (
+    <div
+      className="bg-[#0d1526] border border-border rounded-[10px] p-[12px_14px]
+        transition-all min-h-[90px]"
+      onMouseEnter={e => e.currentTarget.style.borderColor = accent || '#2563eb'}
+      onMouseLeave={e => e.currentTarget.style.borderColor = '#1a2d4e'}
+    >
+      <div className="flex items-center gap-[6px] mb-[6px]">
+        <span className="text-[14px]">{icon}</span>
+        <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted">
+          {title}
+        </span>
+      </div>
+      {loading ? (
+        <div className="h-3 w-3/4 bg-border rounded animate-pulse" />
+      ) : (
+        <div className="text-[11px] leading-[1.55]"
+          style={{ color: body ? '#dde4f0' : '#4a5f7a' }}>
+          {body || 'Not recorded'}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function formatAge(age) {
   if (!age) return '-'
@@ -118,26 +144,6 @@ function formatAge(age) {
 
 function displaySection(file) {
   return file.lab_type || file.section || 'file'
-}
-
-function latestLabDate(files) {
-  const dates = (files || []).map(f => f.date).filter(Boolean).sort()
-  return dates[dates.length - 1] || 'No dated labs'
-}
-
-function InfoTile({ title, body, icon }) {
-  return (
-    <div
-      className="bg-[#0d1526] border border-border rounded-[10px] p-[12px_14px]
-        cursor-pointer transition-all animate-fade-up"
-      onMouseEnter={e => e.currentTarget.style.borderColor = '#2563eb'}
-      onMouseLeave={e => e.currentTarget.style.borderColor = '#1a2d4e'}
-    >
-      <div className="text-[18px] mb-[6px]">{icon}</div>
-      <div className="text-[11px] font-semibold mb-1">{title}</div>
-      <div className="text-[11px] text-muted leading-[1.5]">{body}</div>
-    </div>
-  )
 }
 
 function FileInventory({ files }) {
@@ -168,18 +174,46 @@ function FileInventory({ files }) {
 
 // ── Main export ───────────────────────────────────────────────────────────────
 export default function OverviewPanel({ patient }) {
-  const { vitals, loading: vitalsLoading } = useVitals(patient.id)
+  const { vitals,    loading: vitalsLoading }    = useVitals(patient.id)
+  const { discharge, loading: dischargeLoading } = useDischarge(patient.id)
 
-  const fileCount = patient.files?.length || 0
-  const sections  = patient.available_sections?.length
-    ? patient.available_sections.join(', ')
-    : 'No PDF sections found'
-
-  const infoTiles = [
-    { title: 'Patient Folder',     body: `Desktop/Patients/${patient.id}`, icon: '📁' },
-    { title: 'Available Sections', body: sections,                          icon: '🗂' },
-    { title: 'PDF Files',          body: `${fileCount} document${fileCount === 1 ? '' : 's'} indexed`, icon: '📄' },
-    { title: 'Latest Lab Date',    body: latestLabDate(patient.files),     icon: '📅' },
+  const medTiles = [
+    {
+      icon:   '🏥',
+      title:  'Condition at Discharge',
+      body:   discharge?.condition_discharge,
+      accent: (() => {
+        const c = discharge?.condition_discharge?.toLowerCase()
+        if (!c) return '#6b7f99'
+        if (c === 'recovered')  return '#10b981'
+        if (c === 'improved')   return '#0ea5e9'
+        if (c === 'unimproved') return '#ef4444'
+        return '#f59e0b'
+      })(),
+    },
+    {
+      icon:   '⚠',
+      title:  'Allergies',
+      body:   discharge?.allergies,
+      accent: '#ef4444',
+    },
+    {
+      icon:   '🗂',
+      title:  'Available Sections',
+      body:   patient.available_sections?.length
+                ? patient.available_sections.join(', ')
+                : null,
+      accent: '#f59e0b',
+    },
+    {
+      icon:   '📅',
+      title:  'Latest Lab Date',
+      body:   (() => {
+        const dates = (patient.files || []).map(f => f.date).filter(Boolean).sort()
+        return dates[dates.length - 1] || null
+      })(),
+      accent: '#10b981',
+    },
   ]
 
   return (
@@ -197,8 +231,21 @@ export default function OverviewPanel({ patient }) {
       <div className="font-mono text-[10px] tracking-[0.1em] uppercase text-accent mb-[10px]">
         ● Patient Records
       </div>
-      <div className="grid grid-cols-2 gap-[10px] mb-[20px]">
-        {infoTiles.map(t => <InfoTile key={t.title} {...t} />)}
+            <div className="grid grid-cols-2 gap-[10px] mb-[20px]">
+        {medTiles.map(t => (
+          <MedTile
+            key={t.title}
+            icon={t.icon}
+            title={t.title}
+            body={t.body}
+            loading={
+              ['Chief Complaint', 'Allergies', 'Condition at Discharge'].includes(t.title)
+                ? dischargeLoading
+                : false
+            }
+            accent={t.accent}
+          />
+        ))}
       </div>
 
       <div className="font-mono text-[10px] tracking-[0.1em] uppercase text-accent mb-[10px]">
