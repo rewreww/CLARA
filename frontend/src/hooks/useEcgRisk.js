@@ -9,8 +9,14 @@ export function useEcgRisk() {
 
   useEffect(() => {
     fetch(`${ML_URL}/demo-patients`)
-      .then(r => r.json())
-      .then(d  => setPatients(d))
+      .then(r => {
+        if (!r.ok) throw new Error(`ML service offline (${r.status})`)
+        return r.json()
+      })
+      .then(d => {
+        if (!Array.isArray(d)) throw new Error('Unexpected response from ML service')
+        setPatients(d)
+      })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false))
   }, [])
