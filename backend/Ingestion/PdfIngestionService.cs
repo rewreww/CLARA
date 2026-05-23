@@ -36,6 +36,19 @@ namespace CLARA.Backend.Ingestion
                 .Select(filePath => new ExtractedPdf(filePath, _pdfParser.ExtractText(filePath)))
                 .ToList();
         }
+
+        public IReadOnlyList<string> ListPatientFolders()
+        {
+            if (!Directory.Exists(_patientsFolderPath))
+                return Array.Empty<string>();
+
+            return Directory.GetDirectories(_patientsFolderPath)
+                .Select(Path.GetFileName)
+                .OfType<string>()
+                .Where(folderName => !string.IsNullOrWhiteSpace(folderName))
+                .OrderBy(folderName => folderName)
+                .ToList();
+        }
     }
 
     public sealed record ExtractedPdf(string FilePath, string Text);

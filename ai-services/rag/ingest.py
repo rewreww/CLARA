@@ -23,6 +23,24 @@ COLLECTION     = "clara_guidelines"
 CHUNK_SIZE     = 400   # words per chunk
 CHUNK_OVERLAP  = 80    # words of overlap between chunks so context is not lost
 
+# ── Philippines detection keywords ────────────────────────────────────────────
+_PH_KEYWORDS = [
+    "philippine", "philippines", "pilipinas",
+    "psh", "phsih", "pccp",
+    "philippine society", "philippine heart",
+    "philippine college of cardiology",
+    "dept of health", "department of health",
+    "doh philippines",
+]
+
+
+def detect_country(pdf_file: str, full_text: str) -> str:
+    """Return 'philippines' if this PDF is a Philippine-origin guideline, else 'international'."""
+    combined = (pdf_file + " " + full_text[:3000] + full_text[-1000:]).lower()
+    if any(kw in combined for kw in _PH_KEYWORDS):
+        return "philippines"
+    return "international"
+
 
 def extract_text_from_pdf(pdf_path: str) -> str:
     """Extract all text from a PDF file using pymupdf."""
@@ -113,6 +131,10 @@ def ingest():
             print(f"  WARNING: No text extracted — PDF may be scanned. Skipping.\n")
             continue
 
+        # Detect country of origin for this guideline
+        country = detect_country(pdf_file, full_text)
+        print(f"  Country tag: {country}")
+
         # Split into chunks
         chunks = split_into_chunks(full_text, CHUNK_SIZE, CHUNK_OVERLAP)
         print(f"  Split into {len(chunks)} chunks")
@@ -137,9 +159,10 @@ def ingest():
             embeddings.append(embedding)
             documents.append(chunk)
             metadatas.append({
-                "source": source_name,
+                "source":      source_name,
                 "chunk_index": i,
-                "pdf_file": pdf_file
+                "pdf_file":    pdf_file,
+                "country":     country,   # NEW: "philippines" or "international"
             })
 
         # Store batch in ChromaDB

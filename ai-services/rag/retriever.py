@@ -12,10 +12,11 @@ import chromadb
 CHROMA_DIR  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chroma_db")
 
 # ── Config ─────────────────────────────────────────────────────────────────────
-OLLAMA_URL  = "http://localhost:11434"
-EMBED_MODEL = "nomic-embed-text"
-COLLECTION  = "clara_guidelines"
-TOP_K       = 3   # number of guideline chunks to retrieve per query
+OLLAMA_URL    = "http://localhost:11434"
+EMBED_MODEL   = "nomic-embed-text"
+COLLECTION    = "clara_guidelines"
+TOP_K         = 5     # retrieve more candidates before filtering
+MIN_RELEVANCE = 45.0  # discard chunks below this cosine-similarity %
 
 
 def get_embedding(text: str) -> list[float]:
@@ -63,12 +64,37 @@ def retrieve_guidelines(query: str) -> str:
     if not documents:
         return "[GUIDELINES] No relevant guideline sections found."
 
-    # Format the retrieved chunks into a readable block
+    # Drop chunks that are too weak a match
+    matched = [
+        (doc, meta, dist)
+        for doc, meta, dist in zip(documents, metadatas, distances)
+        if (1 - dist) * 100 >= MIN_RELEVANCE
+    ]
+
+    if not matched:
+        return "[GUIDELINES] No relevant guideline sections found."
+
+    # Philippine-tagged chunks bubble to the top so CLARA sees them first
+    matched.sort(key=lambda x: (0 if x[1].get("country") == "philippines" else 1))
+
+    has_ph = any(m.get("country") == "philippines" for _, m, _ in matched)
+
     lines = ["[RELEVANT CLINICAL GUIDELINES]"]
-    for i, (doc, meta, dist) in enumerate(zip(documents, metadatas, distances)):
-        relevance = round((1 - dist) * 100, 1)  # cosine distance → % similarity
+    if has_ph:
+        lines.append(
+            "NOTE: Philippine-specific guidelines are included below. "
+            "When local Philippine recommendations differ from international guidelines "
+            "(AHA / ESC / JNC), prefer the Philippine guidelines."
+        )
+
+    for i, (doc, meta, dist) in enumerate(matched):
+        relevance = round((1 - dist) * 100, 1)
         source    = meta.get("source", "unknown")
-        lines.append(f"\n--- Guideline excerpt {i+1} (source: {source}, relevance: {relevance}%) ---")
+        country   = meta.get("country", "international")
+        label     = "[Philippine Guidelines]" if country == "philippines" else "[International Guidelines]"
+        lines.append(
+            f"\n--- {label} excerpt {i+1} (source: {source}, relevance: {relevance}%) ---"
+        )
         lines.append(doc.strip())
 
     return "\n".join(lines)

@@ -1,8 +1,10 @@
 import requests
 import re as _re
+import os
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from collections import Counter
 from typing import Any, Dict, List, Optional, Tuple, Union
 from fastapi.middleware.cors import CORSMiddleware
 from discharge_parser import parse_discharge
@@ -56,6 +58,27 @@ class LabResponse(BaseModel):
     results: List[LabResult]
 
 
+class PatientFileItem(BaseModel):
+    file_path: str
+    file_name: str
+    section: str
+    lab_type: Optional[str] = None
+    date: Optional[str] = None
+
+
+class PatientSummary(BaseModel):
+    id: str
+    name: str
+    age: Optional[str] = None
+    sex: Optional[str] = None
+    available_sections: List[str] = []
+    files: List[PatientFileItem] = []
+
+
+class PatientsResponse(BaseModel):
+    patients: List[PatientSummary]
+
+
 class ParsedLabItem(BaseModel):
     test: str
     date: Optional[str] = None
@@ -67,17 +90,43 @@ class PhysicalExam(BaseModel):
     vitals:   Optional[str] = None
     findings: Optional[str] = None
 
+class HospitalCourseItem(BaseModel):
+    label: Optional[str] = None
+    date: Optional[str] = None
+    content: Optional[str] = None
+
+class DischargeHeader(BaseModel):
+    facility: Optional[str] = None
+    document_title: Optional[str] = None
+    patient_name: Optional[str] = None
+    age: Optional[str] = None
+    sex: Optional[str] = None
+    civil_status: Optional[str] = None
+    hospital_no: Optional[str] = None
+    service: Optional[str] = None
+    room_ward: Optional[str] = None
+    attending_physician: Optional[str] = None
+    referral_doctors: Optional[str] = None
+    date_admitted: Optional[str] = None
+    time_admitted: Optional[str] = None
+    date_discharged: Optional[str] = None
+    time_discharged: Optional[str] = None
+
 class ParsedDischargeResponse(BaseModel):
     patient:              str
     found:                bool
+    header:               DischargeHeader = DischargeHeader()
     condition_discharge:  Optional[str] = None
     chief_complaint:      Optional[str] = None
     admitting_dx:         Optional[str] = None
     final_dx:             Optional[str] = None
     hpi:                  Optional[str] = None
     pmh:                  Optional[str] = None
+    allergies:            Optional[str] = None   # ← add this line
     physical_exam:        PhysicalExam  = PhysicalExam()
+    laboratory_data:      Optional[str] = None
     labs:                 List[ParsedLabItem] = []
+    hospital_course:      List[HospitalCourseItem] = []
     raw_text:             Optional[str] = None
 
 
@@ -191,6 +240,191 @@ def get_extracted_text(data: dict, folder_filter: Optional[str] = None) -> str:
             pieces.append(text)
 
     return "\n".join(pieces)
+
+
+def compact_text(text: str) -> str:
+    return _re.sub(r"\s+", " ", text or "").strip()
+
+
+def title_case_name(name: str) -> str:
+    cleaned = compact_text(name).strip(" :")
+    if not cleaned:
+        return cleaned
+    if cleaned.upper() != cleaned:
+        return cleaned
+    return " ".join(part.capitalize() for part in cleaned.split(" "))
+
+
+def extract_metadata_value(text: str, labels: List[str], stop_labels: List[str]) -> Optional[str]:
+    label_pattern = "|".join(labels)
+    stop_pattern = "|".join(stop_labels)
+    match = _re.search(
+        rf"(?:{label_pattern})\s*:?\s*(.*?)(?=\s+(?:{stop_pattern})\s*:?\s|$)",
+        text,
+        flags=_re.IGNORECASE,
+    )
+    return compact_text(match.group(1)) if match else None
+
+
+def extract_patient_metadata(text: str) -> Dict[str, Optional[str]]:
+    compact = compact_text(text)
+    stop_labels = [
+        r"date\s+requested",
+        r"date\s+rendered",
+        r"date\s+performed",
+        r"date\s+released",
+        r"age",
+        r"gender",
+        r"sex",
+        r"birth\s*date",
+        r"birthdate",
+        r"time\s+released",
+        r"requesting\s+physician",
+        r"physician",
+        r"clinical\s+chemistry",
+        r"hematology",
+        r"clinical\s+microscopy",
+        r"urinalysis",
+        r"test",
+    ]
+
+    name = extract_metadata_value(compact, [r"patient(?:'s)?\s+name", r"name"], stop_labels)
+    age = extract_metadata_value(compact, [r"age"], stop_labels)
+    sex = extract_metadata_value(compact, [r"gender", r"sex"], stop_labels)
+
+    if sex:
+        normalized_sex = sex.upper()
+        if normalized_sex.startswith("MALE"):
+            sex = "M"
+        elif normalized_sex.startswith("FEMALE"):
+            sex = "F"
+        else:
+            sex = normalized_sex[:1]
+
+    return {
+        "name": title_case_name(name or ""),
+        "age": age,
+        "sex": sex,
+    }
+
+
+def classify_patient_file(file_path: str) -> PatientFileItem:
+    normalized = file_path.replace("\\", "/")
+    lower = normalized.lower()
+    file_name = normalized.split("/")[-1]
+    section = "other"
+    lab_type = None
+
+    for candidate in ["discharge", "encounters", "imaging", "prescriptions"]:
+        if f"/{candidate}/" in lower:
+            section = candidate
+            break
+
+    if "/labs/" in lower:
+        section = "labs"
+        for candidate in ["chemistry", "hematology", "microscopy"]:
+            if candidate in lower:
+                lab_type = candidate
+                break
+
+    return PatientFileItem(
+        file_path=file_path,
+        file_name=file_name,
+        section=section,
+        lab_type=lab_type,
+        date=extract_date_from_path(file_path),
+    )
+
+
+def list_patient_folder_names(backend_base_url: str) -> List[str]:
+    try:
+        response = requests.get(f"{backend_base_url}/patients", timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        patients = data.get("patients") or data.get("Patients") or []
+        if isinstance(patients, list):
+            return [str(patient) for patient in patients]
+    except requests.RequestException:
+        pass
+
+    patients_path = os.path.join(os.path.expanduser("~"), "Desktop", "Patients")
+    if not os.path.isdir(patients_path):
+        return []
+
+    return sorted(
+        folder_name
+        for folder_name in os.listdir(patients_path)
+        if os.path.isdir(os.path.join(patients_path, folder_name))
+    )
+
+
+@app.get("/patients", response_model=PatientsResponse)
+def patients():
+    backend_base_url = "http://localhost:5000/api/pdfingestion"
+    folder_names = list_patient_folder_names(backend_base_url)
+    summaries: List[PatientSummary] = []
+
+    for folder_name in folder_names:
+        try:
+            response = requests.post(
+                f"{backend_base_url}/extract",
+                json={"FolderName": folder_name},
+                timeout=30,
+            )
+            response.raise_for_status()
+            data = response.json()
+        except requests.RequestException:
+            summaries.append(PatientSummary(id=folder_name, name=folder_name))
+            continue
+
+        files = data.get("files") or data.get("Files") or []
+        file_items: List[PatientFileItem] = []
+        lab_metadata: List[Dict[str, Optional[str]]] = []
+        fallback_metadata: List[Dict[str, Optional[str]]] = []
+
+        for file in files:
+            if not isinstance(file, dict):
+                continue
+
+            file_path = file.get("filePath") or file.get("FilePath") or ""
+            text = file.get("text") or file.get("Text") or ""
+            if not file_path:
+                continue
+
+            item = classify_patient_file(file_path)
+            file_items.append(item)
+
+            metadata = extract_patient_metadata(text)
+            if metadata.get("name"):
+                if item.section == "labs":
+                    lab_metadata.append(metadata)
+                else:
+                    fallback_metadata.append(metadata)
+
+        metadata_source = lab_metadata or fallback_metadata
+        name_counts = Counter(
+            item["name"] for item in metadata_source if item.get("name")
+        )
+        name = name_counts.most_common(1)[0][0] if name_counts else folder_name
+        age = next((item.get("age") for item in metadata_source if item.get("age")), None)
+        sex = next((item.get("sex") for item in metadata_source if item.get("sex")), None)
+
+        available_sections = sorted({
+            file_item.lab_type or file_item.section
+            for file_item in file_items
+            if file_item.section != "other"
+        })
+
+        summaries.append(PatientSummary(
+            id=folder_name,
+            name=name,
+            age=age,
+            sex=sex,
+            available_sections=available_sections,
+            files=file_items,
+        ))
+
+    return PatientsResponse(patients=summaries)
 
 
 @app.post("/categorize", response_model=ProcessResponse)
@@ -469,9 +703,15 @@ class PhysicalExam(BaseModel):
     vitals:   Optional[str] = None
     findings: Optional[str] = None
 
+class HospitalCourseItem(BaseModel):
+    label: Optional[str] = None
+    date: Optional[str] = None
+    content: Optional[str] = None
+
 class ParsedDischargeResponse(BaseModel):
     patient:              str
     found:                bool
+    header:               DischargeHeader = DischargeHeader()
     condition_discharge:  Optional[str] = None
     chief_complaint:      Optional[str] = None
     admitting_dx:         Optional[str] = None
@@ -479,11 +719,75 @@ class ParsedDischargeResponse(BaseModel):
     hpi:                  Optional[str] = None
     pmh:                  Optional[str] = None
     physical_exam:        PhysicalExam  = PhysicalExam()
+    laboratory_data:      Optional[str] = None
     labs:                 List[ParsedLabItem] = []
+    hospital_course:      List[HospitalCourseItem] = []
     raw_text:             Optional[str] = None   # included for debugging
 
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────
+
+def _extract_allergies(text: str) -> Optional[str]:
+    """Extract allergy information from discharge summary text."""
+    match = _re.search(
+        r'(?:drug\s+)?allergi(?:es|c\s+to|a)\s*:?\s*([^\n\r]{2,80})',
+        text, flags=_re.IGNORECASE
+    )
+    if match:
+        val = compact_text(match.group(1))
+        return val if val else None
+
+    # Check for NKDA anywhere in text
+    if _re.search(r'\bNKDA\b', text, flags=_re.IGNORECASE):
+        return 'NKDA (No Known Drug Allergies)'
+
+    return None
+
+def _extract_condition_upon_discharge(text: str) -> Optional[str]:
+    """
+    Extract the marked condition upon discharge from Philippine discharge summaries.
+    Looks for: Recovered, Improved, Unimproved, Others
+    Handles both checkbox formats and plain text declarations.
+    """
+    CONDITIONS = ['recovered', 'improved', 'unimproved', 'others']
+
+    # Format 1: "Condition upon discharge: Improved"
+    match = _re.search(
+        r'condition\s+(?:upon|on|at|of)\s+discharge\s*:?\s*([^\n\r]{2,40})',
+        text, flags=_re.IGNORECASE
+    )
+    if match:
+        val = match.group(1).strip()
+        for c in CONDITIONS:
+            if c in val.lower():
+                return c.capitalize()
+
+    # Format 2: checked box — "(x) Improved" or "[x] Improved" or "✓ Improved"
+    match = _re.search(
+        r'(?:\(x\)|\[x\]|✓|✗|\/)\s*(recovered|improved|unimproved|others)',
+        text, flags=_re.IGNORECASE
+    )
+    if match:
+        return match.group(1).capitalize()
+
+    # Format 3: condition keyword followed by a marker on same line
+    for c in CONDITIONS:
+        match = _re.search(
+            rf'{c}\s*(?:\(x\)|\[x\]|✓|:?\s*yes|\*)',
+            text, flags=_re.IGNORECASE
+        )
+        if match:
+            return c.capitalize()
+
+    # Format 4: bare declaration anywhere near "discharge"
+    match = _re.search(
+        r'discharged?\s+(?:as\s+)?:?\s*(recovered|improved|unimproved)',
+        text, flags=_re.IGNORECASE
+    )
+    if match:
+        return match.group(1).capitalize()
+
+    return None
 
 @app.post("/discharge-parsed", response_model=ParsedDischargeResponse)
 def discharge_parsed(request: DischargeRequest):
@@ -516,20 +820,193 @@ def discharge_parsed(request: DischargeRequest):
     return ParsedDischargeResponse(
         patient              = request.patient,
         found                = True,
-        condition_discharge  = parsed.get("condition_discharge"),
+        header               = DischargeHeader(**(parsed.get("header") or {})),
+        condition_discharge  = _extract_condition_upon_discharge(raw_text),
         chief_complaint      = parsed.get("chief_complaint"),
         admitting_dx         = parsed.get("admitting_dx"),
         final_dx             = parsed.get("final_dx"),
         hpi                  = parsed.get("hpi"),
         pmh                  = parsed.get("pmh"),
+        allergies            = _extract_allergies(raw_text),
         physical_exam        = PhysicalExam(
             vitals   = parsed["physical_exam"].get("vitals"),
             findings = parsed["physical_exam"].get("findings"),
         ),
-        labs     = [ParsedLabItem(**lab) for lab in parsed.get("labs", [])],
-        raw_text = raw_text[:500] + "..." if len(raw_text) > 500 else raw_text,
+        laboratory_data      = parsed.get("laboratory_data"),
+        labs                 = [ParsedLabItem(**lab) for lab in parsed.get("labs", [])],
+        hospital_course      = [HospitalCourseItem(**item) for item in parsed.get("hospital_course", [])],
+        raw_text             = raw_text,
     )
 
+# ── Vitals parsing ─────────────────────────────────────────────────────────────
+
+def _to_num(v: str) -> Optional[float]:
+    try:
+        return float(_re.sub(r'[^\d.]', '', v.strip()))
+    except (ValueError, AttributeError):
+        return None
+
+def _bp_status(sys: float, dia: float) -> str:
+    if sys < 90 or dia < 60:          return "critical"
+    if sys >= 140 or dia >= 90:       return "critical"
+    if sys >= 130 or dia >= 80:       return "warning"
+    return "normal"
+
+def _bp_label(sys: float, dia: float) -> str:
+    if sys < 90:                      return "Hypotensive"
+    if sys >= 160 or dia >= 100:      return "HTN Crisis"
+    if sys >= 140 or dia >= 90:       return "Hypertensive"
+    if sys >= 130 or dia >= 80:       return "Elevated"
+    return "Normal"
+
+def _hr_status(v: float) -> str:
+    if v < 50 or v > 150:             return "critical"
+    if v < 60 or v > 100:             return "warning"
+    return "normal"
+
+def _hr_label(v: float) -> str:
+    if v < 50:                        return "Bradycardic"
+    if v > 150:                       return "Severe Tachy"
+    if v > 100:                       return "Tachycardic"
+    if v < 60:                        return "Bradycardic"
+    return "Normal"
+
+def _rr_status(v: float) -> str:
+    if v < 8 or v > 30:               return "critical"
+    if v < 12 or v > 20:              return "warning"
+    return "normal"
+
+def _rr_label(v: float) -> str:
+    if v < 8:                         return "Apneic"
+    if v > 30:                        return "Severe Tachypnea"
+    if v > 20:                        return "Tachypnea"
+    if v < 12:                        return "Bradypnea"
+    return "Normal"
+
+def _temp_status(v: float) -> str:
+    if v < 35.0 or v >= 39.5:         return "critical"
+    if v < 36.5 or v >= 38.0:         return "warning"
+    return "normal"
+
+def _temp_label(v: float) -> str:
+    if v < 35.0:                      return "Hypothermic"
+    if v >= 39.5:                     return "High Fever"
+    if v >= 38.0:                     return "Febrile"
+    if v < 36.5:                      return "Subnormal"
+    return "Afebrile"
+
+def _o2_status(v: float) -> str:
+    if v < 90:                        return "critical"
+    if v < 95:                        return "warning"
+    return "normal"
+
+def _o2_label(v: float) -> str:
+    if v < 90:                        return "Severe Hypoxia"
+    if v < 95:                        return "Hypoxic"
+    return "Normal"
+
+def _parse_vitals_string(text: str) -> dict:
+    """
+    Parse vitals string: '130/80 > 100 > 20 > 36.7 > 98%'
+    Standard PH discharge format: BP > HR > RR > Temp > O2
+    """
+    parts = [p.strip() for p in _re.split(r'[>\|,;]', text) if p.strip()]
+    result = {"bp": None, "hr": None, "rr": None, "temp": None, "o2": None}
+
+    bp_i = o2_i = temp_i = -1
+    for i, p in enumerate(parts):
+        if '/' in p and _re.search(r'\d+/\d+', p):
+            bp_i = i
+        elif '%' in p:
+            o2_i = i
+        elif '.' in p and _to_num(p) is not None:
+            temp_i = i
+
+    assigned = {bp_i, o2_i, temp_i}
+    remaining = [i for i in range(len(parts)) if i not in assigned]
+    hr_i  = remaining[0] if len(remaining) > 0 else -1
+    rr_i  = remaining[1] if len(remaining) > 1 else -1
+
+    if bp_i >= 0:
+        m = _re.search(r'(\d+)\s*/\s*(\d+)', parts[bp_i])
+        if m:
+            s, d = float(m.group(1)), float(m.group(2))
+            result["bp"] = {"value": f"{int(s)}/{int(d)}", "numeric": s,
+                            "status": _bp_status(s, d), "label": _bp_label(s, d)}
+
+    if hr_i >= 0:
+        v = _to_num(parts[hr_i])
+        if v: result["hr"] = {"value": str(int(v)), "numeric": v,
+                               "status": _hr_status(v), "label": _hr_label(v)}
+
+    if rr_i >= 0:
+        v = _to_num(parts[rr_i])
+        if v: result["rr"] = {"value": str(int(v)), "numeric": v,
+                               "status": _rr_status(v), "label": _rr_label(v)}
+
+    if temp_i >= 0:
+        v = _to_num(parts[temp_i])
+        if v: result["temp"] = {"value": f"{v:.1f}", "numeric": v,
+                                 "status": _temp_status(v), "label": _temp_label(v)}
+
+    if o2_i >= 0:
+        v = _to_num(parts[o2_i])
+        if v: result["o2"] = {"value": str(int(v)), "numeric": v,
+                               "status": _o2_status(v), "label": _o2_label(v)}
+    return result
+
+
+class VitalEntry(BaseModel):
+    value:   str
+    numeric: Optional[float] = None
+    status:  str
+    label:   str
+
+class VitalsResponse(BaseModel):
+    patient: str
+    found:   bool
+    raw:     Optional[str] = None
+    bp:      Optional[VitalEntry] = None
+    hr:      Optional[VitalEntry] = None
+    rr:      Optional[VitalEntry] = None
+    temp:    Optional[VitalEntry] = None
+    o2:      Optional[VitalEntry] = None
+
+
+@app.post("/vitals", response_model=VitalsResponse)
+def vitals_endpoint(request: DischargeRequest):
+    """Parse live vitals from the discharge summary physical examination."""
+    backend_url = "http://localhost:5000/api/pdfingestion/extract"
+    try:
+        response = requests.post(backend_url, json={"FolderName": request.patient}, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+    except requests.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    raw_text = get_extracted_text(data, folder_filter="discharge")
+    if not raw_text.strip():
+        return VitalsResponse(patient=request.patient, found=False)
+
+    parsed = parse_discharge(raw_text)
+    vitals_text = (parsed.get("physical_exam") or {}).get("vitals") if parsed else None
+
+    if not vitals_text:
+        return VitalsResponse(patient=request.patient, found=False)
+
+    v = _parse_vitals_string(vitals_text)
+    return VitalsResponse(
+        patient=request.patient,
+        found=True,
+        raw=vitals_text,
+        bp=VitalEntry(**v["bp"]) if v["bp"] else None,
+        hr=VitalEntry(**v["hr"]) if v["hr"] else None,
+        rr=VitalEntry(**v["rr"]) if v["rr"] else None,
+        temp=VitalEntry(**v["temp"]) if v["temp"] else None,
+        o2=VitalEntry(**v["o2"]) if v["o2"] else None,
+    )
+
+    
 @app.get("/")
 def root():
     return {"message": "Medical text processing service is ready."}

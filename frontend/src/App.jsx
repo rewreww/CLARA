@@ -1,11 +1,11 @@
 import { useState, useRef, useCallback, Component } from 'react'
-import TopBar       from './components/TopBar'
-import Sidebar      from './components/SideBar'
-import MainContent  from './components/MainContent'
-import ChatPanel    from './components/ChatPanel'
-import EcgRiskTool  from './components/EcgRiskTool'
-import { useLabData } from './hooks/useLabData'
-import { useChat }    from './hooks/useChat'
+import TopBar          from './components/TopBar'
+import Sidebar         from './components/SideBar'
+import MainContent     from './components/MainContent'
+import ChatPanel       from './components/ChatPanel'
+import DiagnosticTool  from './components/DiagnosticTool'
+import { useLabData }  from './hooks/useLabData'
+import { useChat }     from './hooks/useChat'
 
 class EcgErrorBoundary extends Component {
   state = { crashed: false }
@@ -28,6 +28,7 @@ class EcgErrorBoundary extends Component {
 }
 
 export default function App() {
+  const [activeApp,       setActiveApp]       = useState('patients')
   const [selectedPatient, setSelectedPatient] = useState(null)
   const [activeSection,   setActiveSection]   = useState('overview')
   const [showEcgTool,     setShowEcgTool]     = useState(false)
@@ -64,36 +65,42 @@ export default function App() {
       <div className="flex flex-1 overflow-hidden">
 
         <Sidebar
+          activeApp={activeApp}
+          onChangeApp={setActiveApp}
           selectedPatient={selectedPatient}
           onSelectPatient={handleSelectPatient}
           activeSection={activeSection}
           onSelectSection={handleSelectSection}
         />
 
-        <MainContent
-          patient={selectedPatient}
-          activeSection={activeSection}
-          labData={labData}
-          labLoading={labLoading}
-          labError={labError}
-          onLoad={handleLoad}
-        />
-
-        <div className="w-[340px] shrink-0">
-          <ChatPanel
-            patient={selectedPatient}
-            ruleFlags={ruleFlags}
-            isEmergency={isEmergency}
-            messages={messages}
-            loading={chatLoading}
-            onSend={handleSend}
-            onClear={clear}
-          />
-        </div>
+        {activeApp === 'diagnostics' ? (
+          <DiagnosticTool />
+        ) : (
+          <>
+            <MainContent
+              patient={selectedPatient}
+              activeSection={activeSection}
+              labData={labData}
+              labLoading={labLoading}
+              labError={labError}
+              onLoad={handleLoad}
+            />
+            <div className="w-[340px] shrink-0">
+              <ChatPanel
+                patient={selectedPatient}
+                ruleFlags={ruleFlags}
+                isEmergency={isEmergency}
+                messages={messages}
+                loading={chatLoading}
+                onSend={handleSend}
+                onClear={clear}
+              />
+            </div>
+          </>
+        )}
 
       </div>
 
-      {/* ECG Risk Tool — removable overlay, wrapped to prevent full-app crash */}
       {showEcgTool && (
         <EcgErrorBoundary onClose={() => setShowEcgTool(false)}>
           <EcgRiskTool onClose={() => setShowEcgTool(false)} />

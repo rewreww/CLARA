@@ -1,12 +1,24 @@
 import { useEffect } from 'react'
-import { STATUS_COLOR } from '../constants'
 import OverviewPanel  from './OverviewPanel'
-import LabTable       from './LabTable'
-import TrendChart     from './TrendChart'
 import DischargePanel from './DischargePanel'
 import { useTrends }  from '../hooks/useTrends'
+import LabResultsTable from './LabResultsTable'
 
 const LAB_TYPES = ['chemistry', 'hematology', 'microscopy']
+
+function formatAge(age) {
+  if (!age) return null
+  return String(age).match(/[a-z]/i) ? age : `${age}y`
+}
+
+function patientDetails(patient) {
+  return [
+    formatAge(patient.age),
+    patient.sex,
+    patient.ward,
+    patient.status?.toUpperCase(),
+  ].filter(Boolean).join(' · ')
+}
 
 export default function MainContent({
   patient, activeSection,
@@ -48,10 +60,7 @@ export default function MainContent({
               <div>
                 <div className="text-[14px] font-semibold">{patient.name}</div>
                 <div className="font-mono text-[10px] text-muted">
-                  {patient.age}y · {patient.sex} · {patient.ward} ·{' '}
-                  <span style={{ color: STATUS_COLOR[patient.status] }}>
-                    {patient.status.toUpperCase()}
-                  </span>
+                  {patientDetails(patient)}
                 </div>
               </div>
             </div>
@@ -109,61 +118,27 @@ export default function MainContent({
           )
 
         ) : isLabSection ? (
-          trendLoading ? (
+          (trendLoading || labLoading) ? (
             <div className="p-6 text-muted font-mono text-[12px] flex items-center gap-2">
               <span className="animate-spin-slow inline-block">⟳</span>
-              Loading {activeSection} trends...
+              Loading {activeSection}...
             </div>
 
-          ) : trendData && trendData.lab_type === activeSection ? (
-            // ── Trend chart — shown when date folders exist ──
-            <TrendChart
-              timeline={trendData.timeline}
-              labType={activeSection}
-              patient={patient}
-            />
-
-          ) : trendError === 'no_date_folders' ? (
-            // ── No date folders yet — show flat lab table + setup hint ──
-            <div>
-              {labLoading ? (
-                <div className="p-6 text-muted font-mono text-[12px] flex items-center gap-2">
-                  <span className="animate-spin-slow inline-block">⟳</span>
-                  Loading {activeSection}...
-                </div>
-              ) : labError ? (
-                <div className="m-5 px-4 py-3 bg-danger/5 border border-danger/20
-                  rounded-[8px] text-[12px] text-danger font-mono">
-                  ✗ {labError}
-                </div>
-              ) : labData ? (
-                <LabTable results={labData.results} type={labData.type} />
-              ) : null}
-
-              <div className="mx-5 mt-2 px-4 py-3 bg-warning/5 border border-warning/20
-                rounded-[8px] font-mono text-[11px] text-warning">
-                <div className="font-semibold mb-1">📅 No trend data — single visit detected</div>
-                <div className="text-muted text-[10px] leading-[1.6]">
-                  To enable trends, organise lab PDFs into date subfolders:
-                  <div className="mt-2 bg-bg rounded p-2 text-[10px]">
-                    labs/<br />
-                    &nbsp;&nbsp;2025-01-15/<br />
-                    &nbsp;&nbsp;&nbsp;&nbsp;{activeSection}.pdf<br />
-                    &nbsp;&nbsp;2025-03-02/<br />
-                    &nbsp;&nbsp;&nbsp;&nbsp;{activeSection}.pdf
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          ) : trendError ? (
+          ) : (trendError && trendError !== 'no_date_folders') || labError ? (
             <div className="m-5 px-4 py-3 bg-danger/5 border border-danger/20
               rounded-[8px] text-[12px] text-danger font-mono">
-              ✗ {trendError}
+              ✗ {labError || trendError}
               <div className="text-[10px] text-muted mt-1">
                 Make sure all Python services are running (port 8000, 8001).
               </div>
             </div>
+
+          ) : labData || trendData ? (
+            <LabResultsTable
+              results={labData?.results}
+              timeline={trendData?.lab_type === activeSection ? trendData.timeline : null}
+              labType={activeSection}
+            />
 
           ) : (
             <div className="p-6 text-muted font-mono text-[12px]">
