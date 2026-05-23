@@ -1,31 +1,22 @@
-import { useCallback, useEffect, useState } from 'react'
-import { LABS_URL } from '../constants'
+import { useState, useEffect } from 'react'
+
+const LABS_URL = '/api/labs'
 
 export function usePatients() {
   const [patients, setPatients] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-
-    try {
-      const res = await fetch(`${LABS_URL}/patients`)
-      if (!res.ok) throw new Error(`Server error ${res.status}`)
-      const json = await res.json()
-      setPatients(json.patients || [])
-    } catch (e) {
-      setError(e.message)
-      setPatients([])
-    }
-
-    setLoading(false)
-  }, [])
+  const [loading,  setLoading]  = useState(true)
+  const [error,    setError]    = useState(null)
 
   useEffect(() => {
-    load()
-  }, [load])
+    fetch(`${LABS_URL}/patients`)
+      .then(r => {
+        if (!r.ok) throw new Error(`${r.status}`)
+        return r.json()
+      })
+      .then(d => setPatients(d.patients || []))
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false))
+  }, [])
 
-  return { patients, loading, error, reload: load }
+  return { patients, loading, error }
 }
