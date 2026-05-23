@@ -774,6 +774,175 @@ def discharge_parsed(request: DischargeRequest):
         raw_text             = raw_text,
     )
 
+# ── Vitals parsing ─────────────────────────────────────────────────────────────
+
+def _to_num(v: str) -> Optional[float]:
+    try:
+        return float(_re.sub(r'[^\d.]', '', v.strip()))
+    except (ValueError, AttributeError):
+        return None
+
+def _bp_status(sys: float, dia: float) -> str:
+    if sys < 90 or dia < 60:          return "critical"
+    if sys >= 140 or dia >= 90:       return "critical"
+    if sys >= 130 or dia >= 80:       return "warning"
+    return "normal"
+
+def _bp_label(sys: float, dia: float) -> str:
+    if sys < 90:                      return "Hypotensive"
+    if sys >= 160 or dia >= 100:      return "HTN Crisis"
+    if sys >= 140 or dia >= 90:       return "Hypertensive"
+    if sys >= 130 or dia >= 80:       return "Elevated"
+    return "Normal"
+
+def _hr_status(v: float) -> str:
+    if v < 50 or v > 150:             return "critical"
+    if v < 60 or v > 100:             return "warning"
+    return "normal"
+
+def _hr_label(v: float) -> str:
+    if v < 50:                        return "Bradycardic"
+    if v > 150:                       return "Severe Tachy"
+    if v > 100:                       return "Tachycardic"
+    if v < 60:                        return "Bradycardic"
+    return "Normal"
+
+def _rr_status(v: float) -> str:
+    if v < 8 or v > 30:               return "critical"
+    if v < 12 or v > 20:              return "warning"
+    return "normal"
+
+def _rr_label(v: float) -> str:
+    if v < 8:                         return "Apneic"
+    if v > 30:                        return "Severe Tachypnea"
+    if v > 20:                        return "Tachypnea"
+    if v < 12:                        return "Bradypnea"
+    return "Normal"
+
+def _temp_status(v: float) -> str:
+    if v < 35.0 or v >= 39.5:         return "critical"
+    if v < 36.5 or v >= 38.0:         return "warning"
+    return "normal"
+
+def _temp_label(v: float) -> str:
+    if v < 35.0:                      return "Hypothermic"
+    if v >= 39.5:                     return "High Fever"
+    if v >= 38.0:                     return "Febrile"
+    if v < 36.5:                      return "Subnormal"
+    return "Afebrile"
+
+def _o2_status(v: float) -> str:
+    if v < 90:                        return "critical"
+    if v < 95:                        return "warning"
+    return "normal"
+
+def _o2_label(v: float) -> str:
+    if v < 90:                        return "Severe Hypoxia"
+    if v < 95:                        return "Hypoxic"
+    return "Normal"
+
+def _parse_vitals_string(text: str) -> dict:
+    """
+    Parse vitals string: '130/80 > 100 > 20 > 36.7 > 98%'
+    Standard PH discharge format: BP > HR > RR > Temp > O2
+    """
+    parts = [p.strip() for p in _re.split(r'[>\|,;]', text) if p.strip()]
+    result = {"bp": None, "hr": None, "rr": None, "temp": None, "o2": None}
+
+    bp_i = o2_i = temp_i = -1
+    for i, p in enumerate(parts):
+        if '/' in p and _re.search(r'\d+/\d+', p):
+            bp_i = i
+        elif '%' in p:
+            o2_i = i
+        elif '.' in p and _to_num(p) is not None:
+            temp_i = i
+
+    assigned = {bp_i, o2_i, temp_i}
+    remaining = [i for i in range(len(parts)) if i not in assigned]
+    hr_i  = remaining[0] if len(remaining) > 0 else -1
+    rr_i  = remaining[1] if len(remaining) > 1 else -1
+
+    if bp_i >= 0:
+        m = _re.search(r'(\d+)\s*/\s*(\d+)', parts[bp_i])
+        if m:
+            s, d = float(m.group(1)), float(m.group(2))
+            result["bp"] = {"value": f"{int(s)}/{int(d)}", "numeric": s,
+                            "status": _bp_status(s, d), "label": _bp_label(s, d)}
+
+    if hr_i >= 0:
+        v = _to_num(parts[hr_i])
+        if v: result["hr"] = {"value": str(int(v)), "numeric": v,
+                               "status": _hr_status(v), "label": _hr_label(v)}
+
+    if rr_i >= 0:
+        v = _to_num(parts[rr_i])
+        if v: result["rr"] = {"value": str(int(v)), "numeric": v,
+                               "status": _rr_status(v), "label": _rr_label(v)}
+
+    if temp_i >= 0:
+        v = _to_num(parts[temp_i])
+        if v: result["temp"] = {"value": f"{v:.1f}", "numeric": v,
+                                 "status": _temp_status(v), "label": _temp_label(v)}
+
+    if o2_i >= 0:
+        v = _to_num(parts[o2_i])
+        if v: result["o2"] = {"value": str(int(v)), "numeric": v,
+                               "status": _o2_status(v), "label": _o2_label(v)}
+    return result
+
+
+class VitalEntry(BaseModel):
+    value:   str
+    numeric: Optional[float] = None
+    status:  str
+    label:   str
+
+class VitalsResponse(BaseModel):
+    patient: str
+    found:   bool
+    raw:     Optional[str] = None
+    bp:      Optional[VitalEntry] = None
+    hr:      Optional[VitalEntry] = None
+    rr:      Optional[VitalEntry] = None
+    temp:    Optional[VitalEntry] = None
+    o2:      Optional[VitalEntry] = None
+
+
+@app.post("/vitals", response_model=VitalsResponse)
+def vitals_endpoint(request: DischargeRequest):
+    """Parse live vitals from the discharge summary physical examination."""
+    backend_url = "http://localhost:5000/api/pdfingestion/extract"
+    try:
+        response = requests.post(backend_url, json={"FolderName": request.patient}, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+    except requests.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    raw_text = get_extracted_text(data, folder_filter="discharge")
+    if not raw_text.strip():
+        return VitalsResponse(patient=request.patient, found=False)
+
+    parsed = parse_discharge(raw_text)
+    vitals_text = (parsed.get("physical_exam") or {}).get("vitals") if parsed else None
+
+    if not vitals_text:
+        return VitalsResponse(patient=request.patient, found=False)
+
+    v = _parse_vitals_string(vitals_text)
+    return VitalsResponse(
+        patient=request.patient,
+        found=True,
+        raw=vitals_text,
+        bp=VitalEntry(**v["bp"]) if v["bp"] else None,
+        hr=VitalEntry(**v["hr"]) if v["hr"] else None,
+        rr=VitalEntry(**v["rr"]) if v["rr"] else None,
+        temp=VitalEntry(**v["temp"]) if v["temp"] else None,
+        o2=VitalEntry(**v["o2"]) if v["o2"] else None,
+    )
+
+    
 @app.get("/")
 def root():
     return {"message": "Medical text processing service is ready."}
