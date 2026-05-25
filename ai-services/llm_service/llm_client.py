@@ -691,9 +691,9 @@ def chat_stream(request: ChatRequest):
                     source_message = entry["content"]
                     break
 
-        preload_block, lab_tools, lab_data = _preload_labs(pid, source_message)
-        tools_called.extend(t for t in lab_tools if t not in tools_called)
-        collected_data.extend(lab_data)
+    preload_block, lab_tools, lab_data = _preload_labs(pid, source_message)
+    tools_called.extend(t for t in lab_tools if t not in tools_called)
+    collected_data.extend(lab_data)
 
     discharge_block = ""
     if pid and question_type in ("guideline", "both"):
