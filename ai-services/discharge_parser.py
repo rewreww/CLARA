@@ -1,9 +1,5 @@
 """
 CLARA discharge summary parser.
-
-Parses common discharge-summary headings into stable fields for the API and UI.
-The parser is section-aware so Final Diagnosis stops at the next recognized
-heading instead of swallowing Chief Complaint, HPI, PMH, PE, or lab sections.
 """
 
 import json
@@ -43,6 +39,9 @@ def empty_schema() -> dict:
         "laboratory_data": None,
         "labs": [],
         "hospital_course": [],
+        "medications": [],
+        "instructions": [],
+        "followup": None,
     }
 
 
@@ -98,7 +97,6 @@ HEADER_RE = re.compile(
 def normalize_text(text: str) -> str:
     if not text:
         return ""
-
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     text = re.sub(r"[|]{2,}", " ", text)
     text = re.sub(r"_{3,}", " ", text)
@@ -108,14 +106,12 @@ def normalize_text(text: str) -> str:
     text = re.sub(r"[^\x09\x0A\x20-\x7E]", " ", text)
     text = re.sub(r"[ \t]{2,}", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
-
     return text.strip()
 
 
 def clean_field(text: Optional[str]) -> Optional[str]:
     if not text or not text.strip():
         return None
-
     return re.sub(r"\s+", " ", text).strip()
 
 
@@ -145,7 +141,6 @@ def section_matches(text: str) -> list:
 
 def extract_sections(text: str) -> dict:
     matches = section_matches(text)
-
     sections = {}
     for index, (key, _heading_start, content_start) in enumerate(matches):
         next_start = len(text)
@@ -156,7 +151,6 @@ def extract_sections(text: str) -> dict:
         content = text[content_start:next_start].strip(" :\n\t")
         if content:
             sections.setdefault(key, content)
-
     return sections
 
 
@@ -196,11 +190,7 @@ def extract_header(text: str) -> dict:
 
 
 def extract_physical_exam(section_text: Optional[str]) -> dict:
-    exam = {
-        "vitals": None,
-        "findings": None,
-    }
-
+    exam = {"vitals": None, "findings": None}
     text = clean_field(section_text)
     if not text:
         return exam
@@ -222,7 +212,6 @@ def extract_physical_exam(section_text: Optional[str]) -> dict:
 def parse_flag(raw_flag: Optional[str]) -> Optional[str]:
     if not raw_flag:
         return None
-
     flag = raw_flag.strip().lower()
     if flag in ["h", "high"]:
         return "high"
@@ -287,7 +276,6 @@ def extract_hospital_course(text: Optional[str]) -> list:
         start = match.end()
         end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
         content = text[start:end].strip(" :\n\t")
-
         results.append({
             "label": clean_field(match.group(1)),
             "date": match.group(2),
@@ -295,6 +283,102 @@ def extract_hospital_course(text: Optional[str]) -> list:
         })
 
     return results
+
+
+_MED_HEADER = re.compile(
+    r'home\s+medications?|medications?\s+(?:on\s+)?discharge|discharge\s+medications?|'
+    r'medications?\s+(?:given|prescribed|to\s+be\s+taken)|'
+    r'(?:to\s+)?continue\s+(?:the\s+following\s+)?medications?',
+    re.IGNORECASE
+)
+
+_DOSE_RE = re.compile(
+    r'\d+\.?\d*\s*(?:mg|mcg|iu|ml|meq|\bg\b|tab|cap|amp|vial|unit|drop)',
+    re.IGNORECASE
+)
+
+_MED_BOUNDARY = re.compile(
+    r'(?=\b[A-Z][A-Z0-9\-]{1,}\s+\d+[.,]?\d*\s*(?:MG|MCG|MEQ|MMOL|IU)\b)',
+    re.IGNORECASE
+)
+
+
+def _meds_from_lines(lines: list) -> list:
+    meds, current = [], ''
+    for line in lines:
+        line = re.sub(r'^[\d\.\-\•\*\)\s\u25cf\u2022]+', '', line).strip()
+        if not line:
+            if current:
+                meds.append(current.strip())
+                current = ''
+            continue
+        if _DOSE_RE.search(line):
+            if current:
+                meds.append(current.strip())
+            current = line
+        else:
+            current = (current + ' ' + line).strip() if current else line
+    if current:
+        meds.append(current.strip())
+    return [x for x in meds if len(x) > 3]
+
+
+def _meds_from_blob(text: str) -> list:
+    parts = _MED_BOUNDARY.split(text)
+    meds = []
+    for part in parts:
+        part = re.sub(r'^[\d\.\-\•\*\)\s\u25cf\u2022]+', '', part).strip()
+        part = re.sub(r'\s+', ' ', part)
+        if part and len(part) > 3 and _DOSE_RE.search(part):
+            meds.append(part)
+    return meds
+
+
+def extract_medications(text: str) -> list:
+    m = _MED_HEADER.search(text)
+    if not m:
+        return []
+    block = text[m.end():].lstrip(':').strip()
+    stop = re.search(
+        r'\n\s*(?:INSTRUCTIONS?|FOLLOW[\s\-]?UP|ACTIVITY|DIET|DISPOSITION|SIGNATURE)\s*[:\n]',
+        block, re.IGNORECASE
+    )
+    if stop:
+        block = block[:stop.start()]
+
+    raw_lines = [l.strip() for l in block.split('\n') if l.strip()]
+
+    result = _meds_from_lines(raw_lines)
+    if len(result) >= 2:
+        return result[:20]
+
+    return _meds_from_blob(' '.join(raw_lines))[:20]
+
+
+def extract_instructions(text: str) -> list:
+    m = re.search(r'\bINSTRUCTIONS?\s*[:\n]', text, re.IGNORECASE)
+    if not m:
+        return []
+    block = text[m.end():]
+    stop = re.search(r'FOLLOW[\s\-]?UP\s*[:\n]', block, re.IGNORECASE)
+    if stop:
+        block = block[:stop.start()]
+    items = []
+    for line in block.split('\n'):
+        line = re.sub(r'^[\s\u25cf\u2022\•\*\-\d\.]+', '', line).strip()
+        line = re.sub(r'\s*FOLLOW[\s\-]?UP.*$', '', line, flags=re.IGNORECASE).strip()
+        if line and len(line) > 3:
+            items.append(line)
+    return items[:10]
+
+
+def extract_followup(text: str) -> Optional[str]:
+    m = re.search(r'FOLLOW[\s\-]?UP\s*[:\n]?', text, re.IGNORECASE)
+    if not m:
+        return None
+    block = text[m.end():].strip()
+    lines = [l.strip() for l in block.split('\n') if l.strip()][:4]
+    return ' '.join(lines) if lines else None
 
 
 def parse_discharge(raw_text: str) -> dict:
@@ -321,6 +405,9 @@ def parse_discharge(raw_text: str) -> dict:
     schema["physical_exam"] = extract_physical_exam(sections.get("physical_exam"))
     schema["labs"] = extract_labs(sections.get("laboratory_data"))
     schema["hospital_course"] = extract_hospital_course(sections.get("hospital_course") or text)
+    schema["medications"] = extract_medications(text)
+    schema["instructions"] = extract_instructions(text)
+    schema["followup"] = extract_followup(text)
 
     return schema
 

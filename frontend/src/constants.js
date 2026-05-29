@@ -11,7 +11,6 @@ export const STATUS_COLOR = {
 export const FOLDER_SECTIONS = [
   { key: 'overview', label: 'Overview', icon: '⊕' },
   { key: 'discharge', label: 'Discharge', icon: '📋' },
-  { key: 'encounters', label: 'Encounters', icon: '🏥' },
   { key: 'imaging', label: 'Imaging', icon: '🔬' },
   {
     key: 'labs',

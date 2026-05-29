@@ -3,6 +3,7 @@ import OverviewPanel  from './OverviewPanel'
 import DischargePanel from './DischargePanel'
 import { useTrends }  from '../hooks/useTrends'
 import LabResultsTable from './LabResultsTable'
+import PrescriptionsPanel from './PrescriptionsPanel'
 
 const LAB_TYPES = ['chemistry', 'hematology', 'microscopy']
 
@@ -109,6 +110,16 @@ export default function MainContent({
             data={labData?.type === 'discharge' ? labData : null}
             patient={patient}
           />
+
+        ) : activeSection === 'prescriptions' ? (
+          labLoading ? (
+            <div className="p-6 text-muted font-mono text-[12px] flex items-center gap-2">
+              <span className="animate-spin-slow inline-block">⟳</span>
+              Loading prescriptions...
+            </div>
+          ) : (
+            <PrescriptionsPanel patient={patient} />
+          )
 
         ) : isLabSection ? (
           (trendLoading || labLoading) ? (

@@ -72,7 +72,7 @@ function DischargeLabs({ labs }) {
           <tbody>
             {labs.map((lab, i) => {
               const isHigh = lab.flag === 'high'
-              const isLow = lab.flag === 'low'
+              const isLow  = lab.flag === 'low'
 
               return (
                 <tr
@@ -103,7 +103,6 @@ function DischargeLabs({ labs }) {
 
 function formatPhysicalExam(physicalExam) {
   if (!physicalExam) return ''
-
   return [physicalExam.vitals, physicalExam.findings]
     .filter(Boolean)
     .join(' ')
@@ -148,8 +147,8 @@ function HospitalCourse({ course }) {
 }
 
 function patientDetailLine(header, patient) {
-  const age = header.age || patient?.age
-  const sex = header.sex || patient?.sex
+  const age  = header.age  || patient?.age
+  const sex  = header.sex  || patient?.sex
   const ward = header.room_ward || patient?.ward
 
   return [
@@ -177,74 +176,24 @@ function HeaderMeta({ label, value }) {
   )
 }
 
-export default function DischargePanel({ data: initialData, patient }) {
-  const [fileList,     setFileList]     = useState([])
-  const [currentIndex, setCurrentIndex] = useState(null)
-  const [currentData,  setCurrentData]  = useState(null)
-  const [navLoading,   setNavLoading]   = useState(false)
-
-  // Fetch the list of discharge files whenever the patient changes
-  useEffect(() => {
-    if (!patient?.id) return
-    setFileList([])
-    setCurrentIndex(null)
-    setCurrentData(null)
-
-    fetch('/api/labs/discharge-list', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ patient: patient.id }),
-    })
-      .then(r => r.json())
-      .then(d => {
-        const files = d.files || []
-        setFileList(files)
-        // Default to the latest (last) file
-        if (files.length > 0) setCurrentIndex(files.length - 1)
-      })
-      .catch(() => setFileList([]))
-  }, [patient?.id])
-
-  const navigateTo = useCallback(async (index) => {
-    const file = fileList[index]
-    if (!file || !patient?.id) return
-    setNavLoading(true)
-    try {
-      const res = await fetch('/api/labs/discharge-parsed', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ patient: patient.id, file_name: file.file_name }),
-      })
-      const json = await res.json()
-      setCurrentData(json)
-      setCurrentIndex(index)
-    } catch (_) {
-      // keep current data on error
-    } finally {
-      setNavLoading(false)
-    }
-  }, [fileList, patient?.id])
-
-  // The data to display: navigated file takes priority over initial load
-  const data = currentData || initialData
-
+function DischargeContent({ data, patient }) {
   if (!data) {
     return (
-      <div className="flex items-center justify-center h-full text-muted">
-        Select Discharge to view summary
+      <div className="flex items-center justify-center h-32 text-muted font-mono text-[12px]">
+        No discharge summary loaded
       </div>
     )
   }
 
   if (!data.found) {
     return (
-      <div className="p-4 text-muted">
-        No discharge summary found
+      <div className="p-4 text-muted font-mono text-[12px]">
+        No discharge summary found for this patient
       </div>
     )
   }
 
-  const header = data.header || {}
+  const header        = data.header || {}
   const documentTitle = header.document_title || 'Discharge Summary'
   const admissionDate = header.date_admitted
     ? `Admitted: ${header.date_admitted}${header.time_admitted ? ` ${header.time_admitted}` : ''}`
@@ -254,64 +203,18 @@ export default function DischargePanel({ data: initialData, patient }) {
     : null
 
   const summarySections = [
-    { title: 'Condition Upon Discharge', icon: 'CD', content: data.condition_discharge },
-    { title: 'Admitting Diagnosis',      icon: 'AD', content: data.admitting_dx },
-    { title: 'Final Diagnosis',          icon: 'FD', content: data.final_dx },
-    { title: 'Chief Complaint',          icon: 'CC', content: data.chief_complaint },
+    { title: 'Condition Upon Discharge',   icon: 'CD',  content: data.condition_discharge },
+    { title: 'Admitting Diagnosis',        icon: 'AD',  content: data.admitting_dx },
+    { title: 'Final Diagnosis',            icon: 'FD',  content: data.final_dx },
+    { title: 'Chief Complaint',            icon: 'CC',  content: data.chief_complaint },
     { title: 'History of Present Illness', icon: 'HPI', content: data.hpi },
-    { title: 'Past Medical History',     icon: 'PMH', content: data.pmh },
-    { title: 'Physical Examination',     icon: 'PE',  content: formatPhysicalExam(data.physical_exam) },
-    { title: 'Laboratory Data',          icon: 'LAB', content: data.laboratory_data },
+    { title: 'Past Medical History',       icon: 'PMH', content: data.pmh },
+    { title: 'Physical Examination',       icon: 'PE',  content: formatPhysicalExam(data.physical_exam) },
+    { title: 'Laboratory Data',            icon: 'LAB', content: data.laboratory_data },
   ]
 
-  const canPrev = currentIndex !== null && currentIndex > 0
-  const canNext = currentIndex !== null && currentIndex < fileList.length - 1
-  const showNav = fileList.length > 1
-
   return (
-    <div className="p-4 space-y-3">
-
-      {/* ── Visit navigator ──────────────────────────────────── */}
-      {showNav && (
-        <div className="flex items-center justify-center gap-3 mb-2
-          border border-border rounded-[8px] bg-card px-4 py-2">
-          <button
-            onClick={() => navigateTo(currentIndex - 1)}
-            disabled={!canPrev || navLoading}
-            className="font-mono text-[13px] px-2 py-1 rounded-[5px] transition-colors
-              disabled:opacity-30 disabled:cursor-not-allowed
-              enabled:hover:bg-accent/10 enabled:hover:text-accent cursor-pointer">
-            ←
-          </button>
-
-          <div className="text-center">
-            {navLoading ? (
-              <span className="font-mono text-[11px] text-muted animate-pulse">Loading...</span>
-            ) : (
-              <>
-                <span className="font-mono text-[11px] text-muted">
-                  Visit {(currentIndex ?? 0) + 1} of {fileList.length}
-                </span>
-                <span className="font-mono text-[11px] text-muted mx-2">·</span>
-                <span className="font-mono text-[11px] text-accent2">
-                  {fileList[currentIndex ?? 0]?.date_label}
-                </span>
-              </>
-            )}
-          </div>
-
-          <button
-            onClick={() => navigateTo(currentIndex + 1)}
-            disabled={!canNext || navLoading}
-            className="font-mono text-[13px] px-2 py-1 rounded-[5px] transition-colors
-              disabled:opacity-30 disabled:cursor-not-allowed
-              enabled:hover:bg-accent/10 enabled:hover:text-accent cursor-pointer">
-            →
-          </button>
-        </div>
-      )}
-
-      {/* ── Document header ───────────────────────────────────── */}
+    <>
       <div className="mb-4 border border-border bg-card rounded-[8px] overflow-hidden">
         <div className="px-4 py-3 border-b border-border flex items-start justify-between gap-3">
           <div>
@@ -347,8 +250,120 @@ export default function DischargePanel({ data: initialData, patient }) {
         />
       ))}
 
-      <DischargeLabs labs={data.labs} />
+      <DischargeLabs  labs={data.labs} />
       <HospitalCourse course={data.hospital_course} />
+    </>
+  )
+}
+
+export default function DischargePanel({ data: initialData, patient }) {
+  const [fileList,     setFileList]     = useState([])
+  const [currentIndex, setCurrentIndex] = useState(null)
+  const [currentData,  setCurrentData]  = useState(null)
+  const [navLoading,   setNavLoading]   = useState(false)
+
+  useEffect(() => {
+    if (!patient?.id) return
+    setFileList([])
+    setCurrentIndex(null)
+    setCurrentData(null)
+
+    fetch('/api/labs/discharge-list', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ patient: patient.id }),
+    })
+      .then(r => r.json())
+      .then(d => {
+        const files = d.files || []
+        setFileList(files)
+        if (files.length === 0) return
+        const latestIndex = files.length - 1
+        setCurrentIndex(latestIndex)
+        return fetch('/api/labs/discharge-parsed', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ patient: patient.id, file_name: files[latestIndex].file_name }),
+        })
+          .then(r => r.json())
+          .then(json => setCurrentData(json))
+      })
+      .catch(err => console.error('DischargePanel load error:', err))
+  }, [patient?.id])
+
+  const navigateTo = useCallback(async (index) => {
+    const file = fileList[index]
+    if (!file || !patient?.id) return
+    setNavLoading(true)
+    try {
+      const res  = await fetch('/api/labs/discharge-parsed', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ patient: patient.id, file_name: file.file_name }),
+      })
+      const json = await res.json()
+      setCurrentData(json)
+      setCurrentIndex(index)
+    } catch (err) {
+      console.error('navigateTo failed:', err)
+    } finally {
+      setNavLoading(false)
+    }
+  }, [fileList, patient?.id])
+
+  const data    = currentData ?? initialData
+  const showNav = fileList.length > 1
+  const total   = fileList.length
+  const pos     = currentIndex !== null ? currentIndex + 1 : null
+
+  return (
+    <div className="p-4 space-y-3">
+
+      {showNav && (
+        <div className="flex items-center justify-center gap-3 mb-2 px-4 py-2
+          border border-border rounded-[8px] bg-card">
+          <button
+            onClick={() => navigateTo(currentIndex - 1)}
+            disabled={currentIndex === 0 || navLoading}
+            className="w-7 h-7 flex items-center justify-center rounded-[6px]
+              border border-border text-muted hover:border-accent hover:text-accent
+              disabled:opacity-30 disabled:cursor-not-allowed transition-colors
+              font-mono text-[14px]"
+          >
+            ‹
+          </button>
+
+          <div className="font-mono text-[11px] text-muted text-center min-w-[160px]">
+            {navLoading ? (
+              <span className="animate-pulse">Loading…</span>
+            ) : pos !== null ? (
+              <>
+                <span className="text-[#dde4f0] font-semibold">
+                  Visit {pos} of {total}
+                </span>
+                {fileList[currentIndex]?.date_label && (
+                  <span className="ml-2 text-muted">
+                    · {fileList[currentIndex].date_label}
+                  </span>
+                )}
+              </>
+            ) : null}
+          </div>
+
+          <button
+            onClick={() => navigateTo(currentIndex + 1)}
+            disabled={currentIndex === total - 1 || navLoading}
+            className="w-7 h-7 flex items-center justify-center rounded-[6px]
+              border border-border text-muted hover:border-accent hover:text-accent
+              disabled:opacity-30 disabled:cursor-not-allowed transition-colors
+              font-mono text-[14px]"
+          >
+            ›
+          </button>
+        </div>
+      )}
+
+      <DischargeContent data={data} patient={patient} />
     </div>
   )
 }
