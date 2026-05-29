@@ -1,6 +1,7 @@
 import re
 import sys
 import os
+from unittest import result
 import requests
 import json
 import re as _re_diag
@@ -821,6 +822,8 @@ def clear_history(request: ClearHistoryRequest):
 
 # ── Diagnostic Tool endpoint ────────────────────────────────────────────────
 
+# ── Diagnostic Tool endpoint ──────────────────────────────────────────────────
+
 class DiagnoseRequest(BaseModel):
     chief_complaint:    Optional[str]  = None
     chemistry_results:  list           = []
@@ -829,19 +832,39 @@ class DiagnoseRequest(BaseModel):
     discharge_parsed:   Optional[dict] = None
     imaging_text:       Optional[str]  = None
     ecg_values:         Optional[dict] = None
-    # fallback raw texts if diagnose-prep was skipped
     lab_text:           Optional[str]  = None
     discharge_text:     Optional[str]  = None
 
 class RiskItem(BaseModel):
-    label: str
+    label:       str
     probability: float
-    risk: str
+    risk:        str
 
 class DiagnoseResponse(BaseModel):
-    result: str
-    guidelines: Optional[str] = None
-    ml_risks: Optional[list] = None
+    result:     str
+    guidelines: Optional[str]  = None
+    ml_risks:   Optional[list] = None
+
+
+def _clean_guidelines_for_display(raw: str) -> str:
+    lines = raw.splitlines()
+    clean = []
+    for line in lines:
+        s = line.strip()
+        if not s:
+            continue
+        if s.startswith('[RELEVANT CLINICAL GUIDELINES]'):
+            continue
+        if s.startswith('NOTE: Philippine-specific'):
+            continue
+        if s.startswith('---') and ('excerpt' in s or 'Guidelines]' in s):
+            continue
+        if s.startswith('[GUIDELINES]'):
+            continue
+        clean.append(s)
+    text = ' '.join(clean).strip()
+    return text[:600] + '...' if len(text) > 600 else text
+
 
 @app.post("/diagnose", response_model=DiagnoseResponse)
 def diagnose(req: DiagnoseRequest):
@@ -873,9 +896,9 @@ def diagnose(req: DiagnoseRequest):
         return f"{label}:\n" + "\n".join(lines)
 
     for block in [
-        fmt_labs("CHEMISTRY",           req.chemistry_results),
-        fmt_labs("HEMATOLOGY",          req.hematology_results),
-        fmt_labs("MICROSCOPY/URINALYSIS",req.microscopy_results),
+        fmt_labs("CHEMISTRY",            req.chemistry_results),
+        fmt_labs("HEMATOLOGY",           req.hematology_results),
+        fmt_labs("MICROSCOPY/URINALYSIS", req.microscopy_results),
     ]:
         if block:
             sections.append(block)
@@ -891,54 +914,44 @@ def diagnose(req: DiagnoseRequest):
 
     clinical_context = "\n\n".join(sections)
 
-    # Retrieve clinical guidelines based on chief complaint and findings
+    # ── RAG: retrieve clinical guidelines ─────────────────────────────────────
     guidelines = None
     try:
-        combined_text = f"{req.chief_complaint or ''} {req.lab_text or ''} {req.discharge_text or ''}"
+        combined_text  = f"{req.chief_complaint or ''} {req.lab_text or ''} {req.discharge_text or ''}"
         raw_guidelines = retrieve_guidelines(combined_text)
-        if raw_guidelines and ("No relevant guideline" not in raw_guidelines and "not found" not in raw_guidelines and "not initialised" not in raw_guidelines):
-            # Summarize guidelines to just first 2-3 paragraphs (roughly 500 chars)
-            guideline_lines = raw_guidelines.split('\n')
-            summary_lines = []
-            char_count = 0
-            for line in guideline_lines:
-                if not line.strip():
-                    if summary_lines and len(summary_lines[-1].strip()) > 0:
-                        summary_lines.append(line)
-                else:
-                    summary_lines.append(line)
-                    char_count += len(line)
-                    if char_count > 400:  # Stop after ~400 chars
-                        break
-            guidelines = '\n'.join(summary_lines).strip()
-            if len(guidelines) > 800:
-                guidelines = guidelines[:800] + "..."
+        if raw_guidelines and (
+            "No relevant guideline" not in raw_guidelines
+            and "not found"         not in raw_guidelines
+            and "not initialised"   not in raw_guidelines
+        ):
+            guidelines = _clean_guidelines_for_display(raw_guidelines)
     except Exception:
         pass
 
-    # Try to get ML predictions if ECG data is available
+    # ── ML: cardiac risk from ECG values ──────────────────────────────────────
     ml_risks = None
     if req.ecg_values and len(req.ecg_values) > 0:
         try:
             ml_response = requests.post(
                 "http://localhost:8002/predict",
                 json=req.ecg_values,
-                timeout=5
+                timeout=5,
             )
             if ml_response.ok:
                 data = ml_response.json()
                 if data.get("predictions") and isinstance(data["predictions"], list):
-                    ml_risks = []
-                    for p in data["predictions"]:
-                        ml_risks.append({
-                            "label": str(p.get("label", p.get("key", "Unknown"))),
+                    ml_risks = [
+                        {
+                            "label":       str(p.get("label", p.get("key", "Unknown"))),
                             "probability": float(p.get("probability", 0)),
-                            "risk": str(p.get("risk", "unknown"))
-                        })
-        except Exception as e:
-            # Silently fail - ml_risks will remain None
+                            "risk":        str(p.get("risk", "unknown")),
+                        }
+                        for p in data["predictions"]
+                    ]
+        except Exception:
             pass
 
+    # ── LLM: diagnostic narrative ──────────────────────────────────────────────
     system_prompt = (
         "You are CLARA, a clinical decision-support AI. Based on the clinical data provided, "
         "generate a concise diagnostic assessment in 2-3 sentences maximum. "
@@ -965,7 +978,6 @@ def diagnose(req: DiagnoseRequest):
         result_text = f"LLM service unavailable: {e}"
 
     return DiagnoseResponse(result=result_text, guidelines=guidelines, ml_risks=ml_risks)
-
 
 @app.get("/health")
 def health():

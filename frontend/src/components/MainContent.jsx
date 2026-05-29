@@ -105,17 +105,10 @@ export default function MainContent({
           <OverviewPanel patient={patient} />
 
         ) : activeSection === 'discharge' ? (
-          labLoading ? (
-            <div className="p-6 text-muted font-mono text-[12px] flex items-center gap-2">
-              <span className="animate-spin-slow inline-block">⟳</span>
-              Loading discharge summary...
-            </div>
-          ) : (
-            <DischargePanel
-              data={labData?.type === 'discharge' ? labData : null}
-              patient={patient}
-            />
-          )
+          <DischargePanel
+            data={labData?.type === 'discharge' ? labData : null}
+            patient={patient}
+          />
 
         ) : isLabSection ? (
           (trendLoading || labLoading) ? (

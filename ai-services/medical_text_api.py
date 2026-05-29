@@ -249,6 +249,43 @@ def get_extracted_text(data: dict, folder_filter: Optional[str] = None) -> str:
 
     return "\n".join(pieces)
 
+def get_text_for_file(data: dict, file_name: str) -> str:
+    """Return text from one specific file by name."""
+    files = data.get("files") or data.get("Files") or []
+    for file in files:
+        if not isinstance(file, dict):
+            continue
+        file_path = (file.get("filePath") or file.get("FilePath") or "")
+        if os.path.basename(file_path).lower() == file_name.lower():
+            return file.get("text") or file.get("Text") or ""
+    return ""
+
+
+def parse_date_label_from_filename(filename: str) -> str:
+    """Parse a human-readable date label from a filename like discharge_2023_04_visit1.pdf"""
+    import re
+    from datetime import datetime
+    MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    # Match YYYY_MM_DD
+    m = re.search(r'(\d{4})_(\d{2})_(\d{2})', filename)
+    if m:
+        try:
+            dt = datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+            return dt.strftime('%b %d, %Y')
+        except ValueError:
+            pass
+    # Match YYYY_MM
+    m = re.search(r'(\d{4})_(\d{2})', filename)
+    if m:
+        try:
+            year, month = int(m.group(1)), int(m.group(2))
+            if 1 <= month <= 12:
+                return f"{MONTHS[month - 1]} {year}"
+        except ValueError:
+            pass
+    # Fallback: strip extension
+    return re.sub(r'[_\-]', ' ', filename.rsplit('.', 1)[0]).title()
+
 
 def compact_text(text: str) -> str:
     return _re.sub(r"\s+", " ", text or "").strip()
@@ -645,6 +682,7 @@ def labs_timeline(request: TimelineRequest):
 
 class DischargeRequest(BaseModel):
     patient: str
+    file_name: Optional[str] = None
 
 class DischargeResponse(BaseModel):
     patient: str
@@ -670,7 +708,10 @@ def discharge_summary(request: DischargeRequest):
         )
 
     # Filter files to discharge folder only
-    raw_text = get_extracted_text(data, folder_filter="discharge")
+    if request.file_name:
+        raw_text = get_text_for_file(data, request.file_name)
+    else:
+        raw_text = get_extracted_text(data, folder_filter="discharge")
 
     if not raw_text.strip():
         return DischargeResponse(
@@ -808,7 +849,10 @@ def discharge_parsed(request: DischargeRequest):
             detail=f"Failed to fetch from backend: {str(e)}"
         )
 
-    raw_text = get_extracted_text(data, folder_filter="discharge")
+    if request.file_name:
+        raw_text = get_text_for_file(data, request.file_name)
+    else:
+        raw_text = get_extracted_text(data, folder_filter="discharge")
 
     if not raw_text.strip():
         return ParsedDischargeResponse(patient=request.patient, found=False)
@@ -982,7 +1026,10 @@ def vitals_endpoint(request: DischargeRequest):
     except requests.RequestException as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-    raw_text = get_extracted_text(data, folder_filter="discharge")
+    if request.file_name:
+        raw_text = get_text_for_file(data, request.file_name)
+    else:
+        raw_text = get_extracted_text(data, folder_filter="discharge")
     if not raw_text.strip():
         return VitalsResponse(patient=request.patient, found=False)
 
