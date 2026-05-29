@@ -242,6 +242,40 @@ def get_extracted_text(data: dict, folder_filter: Optional[str] = None) -> str:
     return "\n".join(pieces)
 
 
+def get_text_for_file(data: dict, file_name: str) -> str:
+    """Return text from one specific file by name."""
+    files = data.get("files") or data.get("Files") or []
+    for file in files:
+        if not isinstance(file, dict):
+            continue
+        file_path = (file.get("filePath") or file.get("FilePath") or "")
+        if os.path.basename(file_path).lower() == file_name.lower():
+            return file.get("text") or file.get("Text") or ""
+    return ""
+
+
+def parse_date_label_from_filename(filename: str) -> str:
+    """Parse a human-readable date from a filename like discharge_2023_04_visit1.pdf"""
+    MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    m = _re.search(r'(\d{4})_(\d{2})_(\d{2})', filename)
+    if m:
+        try:
+            from datetime import datetime
+            dt = datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+            return dt.strftime('%b %d, %Y')
+        except ValueError:
+            pass
+    m = _re.search(r'(\d{4})_(\d{2})', filename)
+    if m:
+        try:
+            year, month = int(m.group(1)), int(m.group(2))
+            if 1 <= month <= 12:
+                return f"{MONTHS[month - 1]} {year}"
+        except ValueError:
+            pass
+    return _re.sub(r'[_\-]', ' ', filename.rsplit('.', 1)[0]).title()
+
+
 def compact_text(text: str) -> str:
     return _re.sub(r"\s+", " ", text or "").strip()
 
@@ -637,6 +671,7 @@ def labs_timeline(request: TimelineRequest):
 
 class DischargeRequest(BaseModel):
     patient: str
+    file_name: Optional[str] = None
 
 class DischargeResponse(BaseModel):
     patient: str
@@ -837,6 +872,48 @@ def discharge_parsed(request: DischargeRequest):
         hospital_course      = [HospitalCourseItem(**item) for item in parsed.get("hospital_course", [])],
         raw_text             = raw_text,
     )
+
+
+class DischargeFileItem(BaseModel):
+    file_name: str
+    date_label: str
+
+class DischargeListResponse(BaseModel):
+    patient: str
+    files: List[DischargeFileItem]
+
+@app.post("/discharge-list", response_model=DischargeListResponse)
+def discharge_list(request: DischargeRequest):
+    """Return a sorted list of discharge PDF files for a patient."""
+    backend_url = "http://localhost:5000/api/pdfingestion/extract"
+    try:
+        response = requests.post(
+            backend_url,
+            json={"FolderName": request.patient},
+            timeout=30
+        )
+        response.raise_for_status()
+        data = response.json()
+    except requests.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch from backend: {str(e)}")
+
+    files = data.get("files") or data.get("Files") or []
+    result = []
+    for file in files:
+        if not isinstance(file, dict):
+            continue
+        file_path = (file.get("filePath") or file.get("FilePath") or "")
+        file_name = os.path.basename(file_path)
+        if "discharge" not in file_name.lower() and "discharge" not in file_path.lower():
+            continue
+        result.append(DischargeFileItem(
+            file_name=file_name,
+            date_label=parse_date_label_from_filename(file_name),
+        ))
+
+    result.sort(key=lambda x: x.file_name)
+    return DischargeListResponse(patient=request.patient, files=result)
+
 
 # ── Vitals parsing ─────────────────────────────────────────────────────────────
 
