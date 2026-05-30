@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useVitals }           from '../hooks/useVitals'
+import GdmtCheckModal from './GdmtCheckModal'
+import GuidelinesModal from './GuidelinesModal'
+
+
+
 
 const STATUS_HEX = { normal: '#10b981', warning: '#f59e0b', critical: '#ef4444' }
 
@@ -10,6 +15,7 @@ const VITAL_CONFIG = [
   { key: 'temp', label: 'Temperature',    unit: '°C',   refLow: 36.1, refHigh: 37.2 },
   { key: 'o2',   label: 'O₂ Saturation',  unit: '%',    refLow: 95,   refHigh: 100  },
 ]
+
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -183,8 +189,8 @@ function PatientRecordsTable({ data, abnormalLabs, loading }) {
     { key: 'chemistry',  label: 'Chemistry',      items: chemistry,  type: 'lab'  },
     { key: 'hematology', label: 'Hematology',      items: hematology, type: 'lab'  },
     { key: 'microscopy', label: 'Microscopy',      items: microscopy, type: 'lab'  },
-    { key: 'final_dx', label: 'Final Diagnosis', items: finalDx ? [finalDx] : [], type: 'text' },
-    { key: 'meds', label: 'Prescriptions', items: meds, type: 'text' },
+    { key: 'final_dx',   label: 'Final Diagnosis', items: finalDx ? [finalDx] : [], type: 'text' },
+    { key: 'meds',       label: 'Prescriptions',   items: meds, type: 'text' },
   ].filter(col => col.items.length > 0)
 
   if (!columns.length) {
@@ -285,6 +291,8 @@ export default function OverviewPanel({ patient }) {
   const [visitLoading, setVisitLoading] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [abnormalLabs, setAbnormalLabs] = useState(null)
+  const [showGdmt, setShowGdmt] = useState(false)
+  const [showGuidelines, setShowGuidelines] = useState(false) 
 
   useEffect(() => {
     if (!patient?.id) return
@@ -318,7 +326,7 @@ export default function OverviewPanel({ patient }) {
       .finally(() => setVisitLoading(false))
   }, [visitList, currentIndex, patient?.id])
 
-    useEffect(() => {
+  useEffect(() => {
     if (!patient?.id) return
     setAbnormalLabs(null)
 
@@ -358,46 +366,67 @@ export default function OverviewPanel({ patient }) {
   const safeIndex = total > 0 ? Math.min(currentIndex, total - 1) : 0
   const showNav   = total > 1
 
-  const navButtons = (
-    <>
-      <button
-        onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
-        disabled={safeIndex === 0}
-        className="text-muted hover:text-accent disabled:opacity-30 disabled:cursor-not-allowed
-          transition-colors normal-case text-[13px] leading-none"
-      >‹</button>
-      <span className="text-muted normal-case tracking-normal">
-        Visit {safeIndex + 1} of {total}
-        {visitList[safeIndex]?.date_label && ` · ${visitList[safeIndex].date_label}`}
-      </span>
-      <button
-        onClick={() => setCurrentIndex(i => Math.min(total - 1, i + 1))}
-        disabled={safeIndex === total - 1}
-        className="text-muted hover:text-accent disabled:opacity-30 disabled:cursor-not-allowed
-          transition-colors normal-case text-[13px] leading-none"
-      >›</button>
-    </>
-  )
-
   return (
     <div className="p-[16px_20px] overflow-y-auto h-full">
 
-      <div className="font-mono text-[10px] tracking-[0.12em] uppercase text-muted mb-[14px]">
-        Patient Overview — {patient.name}
+      {/* ── Top header: name + visit nav + action buttons ── */}
+      <div className="flex items-center gap-[10px] mb-[14px] flex-wrap">
+        <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-muted">
+          Patient Overview — {patient.name}
+        </span>
+
+        {showNav && (
+          <div className="flex items-center gap-[6px] font-mono text-[10px]">
+            <button
+              onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
+              disabled={safeIndex === 0}
+              className="text-muted hover:text-accent disabled:opacity-30 disabled:cursor-not-allowed
+                transition-colors normal-case text-[30px] leading-none"
+            >‹</button>
+            <span className="text-muted normal-case tracking-normal">
+              Visit {safeIndex + 1} of {total}
+              {visitList[safeIndex]?.date_label && ` · ${visitList[safeIndex].date_label}`}
+            </span>
+            <button
+              onClick={() => setCurrentIndex(i => Math.min(total - 1, i + 1))}
+              disabled={safeIndex === total - 1}
+              className="text-muted hover:text-accent disabled:opacity-30 disabled:cursor-not-allowed
+                transition-colors normal-case text-[30px] leading-none"
+            >›</button>
+          </div>
+        )}
+
+        <div className="flex items-center gap-[6px] ml-auto">
+          <button
+            onClick={() => setShowGuidelines(true)}
+            className="px-[10px] py-[4px] rounded-[6px] font-mono text-[9px] font-medium
+            border border-accent/40 text-accent bg-accent/8
+            cursor-pointer transition-colors hover:bg-accent/15 hover:border-accent/70">
+            📋 Guidelines
+          </button>
+          <button
+            onClick={() => setShowGdmt(true)}
+            className="px-[10px] py-[4px] rounded-[6px] font-mono text-[9px] font-medium
+            border border-[#10b981]/40 text-[#10b981] bg-[#10b981]/8
+            cursor-pointer transition-colors hover:bg-[#10b981]/15 hover:border-[#10b981]/70">
+            ✓ GDMT Check
+          </button>
+        </div>
       </div>
 
-      <div className="flex items-center gap-3 font-mono text-[10px] tracking-[0.1em] uppercase text-accent mb-[10px]">
+      {/* ── Vital Signs ── */}
+      <div className="font-mono text-[10px] tracking-[0.1em] uppercase text-accent mb-[10px]">
         ● Vital Signs
-        {showNav && navButtons}
       </div>
       <VitalsRow vitals={vitals} trends={trends} currentIndex={safeIndex} loading={vitalsLoading} />
 
-      <div className="flex items-center gap-3 font-mono text-[10px] tracking-[0.1em] uppercase text-accent mb-[10px]">
+      {/* ── Patient Records ── */}
+      <div className="font-mono text-[10px] tracking-[0.1em] uppercase text-accent mb-[10px]">
         ● Patient Records
-        {showNav && navButtons}
       </div>
       <PatientRecordsTable data={visitData} abnormalLabs={abnormalLabs} loading={visitLoading} />
 
+      {/* ── Demographics ── */}
       <div className="font-mono text-[10px] tracking-[0.1em] uppercase text-accent mb-[10px]">
         ● Demographics
       </div>
@@ -416,11 +445,19 @@ export default function OverviewPanel({ patient }) {
         ))}
       </div>
 
+      {/* ── Available PDF Files ── */}
       <div className="font-mono text-[10px] tracking-[0.1em] uppercase text-accent mb-[10px]">
         ● Available PDF Files
       </div>
       <FileInventory files={patient.files} />
 
+      {showGuidelines && (
+        <GuidelinesModal patient={patient} onClose={() => setShowGuidelines(false)} />
+        )}
+      {showGdmt && (
+        <GdmtCheckModal patient={patient} onClose={() => setShowGdmt(false)} />
+        )}
+  
     </div>
   )
 }

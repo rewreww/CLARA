@@ -1,100 +1,127 @@
 """
-CLARA RAG Retriever
-Called by llm_client.py to fetch relevant guideline sections
-based on the doctor's question.
+CLARA RAG Retriever — v2
+Returns structured dicts with page numbers and metadata.
+Backward-compatible: retrieve_guidelines() still works for llm_client.py.
 """
 
 import os
 import requests
 import chromadb
 
-# ── Paths ──────────────────────────────────────────────────────────────────────
-CHROMA_DIR  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chroma_db")
-
-# ── Config ─────────────────────────────────────────────────────────────────────
+CHROMA_DIR    = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chroma_db")
 OLLAMA_URL    = "http://localhost:11434"
 EMBED_MODEL   = "nomic-embed-text"
 COLLECTION    = "clara_guidelines"
-TOP_K         = 5     # retrieve more candidates before filtering
-MIN_RELEVANCE = 45.0  # discard chunks below this cosine-similarity %
+TOP_K         = 8
+MIN_RELEVANCE = 40.0
 
 
 def get_embedding(text: str) -> list[float]:
-    """Convert a query string into a vector using Ollama."""
-    response = requests.post(
+    r = requests.post(
         f"{OLLAMA_URL}/api/embeddings",
         json={"model": EMBED_MODEL, "prompt": text},
-        timeout=60
+        timeout=60,
     )
-    response.raise_for_status()
-    return response.json()["embedding"]
+    r.raise_for_status()
+    return r.json()["embedding"]
 
 
-def retrieve_guidelines(query: str) -> str:
+def retrieve(
+    query: str,
+    diagnosis_hint: str = None,
+    top_k: int = TOP_K,
+    only_recommendations: bool = False,
+) -> list[dict]:
     """
-    Given a doctor's question or clinical topic, retrieve the most
-    relevant guideline chunks from ChromaDB.
-    Returns a formatted string ready to be injected into the LLM prompt.
+    Returns list of dicts:
+      source, page, section_heading, diagnosis_category,
+      text, relevance, is_philippine, is_recommendation
     """
-    # Check ChromaDB exists — if ingest.py has never been run, warn gracefully
     if not os.path.exists(CHROMA_DIR):
-        return "[GUIDELINES] No guidelines database found. Run ingest.py first."
+        return []
 
     try:
         client     = chromadb.PersistentClient(path=CHROMA_DIR)
         collection = client.get_collection(COLLECTION)
     except Exception:
-        return "[GUIDELINES] Guidelines database not initialised. Run ingest.py first."
+        return []
 
-    # Convert query to vector and search
+    # Build optional where filter
+    where = None
+    if diagnosis_hint and only_recommendations:
+        where = {"$and": [
+            {"diagnosis_category": {"$eq": diagnosis_hint}},
+            {"is_recommendation":  {"$eq": True}},
+        ]}
+    elif diagnosis_hint:
+        where = {"diagnosis_category": {"$eq": diagnosis_hint}}
+    elif only_recommendations:
+        where = {"is_recommendation": {"$eq": True}}
+
     try:
-        query_embedding = get_embedding(query)
-        results = collection.query(
-            query_embeddings=[query_embedding],
-            n_results=TOP_K,
-            include=["documents", "metadatas", "distances"]
+        query_emb = get_embedding(query)
+        kwargs = dict(
+            query_embeddings=[query_emb],
+            n_results=top_k,
+            include=["documents", "metadatas", "distances"],
         )
-    except Exception as e:
-        return f"[GUIDELINES] Retrieval error: {str(e)}"
+        if where:
+            kwargs["where"] = where
+        results = collection.query(**kwargs)
+    except Exception:
+        # Fallback: query without filter (handles old un-re-ingested data)
+        try:
+            results = collection.query(
+                query_embeddings=[get_embedding(query)],
+                n_results=top_k,
+                include=["documents", "metadatas", "distances"],
+            )
+        except Exception:
+            return []
 
-    documents = results.get("documents", [[]])[0]
-    metadatas = results.get("metadatas", [[]])[0]
-    distances = results.get("distances", [[]])[0]
+    docs  = results.get("documents", [[]])[0]
+    metas = results.get("metadatas", [[]])[0]
+    dists = results.get("distances", [[]])[0]
 
-    if not documents:
+    matched = []
+    for doc, meta, dist in zip(docs, metas, dists):
+        relevance = round((1 - dist) * 100, 1)
+        if relevance >= MIN_RELEVANCE:
+            matched.append({
+                "source":             meta.get("source", "unknown"),
+                "page":               meta.get("page"),
+                "section_heading":    meta.get("section_heading", ""),
+                "diagnosis_category": meta.get("diagnosis_category", "general"),
+                "text":               doc.strip(),
+                "relevance":          relevance,
+                "is_philippine":      meta.get("country") == "philippines",
+                "is_recommendation":  meta.get("is_recommendation", False),
+            })
+
+    # Philippine chunks first, then by descending relevance
+    matched.sort(key=lambda x: (0 if x["is_philippine"] else 1, -x["relevance"]))
+    return matched
+
+
+def retrieve_guidelines(query: str) -> str:
+    """Legacy function — kept for backward compatibility with llm_client.py."""
+    chunks = retrieve(query)
+    if not chunks:
         return "[GUIDELINES] No relevant guideline sections found."
 
-    # Drop chunks that are too weak a match
-    matched = [
-        (doc, meta, dist)
-        for doc, meta, dist in zip(documents, metadatas, distances)
-        if (1 - dist) * 100 >= MIN_RELEVANCE
-    ]
-
-    if not matched:
-        return "[GUIDELINES] No relevant guideline sections found."
-
-    # Philippine-tagged chunks bubble to the top so CLARA sees them first
-    matched.sort(key=lambda x: (0 if x[1].get("country") == "philippines" else 1))
-
-    has_ph = any(m.get("country") == "philippines" for _, m, _ in matched)
-
-    lines = ["[RELEVANT CLINICAL GUIDELINES]"]
+    has_ph = any(c["is_philippine"] for c in chunks)
+    lines  = ["[RELEVANT CLINICAL GUIDELINES]"]
     if has_ph:
         lines.append(
-            "NOTE: Philippine-specific guidelines are included below. "
-            "When local Philippine recommendations differ from international guidelines "
-            "(AHA / ESC / JNC), prefer the Philippine guidelines."
+            "NOTE: Philippine-specific guidelines included. "
+            "Prefer Philippine guidelines when they differ from international ones."
         )
-
-    for i, (doc, meta, dist) in enumerate(matched):
-        relevance = round((1 - dist) * 100, 1)
-        source    = meta.get("source", "unknown")
-        country   = meta.get("country", "international")
-        label     = "[Philippine Guidelines]" if country == "philippines" else "[International Guidelines]"
+    for i, c in enumerate(chunks):
+        label     = "[Philippine]" if c["is_philippine"] else "[International]"
+        page_info = f" p.{c['page']}" if c["page"] else ""
         lines.append(
-            f"\n--- {label} excerpt {i+1} (source: {source}, relevance: {relevance}%) ---"
+            f"\n--- {label} excerpt {i+1} "
+            f"(source: {c['source']}{page_info}, relevance: {c['relevance']}%) ---"
         )
-        lines.append(doc.strip())
-
+        lines.append(c["text"])
     return "\n".join(lines)

@@ -2,6 +2,9 @@ import requests
 import re as _re
 import os
 import io
+import base64 as _b64
+import sys as _sys_rag
+import chromadb as _chromadb
 
 from fastapi import FastAPI, HTTPException, File, UploadFile
 from pydantic import BaseModel
@@ -9,6 +12,8 @@ from collections import Counter
 from typing import Any, Dict, List, Optional, Union
 from fastapi.middleware.cors import CORSMiddleware
 from discharge_parser import parse_discharge
+
+from fastapi.responses import Response as _ImageResponse
 
 from lab_extractors import (
     normalize_text,
@@ -926,6 +931,602 @@ def diagnose_prep(req: DiagnosePrepRequest):
         out.imaging_text = req.imaging_text.strip()
     return out
 
+
+# ── GDMT Checker ──────────────────────────────────────────────────────────────
+
+RAAS_MAP = {
+    'enalapril':'ACEi','lisinopril':'ACEi','captopril':'ACEi','ramipril':'ACEi',
+    'perindopril':'ACEi','fosinopril':'ACEi','benazepril':'ACEi','quinapril':'ACEi',
+    'trandolapril':'ACEi',
+    'losartan':'ARB','valsartan':'ARB','irbesartan':'ARB','candesartan':'ARB',
+    'telmisartan':'ARB','olmesartan':'ARB','azilsartan':'ARB',
+    'sacubitril':'ARNi','entresto':'ARNi',
+}
+
+BB_RECOMMENDED_MAP = {
+    'carvedilol':'carvedilol',
+    'bisoprolol':'bisoprolol',
+    'metoprolol succinate':'metoprolol succinate',
+    'metoprolol xl':'metoprolol succinate',
+    'metoprolol er':'metoprolol succinate',
+    'metoprolol xr':'metoprolol succinate',
+    'metoprolol cr':'metoprolol succinate',
+    'toprol xl':'metoprolol succinate',
+    'toprol':'metoprolol succinate',
+}
+
+BB_NOT_RECOMMENDED = {'atenolol','propranolol','metoprolol tartrate','nadolol','pindolol','timolol'}
+
+MRA_MAP = {'spironolactone':'spironolactone','eplerenone':'eplerenone'}
+
+SGLT2I_MAP = {
+    'dapagliflozin':'dapagliflozin','empagliflozin':'empagliflozin',
+    'canagliflozin':'canagliflozin','ertugliflozin':'ertugliflozin',
+    'jardiance':'empagliflozin','farxiga':'dapagliflozin','forxiga':'dapagliflozin',
+}
+
+HFREF_KEYWORDS = [
+    r'\bhf\b',r'\bhfref\b',r'\bhf-ref\b',r'heart\s+failure',r'cardiac\s+failure',
+    r'systolic\s+(?:heart\s+)?dysfunction',r'systolic\s+hf',r'\bchf\b',
+    r'reduced\s+ejection\s+fraction',r'reduced\s+ef\b',r'\blvsd\b',
+    r'dilated\s+cardiomyopathy',r'\bdcm\b',r'congestive\s+heart\s+failure',
+    r'lvef\s*[<≤]\s*\d',r'ef\s*[<≤]\s*\d',r'ef\s*of\s*\d{1,2}\b',
+]
+
+
+def _detect_hfref(text: str) -> bool:
+    if not text:
+        return False
+    t = text.lower()
+    return any(_re.search(kw, t) for kw in HFREF_KEYWORDS)
+
+
+def _find_drug(text: str, drug_map: dict) -> Optional[tuple]:
+    """Return (drug_name, subtype) for the longest matching drug, or None."""
+    t = text.lower()
+    for drug in sorted(drug_map.keys(), key=len, reverse=True):
+        if _re.search(rf'\b{_re.escape(drug)}\b', t):
+            return drug, drug_map[drug]
+    return None
+
+
+def _find_bb_wrong(text: str) -> Optional[str]:
+    t = text.lower()
+    for drug in BB_NOT_RECOMMENDED:
+        if _re.search(rf'\b{_re.escape(drug)}\b', t):
+            return drug
+    return None
+
+
+def _extract_lab_val(results: list, keywords: list) -> Optional[float]:
+    for r in results:
+        name = r.get('test_name', '').lower()
+        if any(k in name for k in keywords):
+            try:
+                return float(str(r.get('value', '')).replace('<', '').replace('>', '').strip())
+            except (ValueError, TypeError):
+                pass
+    return None
+
+
+def _egfr(creatinine: float, age_str: Optional[str], sex: Optional[str]) -> Optional[float]:
+    try:
+        age = float(_re.sub(r'[^\d.]', '', str(age_str or '')))
+        female = (sex or '').upper().startswith('F')
+        kappa = 0.7 if female else 0.9
+        alpha = -0.329 if female else -0.411
+        factor = 1.018 if female else 1.0
+        r = creatinine / kappa
+        return round(141 * min(r, 1)**alpha * max(r, 1)**-1.209 * (0.993**age) * factor, 1)
+    except Exception:
+        return None
+
+
+class GdmtCheckRequest(BaseModel):
+    patient: str
+
+class GdmtPillar(BaseModel):
+    pillar:       str
+    status:       str            # "present" | "missing" | "contraindicated" | "suboptimal"
+    drug_found:   Optional[str] = None
+    subtype:      Optional[str] = None
+    note:         Optional[str] = None
+
+class GdmtCheckResponse(BaseModel):
+    patient:          str
+    hfref_detected:   bool
+    diagnosis_text:   Optional[str] = None
+    pillars:          List[GdmtPillar]
+    gaps:             List[str]
+    recommendations:  List[str]
+    warnings:         List[str]
+    labs_used:        Dict[str, Any]
+
+
+@app.post("/gdmt-check", response_model=GdmtCheckResponse)
+def gdmt_check(request: GdmtCheckRequest):
+    """GDMT 4-pillar analysis for HFrEF — rule-based, no LLM needed."""
+    backend_url = "http://localhost:5000/api/pdfingestion/extract"
+    try:
+        resp = requests.post(backend_url, json={"FolderName": request.patient}, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+    except requests.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    # ── gather text ───────────────────────────────────────────────────────────
+    dc_text  = get_extracted_text(data, folder_filter="discharge")
+    rx_text  = get_extracted_text(data, folder_filter="prescriptions")
+    lab_text = get_extracted_text(data, folder_filter="labs")
+    med_text = (dc_text + "\n" + rx_text).lower()
+
+    # ── parse discharge ───────────────────────────────────────────────────────
+    parsed   = parse_discharge(dc_text) if dc_text.strip() else {}
+    final_dx = parsed.get("final_dx") or ""
+    hfref    = (_detect_hfref(final_dx)
+                or _detect_hfref(parsed.get("admitting_dx") or "")
+                or _detect_hfref(dc_text[:3000]))
+
+    # ── lab values ────────────────────────────────────────────────────────────
+    cat       = categorize_text(lab_text) if lab_text.strip() else {"labs": {"chemistry": ""}}
+    chem_raw  = cat["labs"].get("chemistry", "")
+    chem_objs = extract_chemistry_results(chem_raw) if chem_raw.strip() else []
+    chem      = [{"test_name": r.get("test_name", ""), "value": r.get("value", "")} for r in chem_objs]
+
+    potassium  = _extract_lab_val(chem, ['potassium', 'k+', 'serum k'])
+    creatinine = _extract_lab_val(chem, ['creatinine', 'creat'])
+    egfr_val   = _extract_lab_val(chem, ['egfr', 'gfr', 'glomerular'])
+
+    if egfr_val is None and creatinine is not None:
+        files = data.get("files") or data.get("Files") or []
+        pmeta: Dict[str, Any] = {}
+        for f in files:
+            m = extract_patient_metadata(f.get("text") or f.get("Text") or "")
+            if m.get("name"):
+                pmeta = m
+                break
+        egfr_val = _egfr(creatinine, pmeta.get("age"), pmeta.get("sex"))
+
+    # ── vitals ────────────────────────────────────────────────────────────────
+    pe_v   = (parsed.get("physical_exam") or {}).get("vitals") or ""
+    vp     = _parse_vitals_string(pe_v) if pe_v else {}
+    bp_sys = vp.get("bp", {}).get("numeric") if vp.get("bp") else None
+    hr_val = vp.get("hr", {}).get("numeric") if vp.get("hr") else None
+
+    # ── analysis ──────────────────────────────────────────────────────────────
+    pillars: List[GdmtPillar] = []
+    gaps:    List[str] = []
+    recs:    List[str] = []
+    warns:   List[str] = []
+
+    # Pillar 1 — RAAS
+    raas = _find_drug(med_text, RAAS_MAP)
+    if potassium and potassium > 5.5:
+        warns.append(f"K⁺ {potassium} mEq/L — RAAS inhibitor caution; monitor closely")
+    if creatinine and creatinine > 2.5:
+        warns.append(f"Creatinine {creatinine} mg/dL — renal function monitoring required with RAAS")
+    if bp_sys and bp_sys < 90:
+        warns.append(f"BP {int(bp_sys)} mmHg systolic — RAAS and beta-blocker dose review needed")
+
+    if raas:
+        drug, sub = raas
+        pillars.append(GdmtPillar(pillar="RAAS Inhibitor", status="present", drug_found=drug,
+            subtype=sub, note="ARNi preferred over ACEi/ARB if tolerated" if sub != "ARNi" else None))
+    elif potassium and potassium > 5.5:
+        pillars.append(GdmtPillar(pillar="RAAS Inhibitor", status="contraindicated",
+            note=f"K⁺ {potassium} mEq/L"))
+    else:
+        pillars.append(GdmtPillar(pillar="RAAS Inhibitor", status="missing",
+            note="ACEi, ARB, or ARNi not found"))
+        if hfref:
+            gaps.append("No RAAS inhibitor prescribed")
+            recs.append("Add enalapril 2.5mg BID (ACEi) or losartan 25mg OD (ARB). "
+                        "Upgrade to sacubitril/valsartan if BP stable and tolerated.")
+
+    # Pillar 2 — Beta-Blocker
+    bb_ok    = _find_drug(med_text, BB_RECOMMENDED_MAP)
+    bb_wrong = _find_bb_wrong(med_text)
+    bb_ambig = bool(_re.search(r'\bmetoprolol\b', med_text)) and not bb_ok
+
+    if hr_val and hr_val < 60:
+        warns.append(f"HR {int(hr_val)} bpm — beta-blocker initiation/up-titration should be deferred")
+
+    if bb_ok:
+        drug, sub = bb_ok
+        pillars.append(GdmtPillar(pillar="Beta-Blocker", status="present", drug_found=drug, subtype=sub))
+    elif bb_wrong:
+        pillars.append(GdmtPillar(pillar="Beta-Blocker", status="suboptimal", drug_found=bb_wrong,
+            note=f"{bb_wrong.capitalize()} is NOT evidence-based for HFrEF — switch to carvedilol or bisoprolol"))
+        gaps.append(f"{bb_wrong.capitalize()} used — not recommended for HFrEF")
+        recs.append(f"Switch {bb_wrong.capitalize()} to carvedilol 3.125mg BID or bisoprolol 1.25mg OD; "
+                    "titrate to maximum tolerated dose")
+    elif bb_ambig:
+        pillars.append(GdmtPillar(pillar="Beta-Blocker", status="suboptimal",
+            drug_found="metoprolol (formulation unclear)",
+            note="Specify succinate (XL/ER) = recommended · tartrate = NOT recommended for HFrEF"))
+    elif hr_val and hr_val < 60:
+        pillars.append(GdmtPillar(pillar="Beta-Blocker", status="contraindicated",
+            note=f"HR {int(hr_val)} bpm — withhold until rate stable"))
+    else:
+        pillars.append(GdmtPillar(pillar="Beta-Blocker", status="missing"))
+        if hfref:
+            gaps.append("No evidence-based beta-blocker (carvedilol / bisoprolol / metoprolol succinate)")
+            recs.append("Add carvedilol 3.125mg BID or bisoprolol 1.25mg OD; titrate to target dose")
+
+    # Pillar 3 — MRA
+    mra    = _find_drug(med_text, MRA_MAP)
+    mra_ci = (potassium and potassium > 5.0) or (egfr_val and egfr_val < 30)
+
+    if egfr_val and egfr_val < 30:
+        warns.append(f"eGFR {egfr_val} — MRA and SGLT2i contraindicated below eGFR 30")
+
+    if mra:
+        drug, _ = mra
+        pillars.append(GdmtPillar(pillar="MRA", status="present", drug_found=drug))
+    elif mra_ci:
+        reason = (f"K⁺ {potassium} mEq/L" if potassium and potassium > 5.0
+                  else f"eGFR {egfr_val}")
+        pillars.append(GdmtPillar(pillar="MRA", status="contraindicated", note=reason))
+    else:
+        pillars.append(GdmtPillar(pillar="MRA", status="missing"))
+        if hfref:
+            gaps.append("No MRA (spironolactone / eplerenone)")
+            recs.append("Add spironolactone 12.5–25mg OD if K⁺ ≤ 5.0 and eGFR ≥ 30; "
+                        "recheck K⁺ and creatinine in 1–2 weeks")
+
+    # Pillar 4 — SGLT2i
+    sglt2   = _find_drug(med_text, SGLT2I_MAP)
+    sglt2_ci = egfr_val is not None and egfr_val < 20
+
+    if sglt2:
+        drug, sub = sglt2
+        pillars.append(GdmtPillar(pillar="SGLT2 Inhibitor", status="present", drug_found=drug, subtype=sub))
+    elif sglt2_ci:
+        pillars.append(GdmtPillar(pillar="SGLT2 Inhibitor", status="contraindicated",
+            note=f"eGFR {egfr_val} mL/min/1.73m²"))
+    else:
+        pillars.append(GdmtPillar(pillar="SGLT2 Inhibitor", status="missing"))
+        if hfref:
+            gaps.append("No SGLT2 inhibitor (dapagliflozin / empagliflozin)")
+            recs.append("Add dapagliflozin 10mg OD or empagliflozin 10mg OD — "
+                        "reduces HF hospitalization ~25% (DAPA-HF / EMPEROR-Reduced)")
+
+    if not hfref:
+        gaps.clear()
+        recs = ["GDMT is specifically for HFrEF (EF ≤ 40%). "
+                "Review diagnosis — if EF not documented, consider echo or ECG risk prediction."]
+
+    return GdmtCheckResponse(
+        patient         = request.patient,
+        hfref_detected  = hfref,
+        diagnosis_text  = final_dx or None,
+        pillars         = pillars,
+        gaps            = gaps,
+        recommendations = recs,
+        warnings        = warns,
+        labs_used       = {
+            "potassium":   potassium,
+            "creatinine":  creatinine,
+            "egfr":        egfr_val,
+            "bp_systolic": bp_sys,
+            "hr":          hr_val,
+        },
+    )
+
+try:
+    import fitz as _fitz
+    _FITZ_AVAILABLE = True
+except ImportError:
+    _FITZ_AVAILABLE = False
+
+_CHROMA_DIR    = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rag", "chroma_db")
+_EMBED_MODEL   = "nomic-embed-text"
+_COLLECTION    = "clara_guidelines"
+_MIN_RELEVANCE = 40.0
+_RAG_AVAILABLE = os.path.exists(_CHROMA_DIR)
+
+_GUIDELINES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "guidelines")
+
+# Drug maps per diagnosis category (reuses GDMT maps + adds more)
+_CCB = ["amlodipine", "nifedipine", "felodipine", "diltiazem", "verapamil", "lercanidipine"]
+_THIAZIDE = ["hydrochlorothiazide", "chlorthalidone", "indapamide"]
+_STATIN = ["atorvastatin", "rosuvastatin", "simvastatin", "pravastatin",
+           "lovastatin", "fluvastatin", "pitavastatin"]
+_ANTICOAG = ["warfarin", "apixaban", "rivaroxaban", "dabigatran", "edoxaban"]
+_ANTIPLATELET = ["aspirin", "clopidogrel", "ticagrelor", "prasugrel"]
+
+CATEGORY_EXPECTED = {
+    "heart_failure": {
+        "RAAS Inhibitor (ACEi/ARB/ARNi)": list(RAAS_MAP.keys()),
+        "Beta-Blocker (evidence-based)":   list(BB_RECOMMENDED_MAP.keys()),
+        "MRA":                             list(MRA_MAP.keys()),
+        "SGLT2 Inhibitor":                 list(SGLT2I_MAP.keys()),
+    },
+    "hypertension": {
+        "RAAS Inhibitor":          list(RAAS_MAP.keys()),
+        "Calcium Channel Blocker": _CCB,
+        "Thiazide Diuretic":       _THIAZIDE,
+    },
+    "dyslipidemia": {
+        "Statin":     _STATIN,
+        "Ezetimibe":  ["ezetimibe"],
+    },
+    "atrial_fibrillation": {
+        "Anticoagulant":       _ANTICOAG,
+        "Rate Control Agent":  ["digoxin"] + list(BB_RECOMMENDED_MAP.keys()) + ["diltiazem", "verapamil"],
+    },
+    "coronary_artery_disease": {
+        "Antiplatelet":    _ANTIPLATELET,
+        "Statin":          _STATIN,
+        "Beta-Blocker":    list(BB_RECOMMENDED_MAP.keys()),
+        "RAAS Inhibitor":  list(RAAS_MAP.keys()),
+    },
+}
+
+_CATEGORY_LABELS = {
+    "heart_failure":          "Heart Failure",
+    "hypertension":           "Hypertension",
+    "dyslipidemia":           "Dyslipidemia",
+    "atrial_fibrillation":    "Atrial Fibrillation",
+    "coronary_artery_disease":"Coronary Artery Disease",
+    "arrhythmia":             "Arrhythmia",
+    "valvular":               "Valvular Disease",
+    "general":                "General Cardiology",
+}
+
+_HFREF_KW = [
+    r"\bhf\b", r"\bhfref\b", r"heart\s+failure", r"cardiac\s+failure",
+    r"systolic\s+dysfunction", r"\bchf\b", r"reduced\s+ejection",
+    r"dilated\s+cardiomyopathy", r"\bdcm\b", r"cardiomyopathy",
+]
+
+_DETECT_CATS = {
+    "heart_failure":  ["heart failure","hfref","hfpef","systolic dysfunction",
+                       "lvef","chf","cardiac failure","reduced ejection","cardiomyopathy"],
+    "hypertension":   ["hypertension","htn","high blood pressure","antihypertensive"],
+    "dyslipidemia":   ["dyslipidemia","cholesterol","ldl","statin","lipid","hyperlipidemia"],
+    "atrial_fibrillation": ["atrial fibrillation","afib"," af ","anticoagulation","rate control"],
+    "coronary_artery_disease": ["coronary artery","cad","myocardial infarction",
+                                "acs","nstemi","stemi","angina"],
+    "arrhythmia":     ["arrhythmia","ventricular tachycardia","ventricular fibrillation","pacemaker"],
+    "valvular":       ["valvular","mitral","aortic","stenosis","regurgitation"],
+}
+
+def _detect_category_from_text(text: str) -> str:
+    if not text:
+        return "general"
+    t = text.lower()
+    scores = {cat: sum(1 for kw in kws if kw in t) for cat, kws in _DETECT_CATS.items()}
+    best = max(scores, key=scores.get)
+    return best if scores[best] > 0 else "general"
+
+
+def _scan_meds_for_class(text: str, drug_list: list) -> Optional[str]:
+    t = text.lower()
+    for drug in sorted(drug_list, key=len, reverse=True):
+        if _re.search(rf"\b{_re.escape(drug)}\b", t):
+            return drug
+    return None
+
+
+def _run_cross_check(med_text: str, category: str) -> dict:
+    expected = CATEGORY_EXPECTED.get(category, {})
+    consistent = []
+    gaps       = []
+    concerns   = []
+
+    for drug_class, drug_list in expected.items():
+        found = _scan_meds_for_class(med_text, drug_list)
+        if found:
+            consistent.append(f"{found.capitalize()} — {drug_class} present")
+        else:
+            gaps.append(f"No {drug_class} found in medications")
+
+    # Extra check: wrong BB for HF
+    if category == "heart_failure":
+        wrong_bb = _find_bb_wrong(med_text)
+        if wrong_bb:
+            concerns.append(
+                f"{wrong_bb.capitalize()} is not evidence-based for HFrEF — "
+                "switch to carvedilol or bisoprolol"
+            )
+
+    return {"consistent": consistent, "gaps": gaps, "concerns": concerns}
+
+
+# ── Models ────────────────────────────────────────────────────────────────────
+
+def _rag_retrieve(query: str, diagnosis_hint: str = None, top_k: int = 8) -> list:
+    if not os.path.exists(_CHROMA_DIR):
+        return []
+    try:
+        client     = _chromadb.PersistentClient(path=_CHROMA_DIR)
+        collection = client.get_collection(_COLLECTION)
+    except Exception:
+        return []
+
+    try:
+        emb_resp = requests.post(
+            "http://localhost:11434/api/embeddings",
+            json={"model": _EMBED_MODEL, "prompt": query},
+            timeout=60,
+        )
+        emb_resp.raise_for_status()
+        query_emb = emb_resp.json()["embedding"]
+    except Exception:
+        return []
+
+    where = {"diagnosis_category": {"$eq": diagnosis_hint}} if diagnosis_hint else None
+
+    try:
+        kwargs = dict(
+            query_embeddings=[query_emb],
+            n_results=top_k,
+            include=["documents", "metadatas", "distances"],
+        )
+        if where:
+            kwargs["where"] = where
+        results = collection.query(**kwargs)
+    except Exception:
+        try:
+            results = collection.query(
+                query_embeddings=[query_emb],
+                n_results=top_k,
+                include=["documents", "metadatas", "distances"],
+            )
+        except Exception:
+            return []
+
+    docs  = results.get("documents", [[]])[0]
+    metas = results.get("metadatas", [[]])[0]
+    dists = results.get("distances", [[]])[0]
+
+    matched = []
+    for doc, meta, dist in zip(docs, metas, dists):
+        relevance = round((1 - dist) * 100, 1)
+        if relevance >= _MIN_RELEVANCE:
+            matched.append({
+                "source":             meta.get("source", "unknown"),
+                "page":               meta.get("page"),
+                "section_heading":    meta.get("section_heading", ""),
+                "diagnosis_category": meta.get("diagnosis_category", "general"),
+                "text":               doc.strip(),
+                "relevance":          relevance,
+                "is_philippine":      meta.get("country") == "philippines",
+                "is_recommendation":  meta.get("is_recommendation", False),
+            })
+
+    matched.sort(key=lambda x: (0 if x["is_philippine"] else 1, -x["relevance"]))
+    return matched
+
+class GuidelineChunk(BaseModel):
+    source:             str
+    page:               Optional[int] = None
+    section_heading:    str = ""
+    diagnosis_category: str = "general"
+    text:               str
+    relevance:          float
+    is_philippine:      bool
+    is_recommendation:  bool
+
+class GuidelinesCheckRequest(BaseModel):
+    patient: str
+
+class GuidelinesCheckResponse(BaseModel):
+    patient:                  str
+    diagnosis_text:           Optional[str] = None
+    diagnosis_category:       str
+    diagnosis_category_label: str
+    medications_found:        List[str]
+    guideline_chunks:         List[GuidelineChunk]
+    cross_check:              Dict[str, List[str]]
+    has_philippine_guidelines: bool
+    rag_available:            bool
+
+class GuidelinesQueryRequest(BaseModel):
+    question:          str
+    diagnosis_hint:    Optional[str] = None
+
+class GuidelinesQueryResponse(BaseModel):
+    question: str
+    chunks:   List[GuidelineChunk]
+
+
+@app.post("/guidelines-check", response_model=GuidelinesCheckResponse)
+def guidelines_check(request: GuidelinesCheckRequest):
+    """Auto cross-check patient diagnosis + medications against CPG guidelines."""
+    backend_url = "http://localhost:5000/api/pdfingestion/extract"
+    try:
+        resp = requests.post(backend_url, json={"FolderName": request.patient}, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+    except requests.RequestException as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    dc_text  = get_extracted_text(data, folder_filter="discharge")
+    rx_text  = get_extracted_text(data, folder_filter="prescriptions")
+    med_text = (dc_text + "\n" + rx_text).lower()
+
+    parsed   = parse_discharge(dc_text) if dc_text.strip() else {}
+    final_dx = parsed.get("final_dx") or ""
+    diag_cat = _detect_category_from_text(final_dx or dc_text[:2000])
+
+    # Collect medication names found (for display)
+    all_drug_lists = (
+        list(RAAS_MAP) + list(BB_RECOMMENDED_MAP) + list(BB_NOT_RECOMMENDED) +
+        list(MRA_MAP) + list(SGLT2I_MAP) + _CCB + _THIAZIDE +
+        _STATIN + _ANTICOAG + _ANTIPLATELET + ["digoxin", "ezetimibe", "furosemide", "torsemide"]
+    )
+    meds_found = sorted({
+        drug for drug in all_drug_lists
+        if _re.search(rf"\b{_re.escape(drug)}\b", med_text)
+    })
+
+    # Retrieve CPG chunks
+    chunks: List[GuidelineChunk] = []
+    if _RAG_AVAILABLE and final_dx:
+        query      = f"{final_dx} treatment management pharmacological"
+        raw_chunks = _rag_retrieve(query, diagnosis_hint=diag_cat, top_k=6)
+        if not raw_chunks:
+            raw_chunks = _rag_retrieve(query, top_k=6)
+        chunks = [GuidelineChunk(**c) for c in raw_chunks]
+
+    cross_check = _run_cross_check(med_text, diag_cat)
+
+    return GuidelinesCheckResponse(
+        patient                   = request.patient,
+        diagnosis_text            = final_dx or None,
+        diagnosis_category        = diag_cat,
+        diagnosis_category_label  = _CATEGORY_LABELS.get(diag_cat, diag_cat.replace("_", " ").title()),
+        medications_found         = meds_found,
+        guideline_chunks          = chunks,
+        cross_check               = cross_check,
+        has_philippine_guidelines = any(c.is_philippine for c in chunks),
+        rag_available             = _RAG_AVAILABLE,
+    )
+
+
+@app.post("/guidelines-query", response_model=GuidelinesQueryResponse)
+def guidelines_query(request: GuidelinesQueryRequest):
+    """Search CPG database for a specific question."""
+    if not _RAG_AVAILABLE:
+        raise HTTPException(status_code=503, detail="RAG service not available. Run ingest.py first.")
+
+    raw_chunks = _rag_retrieve(
+        request.question,
+        diagnosis_hint=request.diagnosis_hint,
+        top_k=5,
+    )
+    return GuidelinesQueryResponse(
+        question=request.question,
+        chunks=[GuidelineChunk(**c) for c in raw_chunks],
+    )
+
+
+@app.get("/guidelines-preview")
+def guidelines_preview(source: str, page: int):
+    """Return a PDF page rendered as a PNG image."""
+    if not _FITZ_AVAILABLE:
+        raise HTTPException(status_code=503, detail="pymupdf not installed.")
+
+    pdf_path = os.path.join(_GUIDELINES_DIR, f"{source}.pdf")
+    if not os.path.exists(pdf_path):
+        raise HTTPException(status_code=404, detail=f"PDF not found: {source}.pdf")
+
+    try:
+        doc = _fitz.open(pdf_path)
+        if page < 1 or page > len(doc):
+            raise HTTPException(status_code=400, detail=f"Page {page} out of range (1–{len(doc)})")
+        pg     = doc[page - 1]
+        mat    = _fitz.Matrix(1.8, 1.8)  # 1.8x zoom — readable but not huge
+        pix    = pg.get_pixmap(matrix=mat)
+        img_bytes = pix.tobytes("png")
+        doc.close()
+        return _ImageResponse(content=img_bytes, media_type="image/png")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/")
 def root():
