@@ -7,11 +7,9 @@ export function useChat(sessionId) {
   const [messages,    setMessages]    = useState([{
     role: 'clara',
     text: 'Hello, Doctor. Select a patient and ask me anything about their lab results, trends, or cardiovascular guidelines.',
-    tools: [], guidelines: false, flags: [], emergency: false,
+    tools: [], guidelines: false,
   }])
   const [loading,     setLoading]     = useState(false)
-  const [ruleFlags,   setRuleFlags]   = useState([])
-  const [isEmergency, setIsEmergency] = useState(false)
 
   const abortRef      = useRef(null)
   const wordQueueRef  = useRef([])
@@ -101,7 +99,7 @@ export function useChat(sessionId) {
     if (!patientId) {
       setMessages(m => [...m, {
         role: 'clara', text: 'Please select a patient first.',
-        tools: [], guidelines: false, flags: [], emergency: false,
+        tools: [], guidelines: false,
       }])
       return
     }
@@ -110,12 +108,13 @@ export function useChat(sessionId) {
 
     setMessages(m => [...m, {
       role: 'doctor', text: message,
-      tools: [], guidelines: false, flags: [], emergency: false,
+      tools: [], guidelines: false,
     }])
 
     setMessages(m => [...m, {
       role: 'clara', text: '',
-      tools: [], guidelines: false, flags: [], emergency: false,
+      tools: [], guidelines: false,
+      sources: [], status: 'Preparing a response', durationMs: null,
       streaming: true,
     }])
 
@@ -162,19 +161,29 @@ export function useChat(sessionId) {
           try { event = JSON.parse(raw) } catch { continue }
 
           if (event.type === 'meta') {
-            setRuleFlags(event.rule_flags || [])
-            setIsEmergency(event.is_emergency || false)
             updateLastMessage(last => {
               last.tools      = event.tools_called    || []
               last.guidelines = event.guidelines_used || false
-              last.flags      = event.rule_flags      || []
-              last.emergency  = event.is_emergency    || false
+              last.sources    = event.guideline_sources || []
+              last.mlUsed     = event.ml_used || false
+            })
+          }
+
+          if (event.type === 'status') {
+            updateLastMessage(last => {
+              last.status = event.label || 'Working on the request'
             })
           }
 
           if (event.type === 'token') enqueueText(event.token || '')
 
-          if (event.type === 'done') finishTextStream()
+          if (event.type === 'done') {
+            updateLastMessage(last => {
+              last.status     = null
+              last.durationMs = event.elapsed_ms ?? null
+            })
+            finishTextStream()
+          }
 
           if (event.type === 'error') {
             resetWordStream()
@@ -213,10 +222,8 @@ export function useChat(sessionId) {
     setLoading(false)
     setMessages([{
       role: 'clara', text: 'Chat cleared. How can I help you?',
-      tools: [], guidelines: false, flags: [], emergency: false,
+      tools: [], guidelines: false,
     }])
-    setRuleFlags([])
-    setIsEmergency(false)
     try {
       await fetch(`${LLM_URL}/history/clear`, {
         method:  'POST',
@@ -226,5 +233,5 @@ export function useChat(sessionId) {
     } catch (_) {}
   }, [resetWordStream, sessionId])
 
-  return { messages, loading, ruleFlags, isEmergency, send, clear }
+  return { messages, loading, send, clear }
 }

@@ -1,11 +1,66 @@
 import requests
-from typing import Any
+import os
+from urllib.parse import quote
 
-CLEANER_URL = "http://localhost:8000"
+DATA_SERVICE_URL = os.getenv("DATA_SERVICE_URL", "http://localhost:5000/api/patientdata").rstrip("/")
 
 ALL_LAB_TOOL_NAMES = ("get_chemistry", "get_hematology", "get_microscopy")
+PATIENT_CONTEXT_TOOL_NAME = "get_patient_context"
 
 TOOL_DEFINITIONS = [
+    {
+        "name": PATIENT_CONTEXT_TOOL_NAME,
+        "description": (
+            "Fetches a compact RAG-ready clinical context for a patient from PostgreSQL, "
+            "including demographics, diagnoses, medications, abnormal labs, recent labs, "
+            "and latest discharge summary. Prefer this for broad patient, diagnosis, "
+            "medication, management, or summary questions."
+        ),
+        "parameters": {
+            "patient_id": "The patient folder ID, e.g. 00001"
+        }
+    },
+    {
+        "name": "get_abnormal_labs",
+        "description": (
+            "Fetches only the abnormal lab section from the patient's structured context. "
+            "Use this for questions about critical, high, low, concerning, or out-of-range lab values."
+        ),
+        "parameters": {
+            "patient_id": "The patient folder ID, e.g. 00001"
+        }
+    },
+    {
+        "name": "get_recent_labs",
+        "description": (
+            "Fetches the compact recent-lab section from the patient's structured context. "
+            "Use this for quick lab summaries when exact per-lab reference ranges are not required."
+        ),
+        "parameters": {
+            "patient_id": "The patient folder ID, e.g. 00001"
+        }
+    },
+    {
+        "name": "get_diagnoses",
+        "description": "Fetches documented diagnoses from the patient's structured PostgreSQL context.",
+        "parameters": {
+            "patient_id": "The patient folder ID, e.g. 00001"
+        }
+    },
+    {
+        "name": "get_medications",
+        "description": "Fetches documented medications from the patient's structured PostgreSQL context.",
+        "parameters": {
+            "patient_id": "The patient folder ID, e.g. 00001"
+        }
+    },
+    {
+        "name": "get_latest_discharge_summary",
+        "description": "Fetches the latest discharge-summary section from the patient's structured PostgreSQL context.",
+        "parameters": {
+            "patient_id": "The patient folder ID, e.g. 00001"
+        }
+    },
     {
         "name": "get_chemistry",
         "description": (
@@ -146,11 +201,63 @@ def format_lab_results(data: dict, lab_type: str) -> str:
     return output
 
 
+def fetch_patient_context(patient_id: str) -> str:
+    patient_path = quote(str(patient_id).strip(), safe="")
+    r = requests.get(f"{DATA_SERVICE_URL}/{patient_path}/rag-context", timeout=30)
+    r.raise_for_status()
+    data = r.json()
+    context = str(data.get("context") or "").strip()
+    return context if context else "No patient context found."
+
+
+def _context_section(patient_id: str, header: str, empty_message: str) -> str:
+    context = fetch_patient_context(patient_id)
+    lines = context.splitlines()
+    selected: list[str] = []
+    collecting = False
+
+    for line in lines:
+        stripped = line.strip()
+        if stripped == header:
+            collecting = True
+            continue
+        if collecting and stripped.startswith("[") and stripped.endswith("]"):
+            break
+        if collecting and stripped:
+            selected.append(stripped)
+
+    if not selected:
+        return empty_message
+    return f"{header}\n" + "\n".join(selected)
+
+
 def execute_tool(tool_name: str, patient_id: str) -> str:
     try:
-        if tool_name == "get_chemistry":
+        if tool_name == PATIENT_CONTEXT_TOOL_NAME:
+            return fetch_patient_context(patient_id)
+
+        elif tool_name == "get_abnormal_labs":
+            return _context_section(patient_id, "[ABNORMAL LABS]", "No abnormal labs found in patient context.")
+
+        elif tool_name == "get_recent_labs":
+            return _context_section(patient_id, "[RECENT LABS]", "No recent labs found in patient context.")
+
+        elif tool_name == "get_diagnoses":
+            return _context_section(patient_id, "[DIAGNOSES]", "No diagnoses found in patient context.")
+
+        elif tool_name == "get_medications":
+            return _context_section(patient_id, "[MEDICATIONS]", "No medications found in patient context.")
+
+        elif tool_name == "get_latest_discharge_summary":
+            return _context_section(
+                patient_id,
+                "[LATEST DISCHARGE SUMMARY]",
+                "No latest discharge summary found in patient context.",
+            )
+
+        elif tool_name == "get_chemistry":
             r = requests.post(
-                f"{CLEANER_URL}/chemistry-results",
+                f"{DATA_SERVICE_URL}/chemistry-results",
                 json={"patient": patient_id, "labs": "chemistry"},
                 timeout=30
             )
@@ -159,7 +266,7 @@ def execute_tool(tool_name: str, patient_id: str) -> str:
 
         elif tool_name == "get_hematology":
             r = requests.post(
-                f"{CLEANER_URL}/hematology-results",
+                f"{DATA_SERVICE_URL}/hematology-results",
                 json={"patient": patient_id, "labs": "hematology"},
                 timeout=30
             )
@@ -168,7 +275,7 @@ def execute_tool(tool_name: str, patient_id: str) -> str:
 
         elif tool_name == "get_microscopy":
             r = requests.post(
-                f"{CLEANER_URL}/microscopy-results",
+                f"{DATA_SERVICE_URL}/microscopy-results",
                 json={"patient": patient_id, "labs": "microscopy"},
                 timeout=30
             )
@@ -177,14 +284,23 @@ def execute_tool(tool_name: str, patient_id: str) -> str:
 
         elif tool_name == "get_discharge":
             r = requests.post(
-                f"{CLEANER_URL}/categorize",
-                json={"patient": patient_id, "labs": "labs"},
+                f"{DATA_SERVICE_URL}/discharge-parsed",
+                json={"patient": patient_id},
                 timeout=30
             )
             r.raise_for_status()
-            discharge = r.json().get("discharge", "").strip()
-            return f"[DISCHARGE SUMMARY]\n{discharge[:2000]}" if discharge \
-                   else "No discharge summary found."
+            data = r.json()
+            if not data.get("found"):
+                return "No discharge summary found."
+            pieces = [
+                data.get("final_dx"),
+                data.get("admitting_dx"),
+                data.get("hpi"),
+                data.get("pmh"),
+                data.get("followup"),
+            ]
+            discharge = "\n".join(str(piece).strip() for piece in pieces if piece)
+            return f"[DISCHARGE SUMMARY]\n{discharge[:2000]}" if discharge else "No discharge summary found."
 
         elif tool_name == "get_all_labs":
             parts = []
@@ -195,7 +311,7 @@ def execute_tool(tool_name: str, patient_id: str) -> str:
         elif tool_name == "get_trends":
             try:
                 r = requests.post(
-                    f"{CLEANER_URL}/labs-timeline",
+                    f"{DATA_SERVICE_URL}/labs-timeline",
                     json={"patient": patient_id, "lab_type": "chemistry"},
                     timeout=30
                 )
@@ -241,6 +357,9 @@ def build_tools_prompt() -> str:
     lines += [
         "",
         "Rules for tool use:",
+        "- For broad clinical questions about the patient, start with get_patient_context.",
+        "- For focused patient facts, use the narrow context tools: get_abnormal_labs, "
+        "get_recent_labs, get_diagnoses, get_medications, or get_latest_discharge_summary.",
         "- If the question is a broad lab review (any abnormals, all labs, worried about labs), "
         "call get_all_labs once instead of separate chemistry/hematology/microscopy calls.",
         "- Only call a tool if you need data you do not already have.",
@@ -255,3 +374,7 @@ def fetch_all_lab_blocks(patient_id: str) -> list[tuple[str, str]]:
     for sub in ALL_LAB_TOOL_NAMES:
         out.append((sub, execute_tool(sub, patient_id)))
     return out
+
+
+def fetch_patient_context_block(patient_id: str) -> tuple[str, str]:
+    return PATIENT_CONTEXT_TOOL_NAME, execute_tool(PATIENT_CONTEXT_TOOL_NAME, patient_id)

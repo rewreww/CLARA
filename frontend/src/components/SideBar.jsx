@@ -4,7 +4,6 @@ import { usePatients } from '../hooks/usePatients'
 
 const ICONS = [
   { key: 'patients',    icon: '👤', tip: 'Patients'    },
-  { key: 'diagnostics', icon: '🔬', tip: 'Diagnostics' },
   { key: 'settings',   icon: '⚙',  tip: 'Settings'    },
 ]
 
@@ -86,7 +85,7 @@ export default function Sidebar({
 
             {error && (
               <div className="px-[14px] py-3 font-mono text-[10px] text-danger">
-                Lab service offline
+                Data service offline
               </div>
             )}
 

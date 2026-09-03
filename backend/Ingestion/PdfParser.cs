@@ -1,4 +1,5 @@
 using UglyToad.PdfPig;
+using System.Text;
 
 namespace CLARA.Backend.Ingestion
 {
@@ -6,15 +7,15 @@ namespace CLARA.Backend.Ingestion
     {
         public string ExtractText(string filePath)
         {
-            using (var document = PdfDocument.Open(filePath))
+            using var document = PdfDocument.Open(filePath);
+            var text = new StringBuilder();
+
+            foreach (var page in document.GetPages())
             {
-                var text = "";
-                foreach (var page in document.GetPages())
-                {
-                    text += page.Text;
-                }
-                return text;
+                text.AppendLine(page.Text);
             }
+
+            return text.ToString();
         }
     }
 }

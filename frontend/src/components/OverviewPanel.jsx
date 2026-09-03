@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useVitals }           from '../hooks/useVitals'
-import GdmtCheckModal  from './GdmtCheckModal'
-import GuidelinesModal from './GuidelinesModal'
+import ClinicalAlertsModal     from './ClinicalAlertsModal'
+import { LABS_URL }            from '../constants'
 
 const STATUS_HEX = { normal: '#10b981', warning: '#f59e0b', critical: '#ef4444' }
 
@@ -384,13 +384,12 @@ export default function OverviewPanel({ patient }) {
   const [visitLoading,  setVisitLoading]  = useState(false)
   const [currentIndex,  setCurrentIndex]  = useState(0)
   const [abnormalLabs,  setAbnormalLabs]  = useState(null)
-  const [showGdmt,       setShowGdmt]       = useState(false)
-  const [showGuidelines, setShowGuidelines] = useState(false)
+  const [showAlerts,    setShowAlerts]    = useState(false)
 
   useEffect(() => {
     if (!patient?.id) return
     setVisitList([]); setVisitData(null); setPrevVisitData(null)
-    fetch('/api/labs/discharge-list', {
+    fetch(`${LABS_URL}/discharge-list`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ patient: patient.id }),
     })
@@ -412,7 +411,7 @@ export default function OverviewPanel({ patient }) {
     setPrevVisitData(null)
 
     const fetchParsed = fileName =>
-      fetch('/api/labs/discharge-parsed', {
+      fetch(`${LABS_URL}/discharge-parsed`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ patient: patient.id, file_name: fileName }),
       }).then(r => r.json())
@@ -447,7 +446,7 @@ export default function OverviewPanel({ patient }) {
       return r.flag
     }
     const fetchLab = type =>
-      fetch(`/api/labs/${type}-results`, {
+      fetch(`${LABS_URL}/${type}-results`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ patient: patient.id, labs: type }),
       }).then(r => r.json()).then(d => d.results || []).catch(() => [])
@@ -490,20 +489,15 @@ export default function OverviewPanel({ patient }) {
           </div>
         )}
 
-        <div className="flex items-center gap-[6px] ml-auto">
-          <button onClick={() => setShowGuidelines(true)}
-            className="px-[10px] py-[4px] rounded-[6px] font-mono text-[9px] font-medium
-              border border-accent/40 text-accent bg-accent/8
-              cursor-pointer transition-colors hover:bg-accent/15 hover:border-accent/70">
-            📋 Guidelines
-          </button>
-          <button onClick={() => setShowGdmt(true)}
-            className="px-[10px] py-[4px] rounded-[6px] font-mono text-[9px] font-medium
-              border border-[#10b981]/40 text-[#10b981] bg-[#10b981]/8
-              cursor-pointer transition-colors hover:bg-[#10b981]/15 hover:border-[#10b981]/70">
-            ✓ GDMT Check
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowAlerts(true)}
+          className="ml-auto px-[10px] py-[4px] rounded-[6px] font-mono text-[9px] font-medium
+            border border-[#f59e0b]/40 text-[#f59e0b] bg-[#f59e0b]/8
+            cursor-pointer transition-colors hover:bg-[#f59e0b]/15 hover:border-[#f59e0b]/70">
+          Clinical Alerts
+        </button>
+
       </div>
 
       <div className="font-mono text-[10px] tracking-[0.1em] uppercase text-accent mb-[10px]">
@@ -544,12 +538,10 @@ export default function OverviewPanel({ patient }) {
       </div>
       <FileInventory files={patient.files} />
 
-      {showGuidelines && (
-        <GuidelinesModal patient={patient} onClose={() => setShowGuidelines(false)} />
+      {showAlerts && (
+        <ClinicalAlertsModal patient={patient} onClose={() => setShowAlerts(false)} />
       )}
-      {showGdmt && (
-        <GdmtCheckModal patient={patient} onClose={() => setShowGdmt(false)} />
-      )}
+
     </div>
   )
 }

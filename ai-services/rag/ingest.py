@@ -8,16 +8,18 @@ Re-run this whenever you add a new CPG PDF.
 import os
 import re
 import sys
-import fitz  # pymupdf
+import fitz 
 import chromadb
-import requests
+
+try:
+    from .embeddings import EMBEDDING_PROVIDER, EMBED_MODEL, get_embedding
+except ImportError:
+    from embeddings import EMBEDDING_PROVIDER, EMBED_MODEL, get_embedding
 
 BASE_DIR       = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GUIDELINES_DIR = os.path.join(BASE_DIR, "guidelines")
 CHROMA_DIR     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chroma_db")
 
-OLLAMA_URL    = "http://localhost:11434"
-EMBED_MODEL   = "nomic-embed-text"
 COLLECTION    = "clara_guidelines"
 CHUNK_SIZE    = 350
 CHUNK_OVERLAP = 60
@@ -167,16 +169,6 @@ def split_into_chunks(pages: list[dict], chunk_size: int, overlap: int) -> list[
     return chunks
 
 
-def get_embedding(text: str) -> list[float]:
-    r = requests.post(
-        f"{OLLAMA_URL}/api/embeddings",
-        json={"model": EMBED_MODEL, "prompt": text},
-        timeout=60,
-    )
-    r.raise_for_status()
-    return r.json()["embedding"]
-
-
 def ingest():
     if not os.path.exists(GUIDELINES_DIR):
         print(f"ERROR: Guidelines folder not found at {GUIDELINES_DIR}")
@@ -200,7 +192,11 @@ def ingest():
 
     collection = client.create_collection(
         name=COLLECTION,
-        metadata={"hnsw:space": "cosine"},
+        metadata={
+            "hnsw:space": "cosine",
+            "embedding_provider": EMBEDDING_PROVIDER,
+            "embedding_model": EMBED_MODEL,
+        },
     )
 
     total_chunks = 0

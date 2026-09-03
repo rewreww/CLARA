@@ -1,10 +1,11 @@
 import re
 import sys
 import os
-from unittest import result
+import time
 import requests
 import json
-import re as _re_diag
+from functools import lru_cache
+from dotenv import load_dotenv
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -12,9 +13,17 @@ from typing import Optional, Dict, Any
 from collections import defaultdict
 from fastapi.responses import StreamingResponse
 
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from mcp_tools import TOOL_DEFINITIONS, execute_tool, build_tools_prompt, fetch_all_lab_blocks
-from rag.retriever import retrieve_guidelines
+from mcp_tools import execute_tool, build_tools_prompt, fetch_all_lab_blocks, fetch_patient_context_block
+from rag.retriever import (
+    infer_diagnosis_hint,
+    is_management_query,
+    retrieve,
+    retrieve_guidelines,
+)
+from rag.embeddings import EMBEDDING_PROVIDER as RAG_EMBEDDING_PROVIDER, EMBED_MODEL as RAG_EMBED_MODEL
 from rule_engine.rules import rule_engine
 
 app = FastAPI()
@@ -28,6 +37,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").strip().lower()
+DATA_SERVICE_URL = os.getenv("DATA_SERVICE_URL", "http://localhost:5000/api/patientdata").rstrip("/")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
+GEMINI_RETRY_ATTEMPTS = max(1, int(os.getenv("GEMINI_RETRY_ATTEMPTS", "2")))
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b").strip()
+GROQ_API_URL = os.getenv("GROQ_API_URL", "https://api.groq.com/openai/v1/chat/completions").strip()
+GROQ_RETRY_ATTEMPTS = max(1, int(os.getenv("GROQ_RETRY_ATTEMPTS", "2")))
+
+HF_MODEL = os.getenv("HF_MODEL", os.getenv("HUGGINGFACE_MODEL", "Qwen/Qwen2.5-0.5B-Instruct")).strip()
+HF_TASK = os.getenv("HF_TASK", "text-generation").strip()
+HF_DEVICE = int(os.getenv("HF_DEVICE", "-1"))
+HF_MAX_INPUT_TOKENS = max(1, int(os.getenv("HF_MAX_INPUT_TOKENS", "1024")))
+HF_MAX_NEW_TOKENS = max(1, int(os.getenv("HF_MAX_NEW_TOKENS", "180")))
+HF_TEMPERATURE = float(os.getenv("HF_TEMPERATURE", "0.2"))
+HF_TRUNCATION_SIDE = os.getenv("HF_TRUNCATION_SIDE", "left").strip().lower()
+
 OLLAMA_URL = "http://localhost:11434"
 PREFERRED_OLLAMA_MODELS = tuple(dict.fromkeys(filter(None, [
     os.getenv("OLLAMA_MODEL"),
@@ -35,9 +64,15 @@ PREFERRED_OLLAMA_MODELS = tuple(dict.fromkeys(filter(None, [
     "llama3.2:1b",
     "llama2:latest",
 ])))
+PREFERRED_FALLBACK_MODELS = tuple(dict.fromkeys(filter(None, [
+    os.getenv("OLLAMA_FALLBACK_MODEL"),
+    "llama3.2:1b",
+    "qwen2.5:7b",
+    "llama2:latest",
+])))
 
 
-def resolve_ollama_model() -> str:
+def resolve_ollama_model(preferred_models: tuple[str, ...]) -> str:
     try:
         r = requests.get(f"{OLLAMA_URL}/api/tags", timeout=5)
         r.raise_for_status()
@@ -45,15 +80,16 @@ def resolve_ollama_model() -> str:
             model.get("name") or model.get("model")
             for model in r.json().get("models", [])
         }
-        for model in PREFERRED_OLLAMA_MODELS:
+        for model in preferred_models:
             if model in installed:
                 return model
     except requests.RequestException:
         pass
-    return PREFERRED_OLLAMA_MODELS[0]
+    return preferred_models[0]
 
 
-OLLAMA_MODEL = resolve_ollama_model()
+OLLAMA_MODEL = resolve_ollama_model(PREFERRED_OLLAMA_MODELS)
+OLLAMA_FALLBACK_MODEL = resolve_ollama_model(PREFERRED_FALLBACK_MODELS)
 
 conversation_store: dict[str, list[dict]] = defaultdict(list)
 MAX_HISTORY = 10
@@ -112,6 +148,18 @@ class ClearHistoryRequest(BaseModel):
     session_id: Optional[str] = "default"
 
 
+class ClinicalAlertsRequest(BaseModel):
+    patient_id: str
+
+
+class ClinicalAlertsResponse(BaseModel):
+    patient_id: str
+    flags: list[str]
+    is_emergency: bool
+    flag_count: int
+    lab_results_checked: int
+
+
 # ── Question classification ────────────────────────────────────────────────────
 
 def classify_question(message: str) -> str:
@@ -126,6 +174,7 @@ def classify_question(message: str) -> str:
         "management", "medication",
         "guideline", "therapy",
         "hypertension", "heart failure", "stroke", "diabetes",
+        "cardiovascular disease", "hypertensive cardiovascular", "procedure", "procedures",
         "target", "threshold", "goal",
         "philippine", "philippines", "filipino", "local",
         "first-line", "first line", "recommend", "protocol",
@@ -182,17 +231,132 @@ def resolve_question_type(message: str, history: list[dict]) -> str:
     return q_type
 
 
-# ── Ollama call ────────────────────────────────────────────────────────────────
+_ML_REQUEST = re.compile(
+    r"\b(assess(?:ment)?|prognos(?:is|tic)?|predict(?:ion)?|risk|probability|likelihood|"
+    r"mortality|readmission|emergency department|ed return)\b",
+    re.IGNORECASE,
+)
 
-def call_ollama(prompt: str) -> str:
+
+def wants_ml_assessment(message: str) -> bool:
+    """Keep ML opt-in: only run it for explicit assessment or prognosis requests."""
+    return bool(_ML_REQUEST.search(message or ""))
+
+
+# ── Language-model calls ───────────────────────────────────────────────────────
+
+def call_gemini(prompt: str) -> str:
+    if not GEMINI_API_KEY:
+        raise HTTPException(status_code=500, detail="Gemini API key is not configured.")
+
+    payload = {
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.1,
+            "topP": 0.8,
+            "maxOutputTokens": 800,
+        },
+    }
+    retryable_statuses = {429, 500, 502, 503, 504}
+
+    for attempt in range(GEMINI_RETRY_ATTEMPTS):
+        try:
+            r = requests.post(
+                f"{GEMINI_API_URL}/{GEMINI_MODEL}:generateContent",
+                params={"key": GEMINI_API_KEY},
+                json=payload,
+                timeout=90,
+            )
+            if r.status_code in retryable_statuses:
+                if attempt < GEMINI_RETRY_ATTEMPTS - 1:
+                    time.sleep(attempt + 1)
+                    continue
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Gemini is temporarily unavailable (HTTP {r.status_code}).",
+                )
+
+            r.raise_for_status()
+            candidates = r.json().get("candidates", [])
+            parts = candidates[0].get("content", {}).get("parts", []) if candidates else []
+            text = "".join(part.get("text", "") for part in parts).strip()
+            if not text:
+                raise HTTPException(status_code=502, detail="Gemini returned no response text.")
+            return text
+        except HTTPException:
+            raise
+        except requests.RequestException:
+            if attempt < GEMINI_RETRY_ATTEMPTS - 1:
+                time.sleep(attempt + 1)
+                continue
+            raise HTTPException(status_code=503, detail="Gemini is temporarily unavailable.")
+
+    raise HTTPException(status_code=503, detail="Gemini is temporarily unavailable.")
+
+
+def call_groq(prompt: str) -> str:
+    if not GROQ_API_KEY:
+        raise HTTPException(status_code=500, detail="Groq API key is not configured.")
+
+    payload = {
+        "model": GROQ_MODEL,
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "You are CLARA, a concise cardiovascular clinical AI assistant "
+                    "for licensed physicians. Use provided patient context and "
+                    "guideline context when present."
+                ),
+            },
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0.1,
+        "stream": False,
+        "max_tokens": 800,
+    }
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    retryable_statuses = {429, 500, 502, 503, 504}
+
+    for attempt in range(GROQ_RETRY_ATTEMPTS):
+        try:
+            r = requests.post(GROQ_API_URL, headers=headers, json=payload, timeout=90)
+            if r.status_code in retryable_statuses:
+                if attempt < GROQ_RETRY_ATTEMPTS - 1:
+                    time.sleep(attempt + 1)
+                    continue
+                detail = "Groq rate limit reached." if r.status_code == 429 else f"Groq is temporarily unavailable (HTTP {r.status_code})."
+                raise HTTPException(status_code=503, detail=detail)
+
+            r.raise_for_status()
+            choices = r.json().get("choices", [])
+            text = choices[0].get("message", {}).get("content", "").strip() if choices else ""
+            if not text:
+                raise HTTPException(status_code=502, detail="Groq returned no response text.")
+            return text
+        except HTTPException:
+            raise
+        except requests.RequestException:
+            if attempt < GROQ_RETRY_ATTEMPTS - 1:
+                time.sleep(attempt + 1)
+                continue
+            raise HTTPException(status_code=503, detail="Groq is temporarily unavailable.")
+
+    raise HTTPException(status_code=503, detail="Groq is temporarily unavailable.")
+
+
+def call_ollama(prompt: str, model: str = OLLAMA_MODEL) -> str:
     try:
         r = requests.post(
             f"{OLLAMA_URL}/api/generate",
             json={
-                "model": OLLAMA_MODEL,
+                "model": model,
                 "prompt": prompt,
                 "stream": False,
-                "options": {"temperature": 0.1, "top_p": 0.8},
+                "options": {"temperature": 0.2, "top_p": 0.8, "num_predict": 450},
             },
             timeout=120
         )
@@ -202,6 +366,149 @@ def call_ollama(prompt: str) -> str:
         raise HTTPException(status_code=502, detail=f"Ollama unreachable: {e}")
     except (KeyError, ValueError):
         raise HTTPException(status_code=502, detail="Unexpected response from Ollama")
+
+
+@lru_cache(maxsize=1)
+def _huggingface_model():
+    try:
+        import torch
+        from transformers import AutoTokenizer
+    except ImportError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="Hugging Face transformers is not installed. Run: pip install -r ai-services/requirements.txt",
+        ) from exc
+
+    try:
+        task = HF_TASK.lower()
+        if task in {"text2text-generation", "text2text", "seq2seq", "seq2seq-generation"}:
+            from transformers import AutoModelForSeq2SeqLM
+
+            tokenizer = AutoTokenizer.from_pretrained(HF_MODEL)
+            tokenizer.truncation_side = HF_TRUNCATION_SIDE
+            model = AutoModelForSeq2SeqLM.from_pretrained(HF_MODEL)
+            device = torch.device(f"cuda:{HF_DEVICE}" if HF_DEVICE >= 0 and torch.cuda.is_available() else "cpu")
+            model.to(device)
+            model.eval()
+            return {
+                "kind": "seq2seq",
+                "model": model,
+                "tokenizer": tokenizer,
+                "device": device,
+            }
+
+        from transformers import pipeline
+        return {
+            "kind": "pipeline",
+            "pipeline": pipeline(
+                task=HF_TASK,
+                model=HF_MODEL,
+                tokenizer=HF_MODEL,
+                device=HF_DEVICE,
+            ),
+        }
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Unable to load Hugging Face model '{HF_MODEL}': {exc}",
+        ) from exc
+
+
+def call_huggingface(prompt: str) -> str:
+    runner = _huggingface_model()
+    generation_kwargs = {
+        "max_new_tokens": HF_MAX_NEW_TOKENS,
+    }
+    if HF_TEMPERATURE > 0:
+        generation_kwargs.update({
+            "do_sample": True,
+            "temperature": HF_TEMPERATURE,
+        })
+    else:
+        generation_kwargs["do_sample"] = False
+
+    if runner["kind"] == "seq2seq":
+        tokenizer = runner["tokenizer"]
+        model = runner["model"]
+        max_model_tokens = getattr(tokenizer, "model_max_length", HF_MAX_INPUT_TOKENS)
+        if max_model_tokens > 100_000:
+            max_model_tokens = HF_MAX_INPUT_TOKENS
+        max_input_tokens = min(HF_MAX_INPUT_TOKENS, max_model_tokens)
+
+        try:
+            inputs = tokenizer(
+                prompt,
+                return_tensors="pt",
+                truncation=True,
+                max_length=max_input_tokens,
+            )
+            inputs = {key: value.to(runner["device"]) for key, value in inputs.items()}
+            generated = model.generate(**inputs, **generation_kwargs)
+            text = tokenizer.decode(generated[0], skip_special_tokens=True)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Hugging Face generation failed: {exc}",
+            ) from exc
+    else:
+        if HF_TASK == "text-generation":
+            generation_kwargs["return_full_text"] = False
+            tokenizer = getattr(runner["pipeline"], "tokenizer", None)
+            if tokenizer and getattr(tokenizer, "chat_template", None):
+                prompt = tokenizer.apply_chat_template(
+                    [{"role": "user", "content": prompt}],
+                    tokenize=False,
+                    add_generation_prompt=True,
+                )
+
+        try:
+            output = runner["pipeline"](prompt, **generation_kwargs)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Hugging Face generation failed: {exc}",
+            ) from exc
+
+        if isinstance(output, list) and output:
+            first = output[0]
+            text = first.get("generated_text") or first.get("summary_text") or first.get("translation_text")
+        elif isinstance(output, dict):
+            text = output.get("generated_text") or output.get("summary_text") or output.get("translation_text")
+        else:
+            text = str(output or "")
+
+    if not text:
+        raise HTTPException(status_code=502, detail="Hugging Face model returned no response text.")
+
+    return text.strip()
+
+
+def call_llm(prompt: str) -> str:
+    if LLM_PROVIDER == "gemini":
+        try:
+            return call_gemini(prompt)
+        except HTTPException as gemini_error:
+            if gemini_error.status_code not in {429, 502, 503, 504}:
+                raise
+            try:
+                return call_ollama(prompt, model=OLLAMA_FALLBACK_MODEL)
+            except HTTPException:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Gemini is unavailable and the local Ollama fallback could not respond.",
+                )
+    if LLM_PROVIDER == "groq":
+        return call_groq(prompt)
+    if LLM_PROVIDER in {"grok", "xai"}:
+        raise HTTPException(
+            status_code=500,
+            detail="Use LLM_PROVIDER=groq for GroqCloud. xAI Grok support is disabled to avoid paid API confusion.",
+        )
+    if LLM_PROVIDER == "ollama":
+        return call_ollama(prompt)
+    if LLM_PROVIDER in {"huggingface", "hf"}:
+        return call_huggingface(prompt)
+    raise HTTPException(status_code=500, detail=f"Unsupported LLM provider: {LLM_PROVIDER}")
 
 
 def parse_tool_call(text: str) -> Optional[tuple[str, str]]:
@@ -279,11 +586,15 @@ def build_history_block(history: list[dict]) -> str:
 
 
 def run_rule_engine(patient_id: str) -> Dict[str, Any]:
+    return rule_engine.evaluate_labs(fetch_patient_lab_results(patient_id))
+
+
+def fetch_patient_lab_results(patient_id: str) -> list[dict]:
     all_results: list = []
     for lab_type in ("chemistry", "hematology", "microscopy"):
         try:
             r = requests.post(
-                f"http://localhost:8000/{lab_type}-results",
+                f"{DATA_SERVICE_URL}/{lab_type}-results",
                 json={"patient": patient_id, "labs": lab_type},
                 timeout=30,
             )
@@ -293,7 +604,22 @@ def run_rule_engine(patient_id: str) -> Dict[str, Any]:
                 all_results.extend(results)
         except Exception:
             continue
-    return rule_engine.evaluate_labs(all_results)
+    return all_results
+
+
+@app.post("/clinical-alerts", response_model=ClinicalAlertsResponse)
+def clinical_alerts(request: ClinicalAlertsRequest):
+    """Run the rule engine against the patient's extracted lab results only."""
+    lab_results = fetch_patient_lab_results(request.patient_id)
+    evaluation = rule_engine.evaluate_labs(lab_results)
+    flags = evaluation.get("flags", [])
+    return ClinicalAlertsResponse(
+        patient_id=request.patient_id,
+        flags=flags,
+        is_emergency=bool(evaluation.get("is_emergency", False)),
+        flag_count=len(flags),
+        lab_results_checked=len(lab_results),
+    )
 
 
 def lab_status(result: dict) -> str:
@@ -327,7 +653,7 @@ def try_direct_lab_answer(patient_id: str, message: str) -> Optional[tuple[str, 
 
     try:
         r = requests.post(
-            "http://localhost:8000/chemistry-results",
+            f"{DATA_SERVICE_URL}/chemistry-results",
             json={"patient": patient_id, "labs": "chemistry"},
             timeout=30,
         )
@@ -378,6 +704,12 @@ _MICROSCOPY_TOPIC = re.compile(
     r"\b(urine|urinalysis|microscopy|pus cells?|protein|casts?|crystals?|bacteria)\b",
     re.IGNORECASE,
 )
+_PATIENT_CONTEXT_TOPIC = re.compile(
+    r"\b(patient|summary|overview|context|diagnos(?:is|es)|medication|meds?|prescription|"
+    r"discharge|history|hpi|pmh|clinical course|hospital course|follow[- ]?up|"
+    r"management|treat(?:ment)?|procedure|plan|risk|assessment)\b",
+    re.IGNORECASE,
+)
 
 
 def wants_full_lab_scan(message: str) -> bool:
@@ -407,6 +739,24 @@ def select_lab_tools(message: str, active_section: str = None) -> list[str]:
     if _MICROSCOPY_TOPIC.search(message):
         tools.append("get_microscopy")
     return tools or ["get_all_labs"]
+
+
+def wants_patient_context(message: str, question_type: str) -> bool:
+    if question_type in ("guideline", "both"):
+        return True
+    return bool(_PATIENT_CONTEXT_TOPIC.search(message or ""))
+
+
+def _preload_patient_context(pid: str) -> tuple[str, list[str], list[str]]:
+    tool_name, block = fetch_patient_context_block(pid)
+    if not block or block.startswith("Error fetching"):
+        return "", [], []
+    lines = [
+        "[PATIENT CONTEXT - PRELOADED BY SERVER]",
+        "Use this as the structured patient record. Do not call another patient-data tool unless a specific detail is missing.",
+        block,
+    ]
+    return "\n".join(lines).strip(), [tool_name], [block]
 
 
 
@@ -446,6 +796,11 @@ def build_prompt(
     parts.append(
         "If you already have enough information in the prompt to answer, respond directly. "
         "Use conversation history for follow-up questions."
+    )
+    parts.append(
+        "Give an evidence-grounded, decisive clinical answer when guideline context is available. "
+        "For management questions, state the immediate procedure, treatment direction, and monitoring plan. "
+        "Do not invent patient facts or present model estimates as confirmed diagnoses."
     )
 
     return "\n".join(parts)
@@ -492,15 +847,173 @@ def _preload_labs(pid: str, message: str, active_section: str = None) -> tuple[s
 
     return "\n".join(preload_lines).strip(), tools_called, collected_data
 
-def _preload_discharge(pid: str) -> str:
-    """Fetch discharge summary as clinical background context."""
+def build_guideline_bundle(query: str) -> tuple[str, list[dict]]:
+    """Return focused RAG context plus compact source metadata for the chat UI."""
+    diagnosis_hint = infer_diagnosis_hint(query)
+    management_query = is_management_query(query)
+    chunks = retrieve(
+        query,
+        diagnosis_hint=diagnosis_hint,
+        only_recommendations=management_query,
+        top_k=8,
+    )
+    if not chunks and management_query:
+        chunks = retrieve(query, diagnosis_hint=diagnosis_hint, top_k=8)
+    if not chunks and diagnosis_hint:
+        chunks = retrieve(query, top_k=8)
+    if not chunks:
+        return "", []
+
+    # Keep the answer focused: prefer Philippine recommendation excerpts and
+    # avoid sending several nearly identical chunks from one page to the LLM.
+    chunks.sort(key=lambda chunk: (
+        0 if chunk.get("is_philippine") else 1,
+        0 if chunk.get("is_recommendation") else 1,
+        -float(chunk.get("relevance") or 0),
+    ))
+
+    lines = ["[RELEVANT CLINICAL GUIDELINES]"]
+    sources = []
+    seen = set()
+    for chunk in chunks:
+        source = str(chunk.get("source") or "Clinical guideline")
+        page = chunk.get("page")
+        key = (source, page)
+        if key not in seen:
+            if len(sources) >= 4:
+                continue
+            sources.append({
+                "title": source.replace("_", " "),
+                "source": source,
+                "page": page,
+                "section": chunk.get("section_heading") or "",
+            })
+            seen.add(key)
+        region = "Philippine" if chunk.get("is_philippine") else "International"
+        page_text = f" p.{page}" if page else ""
+        lines.append(f"\n--- {region} guideline: {source}{page_text} ---")
+        lines.append(str(chunk.get("text") or "").strip())
+    return "\n".join(lines), sources
+
+
+ML_LAB_MAP = {
+    "CREATININE": "creatinine", "BLOOD URIC ACID": "uric_acid",
+    "SODIUM": "sodium", "POTASSIUM": "potassium", "CHLORIDE": "chloride",
+    "TOTAL CHOLESTEROL": "cholesterol", "TRIGLYCERIDES": "triglyceride",
+    "HDL": "hdl_cholesterol", "LDL": "ldl_cholesterol",
+    "HEMOGLOBIN": "hemoglobin", "HEMATOCRIT": "hematocrit",
+    "RBC": "red_blood_cell", "WBC": "white_blood_cell",
+    "PLATELET COUNT": "platelet", "MCV": "mean_corpuscular_volume",
+    "MCH": "mean_hemoglobin_volume", "MCHC": "mean_hemoglobin_concentration",
+    "ESR": "esr",
+}
+
+
+def _number(value) -> Optional[float]:
+    match = re.search(r"[-+]?\d+(?:\.\d+)?", str(value or ""))
+    return float(match.group(0)) if match else None
+
+
+def build_ml_features(patient_id: str, lab_results: list[dict]) -> dict:
+    """Use already retrieved patient data; never use known ML target labels as inputs."""
+    features: dict = {}
+    for result in lab_results:
+        feature = ML_LAB_MAP.get(str(result.get("test_name") or "").upper())
+        value = _number(result.get("value"))
+        if feature and value is not None:
+            features[feature] = value
+
     try:
-        result = execute_tool("get_discharge", pid)
-        if "No discharge" not in result and "Error" not in result:
-            return result
-    except Exception:
+        vitals = requests.post(
+            f"{DATA_SERVICE_URL}/vitals",
+            json={"patient": patient_id}, timeout=20,
+        ).json()
+        if vitals.get("bp"):
+            features["systolic_blood_pressure"] = vitals["bp"].get("numeric")
+            bp_match = re.search(r"(\d+)\s*/\s*(\d+)", str(vitals["bp"].get("value") or ""))
+            if bp_match:
+                features["diastolic_blood_pressure"] = float(bp_match.group(2))
+        if vitals.get("hr"):
+            features["pulse"] = vitals["hr"].get("numeric")
+        if vitals.get("rr"):
+            features["respiration"] = vitals["rr"].get("numeric")
+        if vitals.get("temp"):
+            features["body_temperature"] = vitals["temp"].get("numeric")
+    except requests.RequestException:
         pass
-    return ""
+
+    try:
+        parsed = requests.post(
+            f"{DATA_SERVICE_URL}/discharge-parsed",
+            json={"patient": patient_id}, timeout=20,
+        ).json()
+        header = parsed.get("header") or {}
+        age = _number(header.get("age"))
+        if age is not None:
+            features["age_category"] = age
+        sex = str(header.get("sex") or "").lower()
+        if sex.startswith("f"):
+            features["gender"] = "Female"
+        elif sex.startswith("m"):
+            features["gender"] = "Male"
+
+        clinical_text = " ".join(str(parsed.get(key) or "") for key in ("admitting_dx", "final_dx", "pmh")).lower()
+        for feature, terms in {
+            "diabetes": ["diabetes", "diabetic mellitus"],
+            "copd": ["copd", "chronic obstructive pulmonary"],
+            "moderate_to_severe_chronic_kidney_disease": ["chronic kidney", "ckd"],
+            "acute_renal_failure": ["acute renal failure", "acute kidney injury", "aki"],
+            "cerebrovascular_disease": ["stroke", "cerebrovascular"],
+            "peripheral_vascular_disease": ["peripheral vascular"],
+            "liver_disease": ["liver disease", "cirrhosis"],
+        }.items():
+            if any(term in clinical_text for term in terms):
+                features[feature] = 1
+        lvef = re.search(r"(?:lvef|ejection fraction|ef)\s*(?:is|of|:)?\s*([0-9]{1,3}(?:\.\d+)?)\s*%?", clinical_text)
+        if lvef:
+            features["lvef"] = float(lvef.group(1))
+    except requests.RequestException:
+        pass
+
+    return {key: value for key, value in features.items() if value is not None}
+
+
+def run_ml_assessment(patient_id: str, lab_results: list[dict]) -> tuple[list[dict], dict]:
+    features = build_ml_features(patient_id, lab_results)
+    if not features:
+        return [], {"features_received": 0, "total_features": 0}
+    try:
+        response = requests.post(
+            "http://localhost:8002/predict",
+            json={"features": features}, timeout=20,
+        )
+        response.raise_for_status()
+        data = response.json()
+        return data.get("predictions") or [], {
+            "features_received": data.get("features_received", 0),
+            "total_features": data.get("features_received", 0) + len(data.get("missing_features", [])),
+        }
+    except requests.RequestException:
+        return [], {"features_received": len(features), "total_features": len(features)}
+
+
+def format_ml_context(predictions: list[dict], coverage: dict) -> str:
+    if not predictions:
+        return ""
+    lines = [
+        "[ML CLINICAL ASSESSMENT]",
+        "Model outputs are estimates for clinician review, not confirmed diagnoses.",
+    ]
+    for prediction in predictions:
+        label = prediction.get("label", prediction.get("key", "Assessment"))
+        probability = float(prediction.get("probability", 0)) * 100
+        if prediction.get("target_type") == "multiclass":
+            lines.append(f"- {label}: {prediction.get('prediction', 'Unknown')} ({probability:.1f}% confidence)")
+        else:
+            lines.append(f"- {label}: {probability:.1f}% estimated probability")
+    if coverage.get("total_features"):
+        lines.append(f"Model input coverage: {coverage['features_received']}/{coverage['total_features']} features.")
+    return "\n".join(lines)
 
 
 # ── /chat endpoint ─────────────────────────────────────────────────────────────
@@ -546,7 +1059,13 @@ def chat(request: ChatRequest):
 
     # 5. Preload lab data for lab or compound questions
     pid = (request.patient_id or "").strip()
+    patient_context_block = ""
     preload_block = ""
+
+    if pid and wants_patient_context(request.message, question_type) and question_type != "labs":
+        patient_context_block, context_tools, context_data = _preload_patient_context(pid)
+        tools_called.extend(t for t in context_tools if t not in tools_called)
+        collected_data.extend(context_data)
 
     if pid and question_type in ("labs", "both"):
         # For a follow-up like "Yes", look back at what the original question was about
@@ -558,25 +1077,17 @@ def chat(request: ChatRequest):
                     source_message = entry["content"]
                     break
 
-        preload_block, lab_tools, lab_data = _preload_labs(pid, source_message)
+        preload_block, lab_tools, lab_data = _preload_labs(pid, source_message, request.active_section)
         tools_called.extend(t for t in lab_tools if t not in tools_called)
         collected_data.extend(lab_data)
-
-    # 6. Preload discharge summary for compound and guideline questions
-    discharge_block = ""
-    if pid and question_type in ("guideline", "both"):
-        discharge_block = _preload_discharge(pid)
-        if discharge_block:
-            tools_called.append("get_discharge")
-            collected_data.append(discharge_block)
 
     # 7. Build full prompt
     prompt = build_prompt(
         system, guidelines, emergency_block,
         history_block, request.patient_id, request.message
     )
-    if discharge_block:
-        prompt = f"[PATIENT DISCHARGE SUMMARY — BACKGROUND CONTEXT]\n{discharge_block}\n\n" + prompt
+    if patient_context_block:
+        prompt = patient_context_block + "\n\n" + prompt
     if preload_block:
         prompt = preload_block + "\n\n" + prompt
 
@@ -594,7 +1105,7 @@ def chat(request: ChatRequest):
     else:
         # 8. Tool-use loop
         for _ in range(4):
-            response_text = call_ollama(prompt)
+            response_text = call_llm(prompt)
             tool_call     = parse_tool_call(response_text)
 
             if tool_call is None:
@@ -608,7 +1119,7 @@ def chat(request: ChatRequest):
                         f"Question: {request.message}",
                         "Answer directly in 3 sentences or fewer. No preamble."
                     ])
-                    final_response = clean_response(call_ollama(retry_prompt))
+                    final_response = clean_response(call_llm(retry_prompt))
 
                 break
 
@@ -649,148 +1160,156 @@ def chat(request: ChatRequest):
 
 @app.post("/chat/stream")
 def chat_stream(request: ChatRequest):
-    tools_called   = []
-    collected_data = []
-    session_id     = request.session_id or "default"
-
-    system  = SYSTEM_PROMPT.format(tools_section=build_tools_prompt())
-    history = conversation_store[session_id]
-
-    question_type = resolve_question_type(request.message, history)
-
-    guidelines = retrieve_guidelines(request.message) if question_type in ("guideline", "both") else ""
-    guidelines_used = bool(guidelines) and (
-        "No relevant guideline" not in guidelines
-        and "not initialised"   not in guidelines
-        and "not found"         not in guidelines
-    )
-
-    if question_type in ("labs", "both"):
-        rule_result = run_rule_engine(request.patient_id)
-    else:
-        rule_result = {"flags": [], "is_emergency": False}
-    rule_flags   = rule_result.get("flags", [])
-    is_emergency = rule_result.get("is_emergency", False)
-
-    emergency_block = ""
-    if rule_flags:
-        lines = ["[CLINICAL ALERT FLAGS — RULE ENGINE]"]
-        lines += [f"  ! {flag}" for flag in rule_flags]
-        lines.append("[END ALERTS]")
-        emergency_block = "\n".join(lines)
-
-    history_block = build_history_block(history)
-
-    pid = (request.patient_id or "").strip()
-    preload_block = ""
-
-    if pid and question_type in ("labs", "both"):
-        source_message = request.message
-        if question_type != classify_question(request.message):
-            for entry in reversed(history):
-                if entry["role"] == "doctor":
-                    source_message = entry["content"]
-                    break
-
-    preload_block, lab_tools, lab_data = _preload_labs(pid, source_message)
-    tools_called.extend(t for t in lab_tools if t not in tools_called)
-    collected_data.extend(lab_data)
-
-    discharge_block = ""
-    if pid and question_type in ("guideline", "both"):
-        discharge_block = _preload_discharge(pid)
-        if discharge_block:
-            tools_called.append("get_discharge")
-            collected_data.append(discharge_block)
-
-    prompt = build_prompt(
-        system, guidelines, emergency_block,
-        history_block, request.patient_id, request.message
-    )
-    if discharge_block:
-        prompt = f"[PATIENT DISCHARGE SUMMARY — BACKGROUND CONTEXT]\n{discharge_block}\n\n" + prompt
-    if preload_block:
-        prompt = preload_block + "\n\n" + prompt
-
-    final_response = ""
-    direct_answer = (
-        try_direct_lab_answer(request.patient_id, request.message)
-        if question_type in ("labs", "both") else None
-    )
-
-    if direct_answer:
-        final_response, direct_tools = direct_answer
-        for tool_name in direct_tools:
-            if tool_name not in tools_called:
-                tools_called.append(tool_name)
-    else:
-        for _ in range(4):
-            response_text = call_ollama(prompt)
-            tool_call = parse_tool_call(response_text)
-
-            if tool_call is None:
-                final_response = clean_response(response_text)
-
-                if not final_response and collected_data:
-                    retry_prompt = "\n".join([
-                        system, "",
-                        "Patient data:",
-                        "\n\n".join(collected_data), "",
-                        f"Question: {request.message}",
-                        "Answer directly in 3 sentences or fewer. No preamble."
-                    ])
-                    final_response = clean_response(call_ollama(retry_prompt))
-
-                break
-
-            tool_name, patient_id = tool_call
-            if tool_name not in tools_called:
-                tools_called.append(tool_name)
-
-            tool_result = execute_tool(tool_name, patient_id)
-            collected_data.append(tool_result)
-
-            prompt += "\n".join([
-                "",
-                f"[DATA RETRIEVED - {tool_name}]",
-                tool_result,
-                "",
-                f"Answer this specific question using the data above: {request.message}",
-                "Be direct. Maximum 5 sentences. Start with the finding, not a preamble.",
-                ""
-            ])
-
-    if not final_response:
-        final_response = "I was unable to generate a response."
-
     def stream_tokens():
-        full_response = ""
+        started = time.perf_counter()
+        session_id = request.session_id or "default"
+        tools_called: list[str] = []
+        collected_data: list[str] = []
+        guideline_sources: list[dict] = []
+        ml_predictions: list[dict] = []
+        ml_coverage: dict = {}
 
-        meta = {
-            "type":            "meta",
-            "tools_called":    tools_called,
-            "guidelines_used": guidelines_used,
-            "rule_flags":      rule_flags,
-            "is_emergency":    is_emergency,
-            "history_length":  len(conversation_store[session_id]) // 2,
-        }
-        yield f"data: {json.dumps(meta)}\n\n"
+        def event(payload: dict):
+            return f"data: {json.dumps(payload)}\n\n"
+
+        def status(label: str):
+            return event({"type": "status", "label": label})
 
         try:
+            history = conversation_store[session_id]
+            question_type = resolve_question_type(request.message, history)
+            pid = (request.patient_id or "").strip()
+            needs_guidelines = question_type in ("guideline", "both")
+            needs_ml = bool(pid) and wants_ml_assessment(request.message)
+            needs_rules = bool(pid) and (question_type in ("labs", "both", "guideline") or needs_ml)
+            needs_patient_context = bool(pid) and (wants_patient_context(request.message, question_type) or needs_ml)
+
+            if not (needs_guidelines or needs_rules or needs_ml):
+                yield status("Preparing a response")
+
+            guidelines = ""
+            if needs_guidelines:
+                yield status("Checking cardiovascular guidelines")
+                guidelines, guideline_sources = build_guideline_bundle(request.message)
+            guidelines_used = bool(guideline_sources)
+
+            lab_results: list[dict] = []
+            rule_flags: list[str] = []
+            is_emergency = False
+            if needs_rules:
+                yield status("Checking patient safety rules")
+                lab_results = fetch_patient_lab_results(pid)
+                rule_result = rule_engine.evaluate_labs(lab_results)
+                rule_flags = rule_result.get("flags", [])
+                is_emergency = rule_result.get("is_emergency", False)
+                tools_called.append("rule_engine")
+
+            emergency_block = ""
+            if rule_flags:
+                lines = ["[CLINICAL ALERT FLAGS - RULE ENGINE]"]
+                lines += [f"  ! {flag}" for flag in rule_flags]
+                lines.append("[END ALERTS]")
+                emergency_block = "\n".join(lines)
+
+            patient_context_block = ""
+            if needs_patient_context:
+                yield status("Reading the structured patient record")
+                patient_context_block, context_tools, context_data = _preload_patient_context(pid)
+                tools_called.extend(t for t in context_tools if t not in tools_called)
+                collected_data.extend(context_data)
+
+            preload_block = ""
+            if pid and question_type in ("labs", "both"):
+                yield status("Reading relevant laboratory results")
+                source_message = request.message
+                if question_type != classify_question(request.message):
+                    for entry in reversed(history):
+                        if entry["role"] == "doctor":
+                            source_message = entry["content"]
+                            break
+                preload_block, lab_tools, lab_data = _preload_labs(pid, source_message, request.active_section)
+                tools_called.extend(t for t in lab_tools if t not in tools_called)
+                collected_data.extend(lab_data)
+
+            ml_context = ""
+            if needs_ml:
+                yield status("Running the machine-learning assessment")
+                if not lab_results:
+                    lab_results = fetch_patient_lab_results(pid)
+                ml_predictions, ml_coverage = run_ml_assessment(pid, lab_results)
+                if ml_predictions:
+                    tools_called.append("ml_assessment")
+                    ml_context = format_ml_context(ml_predictions, ml_coverage)
+
+            clinical_work_performed = needs_guidelines or needs_rules or needs_ml
+            if clinical_work_performed:
+                yield status("Integrating retrieved clinical information")
+            system = SYSTEM_PROMPT.format(tools_section=build_tools_prompt())
+            prompt = build_prompt(
+                system, guidelines, emergency_block,
+                build_history_block(history), request.patient_id, request.message,
+            )
+            if patient_context_block:
+                prompt = patient_context_block + "\n\n" + prompt
+            if preload_block:
+                prompt = preload_block + "\n\n" + prompt
+            if ml_context:
+                prompt = ml_context + "\n\n" + prompt
+
+            final_response = ""
+            direct_answer = try_direct_lab_answer(pid, request.message) if question_type == "labs" else None
+            if direct_answer:
+                final_response, direct_tools = direct_answer
+                tools_called.extend(t for t in direct_tools if t not in tools_called)
+            else:
+                for _ in range(4):
+                    response_text = call_llm(prompt)
+                    tool_call = parse_tool_call(response_text)
+                    if tool_call is None:
+                        final_response = clean_response(response_text)
+                        break
+                    tool_name, patient_id = tool_call
+                    if tool_name not in tools_called:
+                        tools_called.append(tool_name)
+                    tool_result = execute_tool(tool_name, patient_id)
+                    collected_data.append(tool_result)
+                    prompt += "\n".join([
+                        "", f"[DATA RETRIEVED - {tool_name}]", tool_result, "",
+                        f"Answer this specific question using the data above: {request.message}",
+                        "Be direct, evidence-grounded, and concise.", "",
+                    ])
+
+            if not final_response:
+                final_response = "I was unable to generate a response from the available patient data."
+
+            yield event({
+                "type": "meta",
+                "tools_called": tools_called,
+                "guidelines_used": guidelines_used,
+                "guideline_sources": guideline_sources,
+                "rule_flags": rule_flags,
+                "is_emergency": is_emergency,
+                "ml_used": bool(ml_predictions),
+                "history_length": len(history) // 2,
+            })
+            yield status("Writing the clinical response" if clinical_work_performed else "Writing the response")
+
+            full_response = ""
             for word in re.findall(r"\S+\s*|\s+", final_response):
                 full_response += word
-                payload = {"type": "token", "token": word}
-                yield f"data: {json.dumps(payload)}\n\n"
-
+                yield event({"type": "token", "token": word})
         except Exception as e:
-            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            yield event({"type": "error", "message": str(e)})
             return
 
         cleaned = clean_response(full_response)
         conversation_store[session_id].append({"role": "doctor",  "content": request.message})
         conversation_store[session_id].append({"role": "clara",   "content": cleaned})
 
-        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        yield event({
+            "type": "done",
+            "elapsed_ms": round((time.perf_counter() - started) * 1000),
+        })
 
     return StreamingResponse(
         stream_tokens(),
@@ -820,171 +1339,23 @@ def clear_history(request: ClearHistoryRequest):
         del conversation_store[session_id]
     return {"session_id": session_id, "status": "cleared"}
 
-# ── Diagnostic Tool endpoint ────────────────────────────────────────────────
-
-# ── Diagnostic Tool endpoint ──────────────────────────────────────────────────
-
-class DiagnoseRequest(BaseModel):
-    chief_complaint:    Optional[str]  = None
-    chemistry_results:  list           = []
-    hematology_results: list           = []
-    microscopy_results: list           = []
-    discharge_parsed:   Optional[dict] = None
-    imaging_text:       Optional[str]  = None
-    ecg_values:         Optional[dict] = None
-    lab_text:           Optional[str]  = None
-    discharge_text:     Optional[str]  = None
-
-class RiskItem(BaseModel):
-    label:       str
-    probability: float
-    risk:        str
-
-class DiagnoseResponse(BaseModel):
-    result:     str
-    guidelines: Optional[str]  = None
-    ml_risks:   Optional[list] = None
-
-
-def _clean_guidelines_for_display(raw: str) -> str:
-    lines = raw.splitlines()
-    clean = []
-    for line in lines:
-        s = line.strip()
-        if not s:
-            continue
-        if s.startswith('[RELEVANT CLINICAL GUIDELINES]'):
-            continue
-        if s.startswith('NOTE: Philippine-specific'):
-            continue
-        if s.startswith('---') and ('excerpt' in s or 'Guidelines]' in s):
-            continue
-        if s.startswith('[GUIDELINES]'):
-            continue
-        clean.append(s)
-    text = ' '.join(clean).strip()
-    return text[:600] + '...' if len(text) > 600 else text
-
-
-@app.post("/diagnose", response_model=DiagnoseResponse)
-def diagnose(req: DiagnoseRequest):
-    sections = []
-
-    if req.chief_complaint:
-        sections.append(f"CHIEF COMPLAINT:\n{req.chief_complaint}")
-
-    if req.discharge_parsed:
-        dp = req.discharge_parsed
-        if dp.get("admitting_dx"):  sections.append(f"ADMITTING DIAGNOSIS:\n{dp['admitting_dx']}")
-        if dp.get("final_dx"):      sections.append(f"FINAL DIAGNOSIS:\n{dp['final_dx']}")
-        pe = dp.get("physical_exam") or {}
-        if pe.get("vitals"):        sections.append(f"VITALS:\n{pe['vitals']}")
-        if pe.get("findings"):      sections.append(f"PHYSICAL EXAMINATION:\n{pe['findings']}")
-        if dp.get("hpi"):           sections.append(f"HISTORY OF PRESENT ILLNESS:\n{dp['hpi']}")
-        if dp.get("pmh"):           sections.append(f"PAST MEDICAL HISTORY:\n{dp['pmh']}")
-    elif req.discharge_text:
-        sections.append(f"DISCHARGE SUMMARY (raw):\n{req.discharge_text[:3000]}")
-
-    def fmt_labs(label, results):
-        if not results:
-            return ""
-        lines = []
-        for r in results:
-            flag = str(r.get("flag") or "").upper()
-            tag  = " [HIGH]" if flag in ("H", "HIGH") else " [LOW]" if flag in ("L", "LOW") else ""
-            lines.append(f"  {r.get('test_name','?')}: {r.get('value','?')} {r.get('unit','')}{tag}")
-        return f"{label}:\n" + "\n".join(lines)
-
-    for block in [
-        fmt_labs("CHEMISTRY",            req.chemistry_results),
-        fmt_labs("HEMATOLOGY",           req.hematology_results),
-        fmt_labs("MICROSCOPY/URINALYSIS", req.microscopy_results),
-    ]:
-        if block:
-            sections.append(block)
-
-    if not sections and req.lab_text:
-        sections.append(f"LAB RESULTS (raw):\n{req.lab_text[:3000]}")
-
-    if req.imaging_text:
-        sections.append(f"IMAGING / RADIOLOGY:\n{req.imaging_text[:2000]}")
-
-    if not sections:
-        return DiagnoseResponse(result="No clinical data provided.", guidelines=None, ml_risks=None)
-
-    clinical_context = "\n\n".join(sections)
-
-    # ── RAG: retrieve clinical guidelines ─────────────────────────────────────
-    guidelines = None
-    try:
-        combined_text  = f"{req.chief_complaint or ''} {req.lab_text or ''} {req.discharge_text or ''}"
-        raw_guidelines = retrieve_guidelines(combined_text)
-        if raw_guidelines and (
-            "No relevant guideline" not in raw_guidelines
-            and "not found"         not in raw_guidelines
-            and "not initialised"   not in raw_guidelines
-        ):
-            guidelines = _clean_guidelines_for_display(raw_guidelines)
-    except Exception:
-        pass
-
-    # ── ML: cardiac risk from ECG values ──────────────────────────────────────
-    ml_risks = None
-    if req.ecg_values and len(req.ecg_values) > 0:
-        try:
-            ml_response = requests.post(
-                "http://localhost:8002/predict",
-                json=req.ecg_values,
-                timeout=5,
-            )
-            if ml_response.ok:
-                data = ml_response.json()
-                if data.get("predictions") and isinstance(data["predictions"], list):
-                    ml_risks = [
-                        {
-                            "label":       str(p.get("label", p.get("key", "Unknown"))),
-                            "probability": float(p.get("probability", 0)),
-                            "risk":        str(p.get("risk", "unknown")),
-                        }
-                        for p in data["predictions"]
-                    ]
-        except Exception:
-            pass
-
-    # ── LLM: diagnostic narrative ──────────────────────────────────────────────
-    system_prompt = (
-        "You are CLARA, a clinical decision-support AI. Based on the clinical data provided, "
-        "generate a concise diagnostic assessment in 2-3 sentences maximum. "
-        "Start with the most likely diagnosis and key reasoning. Include differential diagnoses if relevant. "
-        "Focus on what is clinically significant. Be direct and avoid lengthy explanations. "
-        "Do not use bullet points or structured lists. Do not invent values not in the data."
-    )
-
-    prompt = (
-        f"{system_prompt}\n\n"
-        f"CLINICAL DATA:\n{clinical_context}\n\n"
-        f"CONCISE DIAGNOSTIC ASSESSMENT:"
-    )
-
-    try:
-        response = requests.post(
-            f"{OLLAMA_URL}/api/generate",
-            json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
-            timeout=120,
-        )
-        response.raise_for_status()
-        result_text = response.json().get("response", "").strip()
-    except Exception as e:
-        result_text = f"LLM service unavailable: {e}"
-
-    return DiagnoseResponse(result=result_text, guidelines=guidelines, ml_risks=ml_risks)
-
 @app.get("/health")
 def health():
+    llm_model = {
+        "gemini": GEMINI_MODEL,
+        "groq": GROQ_MODEL,
+        "ollama": OLLAMA_MODEL,
+        "huggingface": HF_MODEL,
+        "hf": HF_MODEL,
+    }.get(LLM_PROVIDER, "unknown")
+
     return {
         "status":          "ok",
         "service":         "CLARA LLM",
-        "model":           OLLAMA_MODEL,
+        "provider":        LLM_PROVIDER,
+        "model":           llm_model,
+        "rag_embedding_provider": RAG_EMBEDDING_PROVIDER,
+        "rag_embedding_model":    RAG_EMBED_MODEL,
         "active_sessions": len(conversation_store)
     }
 

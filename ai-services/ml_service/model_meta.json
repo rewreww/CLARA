@@ -1,67 +1,340 @@
 {
+  "csv_file": "C:\\clara-system\\ai-services\\ml_service\\data\\dataset.csv",
   "feature_names": [
-    "age_at_ecg",
-    "sex",
-    "ventricular_rate",
-    "atrial_rate",
-    "pr_interval",
-    "qrs_duration",
-    "qt_corrected"
+    "admission_ward",
+    "admission_way",
+    "occupation",
+    "visit_times",
+    "gender",
+    "body_temperature",
+    "pulse",
+    "respiration",
+    "systolic_blood_pressure",
+    "diastolic_blood_pressure",
+    "map",
+    "weight",
+    "height",
+    "bmi",
+    "nyha_class",
+    "killip_grade",
+    "peripheral_vascular_disease",
+    "cerebrovascular_disease",
+    "dementia",
+    "copd",
+    "connective_tissue_disease",
+    "peptic_ulcer_disease",
+    "diabetes",
+    "moderate_to_severe_chronic_kidney_disease",
+    "hemiplegia",
+    "leukemia",
+    "malignant_lymphoma",
+    "solid_tumor",
+    "liver_disease",
+    "aids",
+    "cci_score",
+    "type_ii_respiratory_failure",
+    "consciousness",
+    "eye_opening",
+    "verbal_response",
+    "movement",
+    "respiratory_support",
+    "oxygen_inhalation",
+    "fio2",
+    "acute_renal_failure",
+    "lvef",
+    "lv_end_diastolic_diameter",
+    "mitral_valve_ems",
+    "mitral_valve_ams",
+    "ea",
+    "tricuspid_valve_return_velocity",
+    "tricuspid_valve_return_pressure",
+    "creatinine",
+    "urea",
+    "uric_acid",
+    "gfr",
+    "cystatin",
+    "white_blood_cell",
+    "monocyte_ratio",
+    "monocyte_count",
+    "red_blood_cell",
+    "rdw_cv",
+    "rdw_sd",
+    "mean_corpuscular_volume",
+    "hematocrit",
+    "lymphocyte_count",
+    "mean_hemoglobin_volume",
+    "mean_hemoglobin_concentration",
+    "mean_platelet_volume",
+    "basophil_ratio",
+    "basophil_count",
+    "eosinophil_ratio",
+    "eosinophil_count",
+    "hemoglobin",
+    "platelet",
+    "platelet_distribution_width",
+    "platelet_hematocrit",
+    "neutrophil_ratio",
+    "neutrophil_count",
+    "d_dimer",
+    "inr",
+    "aptt",
+    "thrombin_time",
+    "prothrombin_activity",
+    "prothrombin_time_ratio",
+    "fibrinogen",
+    "high_sensitivity_troponin",
+    "myoglobin",
+    "carbon_dioxide_binding_capacity",
+    "calcium",
+    "potassium",
+    "chloride",
+    "sodium",
+    "inorganic_phosphorus",
+    "serum_magnesium",
+    "ck_mb_to_ck",
+    "hbdh_to_ldh",
+    "hbdh",
+    "ast",
+    "creatine_kinase",
+    "ck_mb",
+    "ldh",
+    "bnp",
+    "high_sensitivity_protein",
+    "nucleotidase",
+    "fucosidase",
+    "albumin",
+    "white_globulin_ratio",
+    "ggt",
+    "alt",
+    "glutamic_oxaliplatin",
+    "indirect_bilirubin",
+    "alkaline_phosphatase",
+    "globulin",
+    "direct_bilirubin",
+    "total_bilirubin",
+    "total_bile_acid",
+    "total_protein",
+    "esr",
+    "cholesterol",
+    "ldl_cholesterol",
+    "triglyceride",
+    "hdl_cholesterol",
+    "homocysteine",
+    "apolipoprotein_a",
+    "apolipoprotein_b",
+    "lipoprotein",
+    "ph",
+    "standard_residual_base",
+    "standard_bicarbonate",
+    "pco2",
+    "total_carbon_dioxide",
+    "methemoglobin",
+    "hematocrit_blood_gas",
+    "reduced_hemoglobin",
+    "potassium_ion",
+    "chloride_ion",
+    "sodium_ion",
+    "glucose_blood_gas",
+    "lactate",
+    "measured_residual_base",
+    "measured_bicarbonate",
+    "carboxyhemoglobin",
+    "body_temperature_blood_gas",
+    "oxygen_saturation",
+    "po2",
+    "oxyhemoglobin",
+    "anion_gap",
+    "free_calcium",
+    "total_hemoglobin",
+    "gcs",
+    "age_category"
   ],
   "target_names": [
-    "lvef_lte_45_flag",
-    "shd_moderate_or_greater_flag",
-    "lvwt_gte_13_flag",
-    "pasp_gte_45_flag",
-    "rv_systolic_dysfunction_moderate_or_greater_flag",
-    "mitral_regurgitation_moderate_or_greater_flag",
-    "aortic_stenosis_moderate_or_greater_flag",
-    "pericardial_effusion_moderate_large_flag"
+    "heart_failure_type",
+    "myocardial_infarction",
+    "congestive_heart_failure",
+    "death_28d",
+    "readmission_28d",
+    "death_6mo",
+    "readmission_6mo",
+    "ed_return_6mo"
   ],
   "target_labels": {
-    "lvef_lte_45_flag": "Reduced Ejection Fraction (LVEF \u2264 45%)",
-    "shd_moderate_or_greater_flag": "Structural Heart Disease",
-    "lvwt_gte_13_flag": "LV Hypertrophy (Wall \u2265 13 mm)",
-    "pasp_gte_45_flag": "Pulmonary Hypertension (PASP \u2265 45 mmHg)",
-    "rv_systolic_dysfunction_moderate_or_greater_flag": "RV Systolic Dysfunction",
-    "mitral_regurgitation_moderate_or_greater_flag": "Mitral Regurgitation (Moderate+)",
-    "aortic_stenosis_moderate_or_greater_flag": "Aortic Stenosis (Moderate+)",
-    "pericardial_effusion_moderate_large_flag": "Pericardial Effusion (Moderate/Large)"
+    "heart_failure_type": "Heart Failure Type",
+    "myocardial_infarction": "Myocardial Infarction",
+    "congestive_heart_failure": "Congestive Heart Failure",
+    "death_28d": "28-Day Mortality",
+    "readmission_28d": "28-Day Readmission",
+    "death_6mo": "6-Month Mortality",
+    "readmission_6mo": "6-Month Readmission",
+    "ed_return_6mo": "6-Month Emergency Department Return"
+  },
+  "target_types": {
+    "heart_failure_type": "multiclass",
+    "myocardial_infarction": "binary",
+    "congestive_heart_failure": "binary",
+    "death_28d": "binary",
+    "readmission_28d": "binary",
+    "death_6mo": "binary",
+    "readmission_6mo": "binary",
+    "ed_return_6mo": "binary"
+  },
+  "target_classes": {
+    "heart_failure_type": [
+      0,
+      1,
+      2
+    ],
+    "myocardial_infarction": [
+      0,
+      1
+    ],
+    "congestive_heart_failure": [
+      0,
+      1
+    ],
+    "death_28d": [
+      0,
+      1
+    ],
+    "readmission_28d": [
+      0,
+      1
+    ],
+    "death_6mo": [
+      0,
+      1
+    ],
+    "readmission_6mo": [
+      0,
+      1
+    ],
+    "ed_return_6mo": [
+      0,
+      1
+    ]
   },
   "metrics": {
-    "lvef_lte_45_flag": {
-      "auroc": 0.7396264521537645,
-      "label": "Reduced Ejection Fraction (LVEF \u2264 45%)"
+    "heart_failure_type": {
+      "auroc": 0.6241160473138068,
+      "label": "Heart Failure Type",
+      "confusion_matrix": [
+        [
+          3,
+          0,
+          102
+        ],
+        [
+          1,
+          0,
+          12
+        ],
+        [
+          4,
+          0,
+          279
+        ]
+      ]
     },
-    "shd_moderate_or_greater_flag": {
-      "auroc": 0.7249613096189845,
-      "label": "Structural Heart Disease"
+    "myocardial_infarction": {
+      "auroc": 0.8841305153874676,
+      "label": "Myocardial Infarction",
+      "confusion_matrix": [
+        [
+          371,
+          1
+        ],
+        [
+          24,
+          5
+        ]
+      ]
     },
-    "lvwt_gte_13_flag": {
-      "auroc": 0.6626531705168778,
-      "label": "LV Hypertrophy (Wall \u2265 13 mm)"
+    "congestive_heart_failure": {
+      "auroc": 0.941968706674589,
+      "label": "Congestive Heart Failure",
+      "confusion_matrix": [
+        [
+          19,
+          8
+        ],
+        [
+          0,
+          374
+        ]
+      ]
     },
-    "pasp_gte_45_flag": {
-      "auroc": 0.6364369366154389,
-      "label": "Pulmonary Hypertension (PASP \u2265 45 mmHg)"
+    "death_28d": {
+      "auroc": 0.7687763713080169,
+      "label": "28-Day Mortality",
+      "confusion_matrix": [
+        [
+          394,
+          1
+        ],
+        [
+          6,
+          0
+        ]
+      ]
     },
-    "rv_systolic_dysfunction_moderate_or_greater_flag": {
-      "auroc": 0.7276984574152502,
-      "label": "RV Systolic Dysfunction"
+    "readmission_28d": {
+      "auroc": 0.6312024353120244,
+      "label": "28-Day Readmission",
+      "confusion_matrix": [
+        [
+          364,
+          1
+        ],
+        [
+          36,
+          0
+        ]
+      ]
     },
-    "mitral_regurgitation_moderate_or_greater_flag": {
-      "auroc": 0.7062474992823748,
-      "label": "Mitral Regurgitation (Moderate+)"
+    "death_6mo": {
+      "auroc": 0.7468531468531467,
+      "label": "6-Month Mortality",
+      "confusion_matrix": [
+        [
+          390,
+          0
+        ],
+        [
+          10,
+          1
+        ]
+      ]
     },
-    "aortic_stenosis_moderate_or_greater_flag": {
-      "auroc": 0.8492753562706472,
-      "label": "Aortic Stenosis (Moderate+)"
+    "readmission_6mo": {
+      "auroc": 0.6267906443715163,
+      "label": "6-Month Readmission",
+      "confusion_matrix": [
+        [
+          198,
+          45
+        ],
+        [
+          104,
+          54
+        ]
+      ]
     },
-    "pericardial_effusion_moderate_large_flag": {
-      "auroc": 0.5990084313760498,
-      "label": "Pericardial Effusion (Moderate/Large)"
+    "ed_return_6mo": {
+      "auroc": 0.6150444793301937,
+      "label": "6-Month Emergency Department Return",
+      "confusion_matrix": [
+        [
+          188,
+          57
+        ],
+        [
+          99,
+          57
+        ]
+      ]
     }
   },
-  "n_train": 72475,
-  "n_test": 27525
+  "n_train": 1606,
+  "n_test": 401
 }

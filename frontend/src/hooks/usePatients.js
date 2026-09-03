@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-
-const LABS_URL = '/api/labs'
+import { LABS_URL } from '../constants'
 
 export function usePatients() {
   const [patients, setPatients] = useState([])

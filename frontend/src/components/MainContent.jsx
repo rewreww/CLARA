@@ -133,7 +133,7 @@ export default function MainContent({
               rounded-[8px] text-[12px] text-danger font-mono">
               ✗ {labError || trendError}
               <div className="text-[10px] text-muted mt-1">
-                Make sure all Python services are running (port 8000, 8001).
+                Make sure the backend and database are running.
               </div>
             </div>
 

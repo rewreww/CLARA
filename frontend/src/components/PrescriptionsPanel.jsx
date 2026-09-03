@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { LABS_URL } from '../constants'
 
 function parseFreq(text) {
   const t = text.toUpperCase()
@@ -67,7 +68,7 @@ export default function PrescriptionsPanel({ patient }) {
 
   const fetchVisit = useCallback((patientId, fileName) => {
     setLoading(true)
-    fetch('/api/labs/discharge-parsed', {
+    fetch(`${LABS_URL}/discharge-parsed`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ patient: patientId, file_name: fileName }),
@@ -82,7 +83,7 @@ export default function PrescriptionsPanel({ patient }) {
     if (!patient?.id) return
     setFileList([])
     setVisitData(null)
-    fetch('/api/labs/discharge-list', {
+    fetch(`${LABS_URL}/discharge-list`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ patient: patient.id }),

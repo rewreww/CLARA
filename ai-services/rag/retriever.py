@@ -5,25 +5,62 @@ Backward-compatible: retrieve_guidelines() still works for llm_client.py.
 """
 
 import os
-import requests
 import chromadb
 
+try:
+    from .embeddings import EMBED_MODEL, get_embedding
+except ImportError:
+    from embeddings import EMBED_MODEL, get_embedding
+
 CHROMA_DIR    = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chroma_db")
-OLLAMA_URL    = "http://localhost:11434"
-EMBED_MODEL   = "nomic-embed-text"
 COLLECTION    = "clara_guidelines"
 TOP_K         = 8
 MIN_RELEVANCE = 40.0
 
+_DIAGNOSIS_HINTS = {
+    "hypertension": (
+        "hypertension", "hypertensive", "high blood pressure", "blood pressure", "htn",
+    ),
+    "heart_failure": (
+        "heart failure", "hfref", "hfpef", "cardiac failure", "congestive heart failure", "chf",
+    ),
+    "dyslipidemia": (
+        "dyslipidemia", "cholesterol", "ldl", "hdl", "triglyceride", "hyperlipidemia",
+    ),
+    "atrial_fibrillation": (
+        "atrial fibrillation", "afib", "atrial flutter", "anticoagulation", "cardioversion",
+    ),
+    "coronary_artery_disease": (
+        "coronary artery", "acute coronary", "myocardial infarction", "stemi", "nstemi", "acs",
+    ),
+    "arrhythmia": (
+        "arrhythmia", "bradycardia", "tachycardia", "pacemaker", "ventricular fibrillation",
+    ),
+    "valvular": (
+        "valvular", "mitral", "aortic", "tricuspid", "regurgitation", "stenosis",
+    ),
+}
 
-def get_embedding(text: str) -> list[float]:
-    r = requests.post(
-        f"{OLLAMA_URL}/api/embeddings",
-        json={"model": EMBED_MODEL, "prompt": text},
-        timeout=60,
-    )
-    r.raise_for_status()
-    return r.json()["embedding"]
+_MANAGEMENT_TERMS = (
+    "procedure", "procedures", "treat", "treatment", "manage", "management",
+    "medication", "therapy", "recommend", "what should", "what to do", "follow up",
+)
+
+
+def infer_diagnosis_hint(query: str) -> str | None:
+    """Infer the guideline topic so retrieval stays inside the right CPG."""
+    text = (query or "").lower()
+    scores = {
+        category: sum(term in text for term in terms)
+        for category, terms in _DIAGNOSIS_HINTS.items()
+    }
+    best = max(scores, key=scores.get)
+    return best if scores[best] else None
+
+
+def is_management_query(query: str) -> bool:
+    text = (query or "").lower()
+    return any(term in text for term in _MANAGEMENT_TERMS)
 
 
 def retrieve(

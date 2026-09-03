@@ -32,6 +32,10 @@ html, body, #root {
   0%, 60%, 100% { transform: translateY(0);   opacity: 0.4; }
   30%            { transform: translateY(-4px); opacity: 1;   }
 }
+@keyframes statusSheen {
+  0%   { background-position: 160% 0; }
+  100% { background-position: -60% 0; }
+}
 
 .animate-fade-up  { animation: fadeUp  0.25s ease; }
 .animate-pulse-dot { animation: pulse  2s infinite; }
@@ -39,3 +43,11 @@ html, body, #root {
 .dot-1 { animation: bounce3 1.2s 0.0s infinite; }
 .dot-2 { animation: bounce3 1.2s 0.2s infinite; }
 .dot-3 { animation: bounce3 1.2s 0.4s infinite; }
+.status-shimmer {
+  background: linear-gradient(90deg, #5f7ea4 0%, #7dd3fc 38%, #eef6ff 50%, #7dd3fc 62%, #5f7ea4 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: statusSheen 1.8s linear infinite;
+}

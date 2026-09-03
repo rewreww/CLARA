@@ -3,7 +3,7 @@ import TopBar          from './components/TopBar'
 import Sidebar         from './components/SideBar'
 import MainContent     from './components/MainContent'
 import ChatPanel       from './components/ChatPanel'
-import DiagnosticTool  from './components/DiagnosticTool'
+import SyncNotifications from './components/SyncNotifications'
 import { useLabData }  from './hooks/useLabData'
 import { useChat }     from './hooks/useChat'
 
@@ -14,7 +14,7 @@ export default function App() {
   const sessionId = useRef('session_' + Date.now()).current
 
   const { data: labData, loading: labLoading, error: labError, load, reset } = useLabData()
-  const { messages, loading: chatLoading, ruleFlags, isEmergency, send, clear } = useChat(sessionId)
+  const { messages, loading: chatLoading, send, clear } = useChat(sessionId)
 
   const handleSelectPatient = useCallback((patient) => {
     setSelectedPatient(patient)
@@ -31,8 +31,8 @@ export default function App() {
     if (selectedPatient) load(activeSection, selectedPatient.id)
   }, [selectedPatient, activeSection, load])
 
-  const handleSend = useCallback((message) => {
-    send(message, selectedPatient?.id)
+  const handleSend = useCallback((message, section) => {
+    send(message, selectedPatient?.id, section)
   }, [send, selectedPatient])
 
   return (
@@ -52,33 +52,29 @@ export default function App() {
           onSelectSection={handleSelectSection}
         />
 
-        {activeApp === 'diagnostics' ? (
-          <DiagnosticTool />
-        ) : (
-          <>
-            <MainContent
+        <>
+          <MainContent
+            patient={selectedPatient}
+            activeSection={activeSection}
+            labData={labData}
+            labLoading={labLoading}
+            labError={labError}
+            onLoad={handleLoad}
+          />
+          <div className="w-[340px] shrink-0">
+            <ChatPanel
               patient={selectedPatient}
               activeSection={activeSection}
-              labData={labData}
-              labLoading={labLoading}
-              labError={labError}
-              onLoad={handleLoad}
+              messages={messages}
+              loading={chatLoading}
+              onSend={handleSend}
+              onClear={clear}
             />
-            <div className="w-[340px] shrink-0">
-              <ChatPanel
-                patient={selectedPatient}
-                ruleFlags={ruleFlags}
-                isEmergency={isEmergency}
-                messages={messages}
-                loading={chatLoading}
-                onSend={handleSend}
-                onClear={clear}
-              />
-            </div>
-          </>
-        )}
+          </div>
+        </>
 
       </div>
+      <SyncNotifications patient={selectedPatient} />
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { LABS_URL } from '../constants'
 
 const EMPTY_SECTION_TEXT = 'No extracted content'
 
@@ -268,7 +269,7 @@ export default function DischargePanel({ data: initialData, patient }) {
     setCurrentIndex(null)
     setCurrentData(null)
 
-    fetch('/api/labs/discharge-list', {
+    fetch(`${LABS_URL}/discharge-list`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ patient: patient.id }),
@@ -280,7 +281,7 @@ export default function DischargePanel({ data: initialData, patient }) {
         if (files.length === 0) return
         const latestIndex = files.length - 1
         setCurrentIndex(latestIndex)
-        return fetch('/api/labs/discharge-parsed', {
+        return fetch(`${LABS_URL}/discharge-parsed`, {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
           body:    JSON.stringify({ patient: patient.id, file_name: files[latestIndex].file_name }),
@@ -296,7 +297,7 @@ export default function DischargePanel({ data: initialData, patient }) {
     if (!file || !patient?.id) return
     setNavLoading(true)
     try {
-      const res  = await fetch('/api/labs/discharge-parsed', {
+      const res  = await fetch(`${LABS_URL}/discharge-parsed`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ patient: patient.id, file_name: file.file_name }),

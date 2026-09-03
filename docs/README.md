@@ -1,108 +1,192 @@
-# CLARA - Clinical LLM-Assisted Reasoning Assistant
+# CLARA — Cardiovascular Lab Analysis and Report Assistant
 
-A production-ready scaffold for a hybrid AI-powered clinical decision support system.
+A hybrid clinical AI system for Philippine tertiary hospitals.
+Combines RAG (retrieval-augmented generation), ML (XGBoost), PostgreSQL-backed patient records,
+and free-tier or local LLM analysis with GroqCloud, Hugging Face, or Ollama
+to assist clinicians in analyzing patient laboratory records and ECG findings.
 
-## Architecture Overview
+---
 
-CLARA implements a three-layer AI approach:
+## Architecture
 
-1. **LLM Layer**: Natural language processing and explanation generation
-2. **Machine Learning Layer**: Structured prediction models for diagnosis
-3. **Rule-Based Layer**: Clinical safety logic and emergency detection
+Frontend (React + Vite) → Port 3000
+.NET Backend API + PostgreSQL → Port 5000 backend/Program.cs
+Legacy PDF/Labs Service (FastAPI) → Port 8000 ai-services/medical_text_api.py
+LLM Service (FastAPI) → Port 8001 ai-services/llm_service/llm_client.py
+ML Service (FastAPI) → Port 8002 ai-services/ml_service/app.py
+Ollama (local LLM) → Port 11434
 
-## System Architecture
 
-```
-Frontend (React/TypeScript)
-    ↓ HTTP
-Backend (ASP.NET Core Web API)
-    ↓ gRPC/HTTP
-AI Services (Python/FastAPI)
-    ↓
-ML Models & Rule Engine
-```
+---
 
-## Project Structure
+## Requirements
 
-```
-clara-system/
-├── backend/                 # ASP.NET Core Web API
-│   ├── Controllers/         # API endpoints
-│   ├── Application/         # Business logic & DTOs
-│   ├── Domain/             # Domain entities
-│   └── Infrastructure/     # External services
-├── ai-services/            # Python ML & LLM services
-│   ├── ml_service/         # FastAPI ML prediction service
-│   ├── llm_service/        # LLM client placeholder
-│   └── rule_engine/        # Clinical rules
-├── frontend/               # React TypeScript dashboard
-│   ├── src/
-│   │   ├── components/     # UI components
-│   │   ├── pages/         # Dashboard pages
-│   │   └── services/      # API client
-└── docs/                  # Documentation
-```
-
-## Getting Started
-
-### Prerequisites
-
-- .NET 8.0 SDK
+- Python 3.10+
 - Node.js 18+
-- Python 3.9+
-- Docker (optional)
+- PostgreSQL running with the `clara_db` database configured in `backend/appsettings.json`
+- GroqCloud Free plan API key, Hugging Face model downloads enabled for local RAG/LLM models, or Ollama installed and running for local LLM fallback
+- Virtual environment (.venv)
 
-### Backend Setup
+---
+
+## First-Time Setup
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/rewreww/clara.git
+cd clara-system
+```
+
+### 2. Create and activate virtual environment
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+
+### 3. Install Python dependencies
+pip install -r ai-services/requirements.txt
+
+If the PyTorch wheel download is slow or interrupted, retry with a longer timeout:
 
 ```bash
-cd backend
-dotnet restore
-dotnet run
+pip install --timeout 120 --retries 10 -r ai-services/requirements.txt
 ```
 
-### AI Services Setup
+### 4. Install frontend dependencies
+cd frontend
+npm install
+cd ..
+
+### 5. Configure the LLM and RAG models
+The project target is free-first operation for a student capstone environment. The recommended setup uses
+GroqCloud's Free plan for fast LLM responses and Hugging Face embeddings for RAG:
+
+```bash
+DATA_SERVICE_URL=http://localhost:5000/api/patientdata
+LLM_PROVIDER=groq
+GROQ_API_KEY=<your-groqcloud-api-key>
+GROQ_MODEL=openai/gpt-oss-20b
+GROQ_API_URL=https://api.groq.com/openai/v1/chat/completions
+GROQ_RETRY_ATTEMPTS=2
+RAG_EMBEDDING_PROVIDER=huggingface
+RAG_EMBED_MODEL=sentence-transformers/all-MiniLM-L6-v2
+```
+
+Optional fully local Hugging Face LLM mode:
+
+```bash
+LLM_PROVIDER=huggingface
+HF_MODEL=Qwen/Qwen2.5-0.5B-Instruct
+HF_TASK=text-generation
+HF_DEVICE=-1
+HF_MAX_INPUT_TOKENS=4096
+HF_MAX_NEW_TOKENS=180
+HF_TRUNCATION_SIDE=left
+```
+
+Optional local Ollama mode:
+
+```bash
+ollama pull qwen2.5:7b
+LLM_PROVIDER=ollama
+OLLAMA_MODEL=qwen2.5:7b
+```
+
+Use `LLM_PROVIDER=groq` for GroqCloud. The similarly named xAI Grok API is not configured in this project.
+
+### 5a. Build the guideline RAG index
+The default RAG embedding model is Hugging Face `sentence-transformers/all-MiniLM-L6-v2`.
+It downloads on first use and stores guideline vectors in `ai-services/rag/chroma_db`.
 
 ```bash
 cd ai-services
-pip install -r requirements.txt
-# Start ML service
-cd ml_service
-python app.py
+python -m rag.ingest
+cd ..
 ```
 
-### Frontend Setup
+### 6. Train the ML model (first time only)
+# Copy your CSV to the data folder first
+mkdir ai-services\ml_service\data
+cp <path-to-csv> ai-services\ml_service\data\echonext_metadata_100k.csv
+
+# Train
+cd ai-services\ml_service
+python train.py data/dataset.csv
+cd ..\..
+
+
+----
+
+
+## Running the System
+Open separate terminals as needed. Activate the Python venv for Python services:
+.venv\Scripts\Activate.ps1
+
+### Terminal 1 — Backend API and patient database access
+cd backend
+dotnet run
+
+The backend is the source of truth for the UI. It reads/writes PostgreSQL and exposes patient data at
+`http://localhost:5000/api/patientdata`. New PDFs under the Desktop `Patients` folder can be parsed with:
 
 ```bash
-cd frontend
-npm install
-npm start
+POST http://localhost:5000/api/pdfingestion/sync
+GET  http://localhost:5000/api/pdfingestion/sync/status
 ```
 
-## API Endpoints
+### Patient Data Retrieval For The LLM
 
-- `POST /api/chat` - Send chat message with patient data
-- `POST /api/predict` - Get ML prediction
-- `POST /api/rules/evaluate` - Evaluate clinical rules
+The LLM service uses a local MCP-style tool layer in `ai-services/llm_service/mcp_tools.py`.
+These tools retrieve structured patient facts from PostgreSQL through the backend API:
 
-## Development Notes
+```text
+get_patient_context
+get_abnormal_labs
+get_recent_labs
+get_diagnoses
+get_medications
+get_latest_discharge_summary
+get_chemistry
+get_hematology
+get_microscopy
+get_all_labs
+get_trends
+```
 
-- All AI components are currently placeholders with mock responses
-- TODO comments indicate where actual AI integration should occur
-- System includes comprehensive validation and error handling
-- Medical safety notes are included in all responses
+Use `get_patient_context` for broad clinical questions. Use the lab-specific tools when exact lab values
+and reference ranges are needed. Guideline RAG remains separate and uses the Hugging Face embedding index
+under `ai-services/rag`.
 
-## Safety & Compliance
+### Terminal 2 — LLM Service
+cd ai-services\llm_service
+uvicorn llm_client:app --host 0.0.0.0 --port 8001 --reload
 
-This system is designed for clinical decision support only and does not replace licensed medical professionals. All responses include appropriate safety disclaimers.
+### Terminal 3 — ML Service
+cd ai-services\ml_service
+uvicorn app:app --host 0.0.0.0 --port 8002
 
-## Future Integration Points
+### Terminal 4 — Legacy parser service, only if you still need it
+cd ai-services
+uvicorn medical_text_api:app --host 0.0.0.0 --port 8000 --reload
 
-1. **LLM Service**: Integrate with OpenAI, Azure OpenAI, or local LLMs
-2. **ML Models**: Train and deploy actual medical prediction models
-3. **Database**: Add patient data persistence
-4. **Authentication**: Implement HIPAA-compliant user management
-5. **Monitoring**: Add logging and performance monitoring
+### Terminal 5 — Ollama (optional fallback)
+ollama serve
 
-## Contributing
+### Terminal 6 — Frontend
+cd frontend
+npm run dev
+Open your browser at: http://localhost:3000
 
-This is a scaffold for thesis/research purposes. Ensure all medical implementations follow ethical guidelines and regulatory requirements.
+----
+
+
+### ML Model Evaluation (Jupyter)
+cd ai-services\ml_service
+python -m jupyter notebook
+
+### Open evaluate.ipynb and run all cells.
+Outputs: confusion matrices (inline) + AUROC summary table.
+Saves: confusion_matrices.png
+
+----
+
+
+

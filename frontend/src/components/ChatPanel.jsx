@@ -3,6 +3,7 @@ import { QUICK_PROMPTS } from '../constants'
 
 function MessageBubble({ msg }) {
   const isDoctor = msg.role === 'doctor'
+  const workedFor = msg.durationMs == null ? null : `${(msg.durationMs / 1000).toFixed(1)}s`
   return (
     <div className={`flex flex-col gap-1 animate-fade-up ${isDoctor ? 'items-end' : 'items-start'}`}>
       <div className="font-mono text-[9px] tracking-[0.1em] uppercase text-muted px-1">
@@ -15,14 +16,27 @@ function MessageBubble({ msg }) {
           border:       isDoctor ? '1px solid rgba(37,99,235,0.25)' : '1px solid #1a2d4e',
           color: '#dde4f0',
         }}>
-        {msg.text}
-        {msg.streaming && (
-          <span className="inline-block w-[2px] h-[14px] bg-accent2 ml-[2px]
-            align-middle animate-pulse-dot" />
+        {!msg.text && msg.streaming ? (
+          <div className="flex items-center gap-2 font-mono text-[10px]">
+            <span className="status-shimmer">{msg.status || 'Preparing a response'}</span>
+            <span className="flex gap-[3px]" aria-hidden="true">
+              <span className="w-[3px] h-[3px] rounded-full bg-accent2 dot-1" />
+              <span className="w-[3px] h-[3px] rounded-full bg-accent2 dot-2" />
+              <span className="w-[3px] h-[3px] rounded-full bg-accent2 dot-3" />
+            </span>
+          </div>
+        ) : (
+          <>
+            {msg.text}
+            {msg.streaming && (
+              <span className="inline-block w-[2px] h-[14px] bg-accent2 ml-[2px]
+                align-middle animate-pulse-dot" />
+            )}
+          </>
         )}
       </div>
 
-      {!isDoctor && (msg.tools?.length > 0 || msg.guidelines || msg.emergency || msg.flags?.length > 0) && (
+      {!isDoctor && (msg.tools?.length > 0 || msg.guidelines || msg.mlUsed || workedFor) && (
         <div className="flex gap-[5px] flex-wrap px-1">
           {msg.tools?.map(t => (
             <span key={t} className="text-[9px] px-[7px] py-[2px] rounded-[3px]
@@ -32,16 +46,33 @@ function MessageBubble({ msg }) {
             <span className="text-[9px] px-[7px] py-[2px] rounded-[3px]
               bg-success/15 text-success font-mono">guidelines</span>
           )}
-          {msg.emergency && (
+          {msg.mlUsed && (
             <span className="text-[9px] px-[7px] py-[2px] rounded-[3px]
-              bg-danger/15 text-danger font-mono">EMERGENCY</span>
+              bg-[#8b5cf6]/15 text-[#c4b5fd] font-mono">ML assessment</span>
           )}
-          {!msg.emergency && msg.flags?.length > 0 && (
-            <span className="text-[9px] px-[7px] py-[2px] rounded-[3px]
-              bg-warning/15 text-warning font-mono">
-              ⚠ {msg.flags.length} flag{msg.flags.length > 1 ? 's' : ''}
+          {workedFor && (
+            <span className="text-[9px] px-[3px] py-[2px] text-muted font-mono">
+              Worked for {workedFor}
             </span>
           )}
+        </div>
+      )}
+
+      {!isDoctor && msg.sources?.length > 0 && (
+        <div className="w-full max-w-[92%] px-[10px] py-[8px] rounded-[6px]"
+          style={{ background: '#091426', border: '1px solid #183254' }}>
+          <div className="font-mono text-[8px] uppercase tracking-[0.1em] mb-[5px]" style={{ color: '#5d8fbd' }}>
+            Guideline sources
+          </div>
+          <div className="flex flex-col gap-[4px]">
+            {msg.sources.slice(0, 4).map((source, index) => (
+              <div key={`${source.source}_${source.page}_${index}`} className="flex items-center gap-[6px] min-w-0">
+                <span className="font-mono text-[9px] text-accent2 shrink-0">[PDF]</span>
+                <span className="font-mono text-[9px] text-[#b9cce3] truncate">{source.title}</span>
+                {source.page && <span className="font-mono text-[9px] text-[#6b8eae] shrink-0">p.{source.page}</span>}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -63,7 +94,7 @@ function TypingIndicator() {
 }
 
 // ↓ activeSection added to props
-export default function ChatPanel({ patient, activeSection, ruleFlags, isEmergency, messages, loading, onSend, onClear }) {
+export default function ChatPanel({ patient, activeSection, messages, loading, onSend, onClear }) {
   const [input, setInput] = useState('')
   const bottomRef = useRef(null)
   const taRef = useRef(null)
@@ -111,20 +142,6 @@ export default function ChatPanel({ patient, activeSection, ruleFlags, isEmergen
             : 'no patient selected'}
         </div>
       </div>
-
-      {ruleFlags.length > 0 && (
-        <div className="mx-3 mt-2 px-3 py-2 rounded-[8px] font-mono text-[10px] shrink-0"
-          style={{
-            background: isEmergency ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.08)',
-            border: `1px solid ${isEmergency ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.2)'}`,
-            color: isEmergency ? '#ef4444' : '#f59e0b',
-          }}>
-          <div className="tracking-[0.1em] uppercase mb-[5px]">⚠ Rule Engine Alerts</div>
-          {ruleFlags.map((f, i) => (
-            <div key={i} className="leading-[1.6]">! {f}</div>
-          ))}
-        </div>
-      )}
 
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-[10px]">
         {messages.map((m, i) => <MessageBubble key={i} msg={m} />)}
