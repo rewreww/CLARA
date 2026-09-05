@@ -59,7 +59,7 @@ function CopyButton({ text }) {
   )
 }
 
-export default function PrescriptionsPanel({ patient }) {
+export default function PrescriptionsPanel({ patient, refreshKey = 0 }) {
   const [fileList,     setFileList]     = useState([])
   const [currentIndex, setCurrentIndex] = useState(null)
   const [visitData,    setVisitData]    = useState(null)
@@ -99,7 +99,7 @@ export default function PrescriptionsPanel({ patient }) {
         }
       })
       .catch(() => {})
-  }, [patient?.id, fetchVisit])
+  }, [patient?.id, fetchVisit, refreshKey])
 
   const navigateTo = (index) => {
     const file = fileList[index]

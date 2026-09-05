@@ -257,7 +257,7 @@ function DischargeContent({ data, patient }) {
   )
 }
 
-export default function DischargePanel({ data: initialData, patient }) {
+export default function DischargePanel({ data: initialData, patient, refreshKey = 0 }) {
   const [fileList,     setFileList]     = useState([])
   const [currentIndex, setCurrentIndex] = useState(null)
   const [currentData,  setCurrentData]  = useState(null)
@@ -290,7 +290,7 @@ export default function DischargePanel({ data: initialData, patient }) {
           .then(json => setCurrentData(json))
       })
       .catch(err => console.error('DischargePanel load error:', err))
-  }, [patient?.id])
+  }, [patient?.id, refreshKey])
 
   const navigateTo = useCallback(async (index) => {
     const file = fileList[index]

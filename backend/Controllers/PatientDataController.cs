@@ -174,6 +174,18 @@ public sealed class PatientDataController(ClaraDbContext db) : ControllerBase
         [property: JsonPropertyName("temp")] decimal? Temp,
         [property: JsonPropertyName("o2")] decimal? O2);
 
+    public sealed record DocumentContextSourceDto(
+        [property: JsonPropertyName("title")] string Title,
+        [property: JsonPropertyName("source")] string Source,
+        [property: JsonPropertyName("page")] int? Page,
+        [property: JsonPropertyName("section")] string Section,
+        [property: JsonPropertyName("type")] string Type);
+
+    public sealed record DocumentContextResponse(
+        [property: JsonPropertyName("patient_id")] string PatientId,
+        [property: JsonPropertyName("context")] string Context,
+        [property: JsonPropertyName("sources")] IReadOnlyList<DocumentContextSourceDto> Sources);
+
     [HttpGet("patients")]
     public async Task<PatientsResponse> Patients(CancellationToken cancellationToken)
     {
@@ -324,7 +336,7 @@ public sealed class PatientDataController(ClaraDbContext db) : ControllerBase
         }
 
         var exam = JsonObject(summary.PhysicalExam, new PhysicalExamDto());
-        return ParseVitals(request.Patient, exam.Vitals);
+        return ParseVitals(request.Patient, exam.Vitals ?? ExtractVitalsFromText(summary.SourceDocument?.ExtractedText));
     }
 
     [HttpPost("vitals-timeline")]
@@ -332,6 +344,7 @@ public sealed class PatientDataController(ClaraDbContext db) : ControllerBase
     {
         var summaries = await db.DischargeSummaries
             .AsNoTracking()
+            .Include(summary => summary.SourceDocument)
             .Where(summary => summary.PatientId == request.Patient)
             .OrderBy(summary => summary.DischargeDate ?? DateOnly.MinValue)
             .ToListAsync(cancellationToken);
@@ -339,6 +352,11 @@ public sealed class PatientDataController(ClaraDbContext db) : ControllerBase
         var points = summaries.Select(summary =>
         {
             var parsed = ParseVitals(request.Patient, JsonObject(summary.PhysicalExam, new PhysicalExamDto()).Vitals);
+            if (!parsed.Found)
+            {
+                parsed = ParseVitals(request.Patient, ExtractVitalsFromText(summary.SourceDocument?.ExtractedText));
+            }
+
             return new VitalsTimelinePointDto(
                 summary.DischargeDate?.ToString("yyyy-MM-dd") ?? "undated",
                 parsed.Bp?.Numeric,
@@ -419,11 +437,187 @@ public sealed class PatientDataController(ClaraDbContext db) : ControllerBase
         return Ok(new { patient_id = patientId, context = string.Join('\n', lines) });
     }
 
+    [HttpGet("{patientId}/document-context")]
+    public async Task<ActionResult<DocumentContextResponse>> DocumentContext(
+        [FromRoute] string patientId,
+        [FromQuery] string? query,
+        CancellationToken cancellationToken)
+    {
+        var documents = await db.PatientDocuments
+            .AsNoTracking()
+            .Where(document =>
+                document.PatientId == patientId
+                && document.ExtractionStatus == "completed"
+                && document.ExtractedText != null
+                && document.ExtractedText != "")
+            .OrderBy(document => document.RecordDate ?? DateOnly.MinValue)
+            .ThenBy(document => document.RelativePath)
+            .ToListAsync(cancellationToken);
+
+        if (documents.Count == 0)
+        {
+            return new DocumentContextResponse(patientId, "No extracted patient PDF text found.", []);
+        }
+
+        var terms = QueryTerms(query);
+        var snippets = documents
+            .SelectMany(document => PageSnippets(document)
+                .Select(page => new DocumentSnippet(
+                    document.RelativePath,
+                    document.FileName,
+                    document.DocumentType,
+                    page.Page,
+                    page.Text,
+                    ScoreDocumentPage(document, page.Text, terms))))
+            .OrderByDescending(snippet => snippet.Score)
+            .ThenBy(snippet => snippet.Source)
+            .ThenBy(snippet => snippet.Page ?? int.MaxValue)
+            .Take(5)
+            .ToList();
+
+        if (snippets.Count == 0)
+        {
+            return new DocumentContextResponse(patientId, "No matching extracted patient PDF text found.", []);
+        }
+
+        var lines = new List<string>
+        {
+            "[PATIENT PDF CONTEXT]",
+            "Use only these patient PDF excerpts for questions about a PDF, file, page, or document content.",
+            "Start the answer by naming the PDF source and page when a page is available.",
+            ""
+        };
+        foreach (var snippet in snippets)
+        {
+            var pageLabel = snippet.Page.HasValue ? $" p.{snippet.Page.Value}" : "";
+            lines.Add($"--- Patient PDF: {snippet.Source}{pageLabel} ---");
+            lines.Add(TrimContext(snippet.Text, 1800));
+            lines.Add("");
+        }
+
+        var sources = snippets
+            .GroupBy(snippet => new { snippet.Source, snippet.Page })
+            .Select(group => group.First())
+            .Take(4)
+            .Select(snippet => new DocumentContextSourceDto(
+                snippet.Title,
+                snippet.Source,
+                snippet.Page,
+                snippet.DocumentType,
+                "patient_pdf"))
+            .ToList();
+
+        return new DocumentContextResponse(patientId, string.Join('\n', lines).Trim(), sources);
+    }
+
     private async Task<LabResponse> LabResults(string patientId, string labType, CancellationToken cancellationToken)
     {
         var rows = await PatientLabRows(patientId, cancellationToken);
         var results = LatestByTest(rows.Where(row => MatchesLabType(row, labType))).Select(ToLabDto).ToList();
         return new LabResponse(patientId, results);
+    }
+
+    private sealed record PageText(int? Page, string Text);
+
+    private sealed record DocumentSnippet(
+        string Source,
+        string Title,
+        string DocumentType,
+        int? Page,
+        string Text,
+        int Score);
+
+    private static IReadOnlyList<string> QueryTerms(string? query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return [];
+        }
+
+        return Regex.Matches(query.ToLowerInvariant(), @"[a-z0-9]{3,}")
+            .Select(match => match.Value)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(12)
+            .ToList();
+    }
+
+    private static IReadOnlyList<PageText> PageSnippets(PatientDocument document)
+    {
+        var text = document.ExtractedText?.Trim();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return [];
+        }
+
+        var matches = Regex.Matches(
+            text,
+            @"(?m)^\[PDF PAGE (?<page>\d+)\]\s*$",
+            RegexOptions.IgnoreCase);
+
+        if (matches.Count == 0)
+        {
+            return [new PageText(null, text)];
+        }
+
+        var pages = new List<PageText>();
+        for (var index = 0; index < matches.Count; index++)
+        {
+            var page = int.TryParse(matches[index].Groups["page"].Value, out var parsedPage)
+                ? parsedPage
+                : (int?)null;
+            var start = matches[index].Index + matches[index].Length;
+            var end = index + 1 < matches.Count ? matches[index + 1].Index : text.Length;
+            var pageText = text[start..end].Trim();
+            if (!string.IsNullOrWhiteSpace(pageText))
+            {
+                pages.Add(new PageText(page, pageText));
+            }
+        }
+
+        return pages;
+    }
+
+    private static int ScoreDocumentPage(PatientDocument document, string pageText, IReadOnlyList<string> terms)
+    {
+        if (terms.Count == 0)
+        {
+            return 0;
+        }
+
+        var source = $"{document.RelativePath} {document.FileName}".ToLowerInvariant();
+        var text = pageText.ToLowerInvariant();
+        var score = 0;
+        foreach (var term in terms)
+        {
+            if (source.Contains(term, StringComparison.OrdinalIgnoreCase))
+            {
+                score += 10;
+            }
+
+            if (text.Contains(term, StringComparison.OrdinalIgnoreCase))
+            {
+                score += 2;
+            }
+        }
+
+        return score;
+    }
+
+    private static string TrimContext(string text, int maxLength)
+    {
+        text = Regex.Replace(text.Trim(), @"[ \t]+", " ");
+        if (text.Length <= maxLength)
+        {
+            return text;
+        }
+
+        var cut = text.LastIndexOfAny(['.', '\n', ';'], Math.Min(maxLength, text.Length - 1));
+        if (cut < maxLength / 2)
+        {
+            cut = maxLength;
+        }
+
+        return text[..cut].Trim() + "...";
     }
 
     private async Task<List<LabResultRecord>> PatientLabRows(string patientId, CancellationToken cancellationToken)
@@ -453,6 +647,13 @@ public sealed class PatientDataController(ClaraDbContext db) : ControllerBase
     {
         var source = row.SourceDocument?.RelativePath ?? "";
         if (source.Contains(labType, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (labType == "microscopy"
+            && (source.Contains("micoscopy", StringComparison.OrdinalIgnoreCase)
+                || source.Contains("urinalysis", StringComparison.OrdinalIgnoreCase)))
         {
             return true;
         }
@@ -505,15 +706,47 @@ public sealed class PatientDataController(ClaraDbContext db) : ControllerBase
             }
         }
 
+        if (path.Contains("micoscopy", StringComparison.OrdinalIgnoreCase)
+            || path.Contains("urinalysis", StringComparison.OrdinalIgnoreCase))
+        {
+            return "microscopy";
+        }
+
         return null;
     }
 
     private async Task<DischargeSummaryRecord?> LatestDischarge(string patientId, CancellationToken cancellationToken) =>
         await db.DischargeSummaries
             .AsNoTracking()
+            .Include(summary => summary.SourceDocument)
             .Where(summary => summary.PatientId == patientId)
             .OrderBy(summary => summary.DischargeDate ?? DateOnly.MinValue)
             .LastOrDefaultAsync(cancellationToken);
+
+    private static string? ExtractVitalsFromText(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        var match = Regex.Match(
+            text,
+            @"physical\s+exam(?:ination)?\s*:?\s*(?<vitals>\d{2,3}\s*/\s*\d{2,3}\s*>\s*\d{1,3}\s*>\s*\d{1,3}\s*>\s*\d{2,3}(?:\.\d+)?\s*>\s*\d{2,3}\s*%)",
+            RegexOptions.IgnoreCase);
+
+        if (match.Success)
+        {
+            return match.Groups["vitals"].Value;
+        }
+
+        match = Regex.Match(
+            text,
+            @"(?<vitals>\d{2,3}\s*/\s*\d{2,3}\s*>\s*\d{1,3}\s*>\s*\d{1,3}\s*>\s*\d{2,3}(?:\.\d+)?\s*>\s*\d{2,3}\s*%)",
+            RegexOptions.IgnoreCase);
+
+        return match.Success ? match.Groups["vitals"].Value : null;
+    }
 
     private static ParsedDischargeResponse EmptyDischarge(string patientId) =>
         new(patientId, false, new DischargeHeaderDto(), null, null, null, null, null, null, null, [], [], null, new PhysicalExamDto(), null, [], [], null);

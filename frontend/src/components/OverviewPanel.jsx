@@ -375,8 +375,8 @@ function FileInventory({ files }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function OverviewPanel({ patient }) {
-  const { vitals, trends, loading: vitalsLoading } = useVitals(patient.id)
+export default function OverviewPanel({ patient, refreshKey = 0 }) {
+  const { vitals, trends, loading: vitalsLoading } = useVitals(patient.id, refreshKey)
 
   const [visitList,     setVisitList]     = useState([])
   const [visitData,     setVisitData]     = useState(null)
@@ -400,7 +400,7 @@ export default function OverviewPanel({ patient }) {
         setCurrentIndex(Math.max(0, files.length - 1))
       })
       .catch(() => {})
-  }, [patient?.id])
+  }, [patient?.id, refreshKey])
 
   useEffect(() => {
     if (!visitList.length || !patient?.id) return
@@ -424,7 +424,7 @@ export default function OverviewPanel({ patient }) {
       .then(([cur, prev]) => { setVisitData(cur); if (prev) setPrevVisitData(prev) })
       .catch(() => {})
       .finally(() => setVisitLoading(false))
-  }, [visitList, currentIndex, patient?.id])
+  }, [visitList, currentIndex, patient?.id, refreshKey])
 
   useEffect(() => {
     if (!patient?.id) return
@@ -457,7 +457,7 @@ export default function OverviewPanel({ patient }) {
         hematology: heme.filter(isAbnormal).map(r => ({ ...r, flag: getFlag(r) })),
         microscopy: micro.filter(isAbnormal).map(r => ({ ...r, flag: getFlag(r) })),
       }))
-  }, [patient?.id])
+  }, [patient?.id, refreshKey])
 
   const total     = visitList.length
   const safeIndex = total > 0 ? Math.min(currentIndex, total - 1) : 0

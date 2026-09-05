@@ -21,6 +21,7 @@ builder.Services.AddSingleton<ClinicalTextExtractor>();
 builder.Services.AddSingleton<PatientDocumentSyncProgress>();
 builder.Services.AddScoped<PatientDocumentSyncService>();
 builder.Services.AddHostedService<PatientDocumentSyncWorker>();
+builder.Services.AddHostedService<PatientDocumentDesktopNotificationWorker>();
 
 builder.Services.AddCors(o =>
     o.AddDefaultPolicy(p =>

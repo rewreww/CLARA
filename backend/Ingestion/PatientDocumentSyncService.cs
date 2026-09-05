@@ -20,6 +20,7 @@ public sealed class PatientDocumentSyncService
         PdfParser pdfParser,
         ClinicalTextExtractor clinicalTextExtractor,
         PatientDocumentSyncProgress progress,
+        IConfiguration configuration,
         ILogger<PatientDocumentSyncService> logger)
     {
         _db = db;
@@ -27,7 +28,23 @@ public sealed class PatientDocumentSyncService
         _clinicalTextExtractor = clinicalTextExtractor;
         _progress = progress;
         _logger = logger;
-        _patientsFolderPath = Path.Combine(
+        _patientsFolderPath = ResolvePatientsFolderPath(configuration);
+    }
+
+    internal static string ResolvePatientsFolderPath(IConfiguration configuration)
+    {
+        var configuredPath = configuration["PatientDocumentSync:FolderPath"];
+        if (string.IsNullOrWhiteSpace(configuredPath))
+        {
+            configuredPath = configuration["FileWatcher:FolderPath"];
+        }
+
+        if (!string.IsNullOrWhiteSpace(configuredPath))
+        {
+            return Path.GetFullPath(Environment.ExpandEnvironmentVariables(configuredPath.Trim()));
+        }
+
+        return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
             "Patients");
     }
@@ -105,7 +122,16 @@ public sealed class PatientDocumentSyncService
             _db.Patients.Add(patient);
             result.PatientsCreated++;
         }
-        foreach (var filePath in Directory.EnumerateFiles(patientDirectory, "*.pdf", SearchOption.AllDirectories))
+        var pdfFiles = Directory
+            .EnumerateFiles(patientDirectory, "*.pdf", SearchOption.AllDirectories)
+            .ToList();
+        var currentRelativePaths = pdfFiles
+            .Select(filePath => Path.GetRelativePath(patientDirectory, filePath).Replace('\\', '/'))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            await RemoveMissingDocumentsAsync(patientId, currentRelativePaths, result, cancellationToken);
+
+        foreach (var filePath in pdfFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
             result.FilesSeen++;
@@ -129,6 +155,7 @@ public sealed class PatientDocumentSyncService
 
                 if (contentUnchanged && await HasDerivedRecordsAsync(document!.Id, cancellationToken))
                 {
+                    document.DocumentType = InferDocumentType(relativePath);
                     document.RecordDate ??= recordDate;
                     result.FilesUnchanged++;
                     continue;
@@ -139,6 +166,11 @@ public sealed class PatientDocumentSyncService
                     && document.ExtractionStatus == "completed")
                 {
                     document.RecordDate ??= recordDate;
+                    document.FileName = fileInfo.Name;
+                    document.DocumentType = InferDocumentType(relativePath);
+                    document.FileSizeBytes = fileInfo.Length;
+                    document.SourceModifiedAtUtc = fileInfo.LastWriteTimeUtc;
+                    document.UpdatedAtUtc = now;
                     result.FilesUnchanged++;
                     _progress.Working("Preparing stored PDF data for database indexing", patientId, fileInfo.Name);
                     await ReplaceDerivedRecordsAsync(patient, document, document.ExtractedText ?? "", result, cancellationToken);
@@ -166,13 +198,19 @@ public sealed class PatientDocumentSyncService
                 document.FileSizeBytes = fileInfo.Length;
                 document.SourceModifiedAtUtc = fileInfo.LastWriteTimeUtc;
                 document.UpdatedAtUtc = now;
-                _progress.Working("Parsing PDF", patientId, fileInfo.Name);
+                _progress.Working(
+                    document.CreatedAtUtc == now ? "New PDF detected" : "PDF update detected",
+                    patientId,
+                    fileInfo.Name);
+                _progress.Working("Parsing PDF text", patientId, fileInfo.Name);
                 patient.UpdatedAtUtc = now;
                 document.ExtractedText = _pdfParser.ExtractText(filePath);
                 document.ExtractionStatus = "completed";
                 document.ExtractedAtUtc = now;
                 result.FilesExtracted++;
                 await ReplaceDerivedRecordsAsync(patient, document, document.ExtractedText, result, cancellationToken);
+                _progress.Working("Saving structured data to PostgreSQL", patientId, fileInfo.Name);
+                await _db.SaveChangesAsync(cancellationToken);
                 _progress.Success("New data successfully saved", patientId, fileInfo.Name);
             }
             catch (Exception ex)
@@ -202,6 +240,32 @@ public sealed class PatientDocumentSyncService
             || await _db.DischargeSummaries.AnyAsync(item => item.SourceDocumentId == documentId, cancellationToken);
     }
 
+    private async Task RemoveMissingDocumentsAsync(
+        string patientId,
+        HashSet<string> currentRelativePaths,
+        MutableSyncResult result,
+        CancellationToken cancellationToken)
+    {
+        var storedDocuments = await _db.PatientDocuments
+            .Where(document => document.PatientId == patientId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var document in storedDocuments)
+        {
+            if (currentRelativePaths.Contains(document.RelativePath))
+            {
+                continue;
+            }
+
+            await RemoveDerivedRecordsAsync(document.Id, cancellationToken);
+            _db.PatientDocuments.Remove(document);
+            result.DocumentsRemoved++;
+            _progress.Working("Saving deleted PDF cleanup to PostgreSQL", patientId, document.FileName);
+            await _db.SaveChangesAsync(cancellationToken);
+            _progress.Info("Deleted PDF data removed from database", patientId, document.FileName);
+        }
+    }
+
     private async Task ReplaceDerivedRecordsAsync(
         PatientRecord patient,
         PatientDocument document,
@@ -213,6 +277,7 @@ public sealed class PatientDocumentSyncService
         var saved = 0;
 
         var metadata = _clinicalTextExtractor.ExtractPatientMetadata(extractedText);
+        _progress.Working("Cleaning extracted clinical data", patient.Id, document.FileName);
         if (!string.IsNullOrWhiteSpace(metadata.Name))
         {
             patient.DisplayName = metadata.Name;
@@ -425,7 +490,15 @@ public sealed class PatientDocumentSyncService
         var name = relativePath.ToLowerInvariant();
         if (name.Contains("discharge")) return "discharge_summary";
         if (name.Contains("prescription") || name.Contains("medication") || name.Contains("medicine")) return "prescription";
-        if (name.Contains("laboratory") || name.Contains("lab ") || name.Contains("lab_") || name.Contains("chemistry") || name.Contains("hematology")) return "laboratory";
+        if (name.Contains("laboratory")
+            || name.Contains("labs/")
+            || name.Contains("lab ")
+            || name.Contains("lab_")
+            || name.Contains("chemistry")
+            || name.Contains("hematology")
+            || name.Contains("microscopy")
+            || name.Contains("micoscopy")
+            || name.Contains("urinalysis")) return "laboratory";
         if (name.Contains("ecg") || name.Contains("electrocard")) return "ecg";
         if (name.Contains("echo") || name.Contains("echocardi")) return "echocardiogram";
         if (name.Contains("radiology") || name.Contains("xray") || name.Contains("x-ray") || name.Contains("ct ")) return "imaging";
@@ -437,6 +510,7 @@ public sealed class PatientDocumentSyncService
         public int PatientsCreated { get; set; }
         public int FilesSeen { get; set; }
         public int DocumentsCreated { get; set; }
+        public int DocumentsRemoved { get; set; }
         public int FilesExtracted { get; set; }
         public int FilesUnchanged { get; set; }
         public int StructuredItemsSaved { get; set; }

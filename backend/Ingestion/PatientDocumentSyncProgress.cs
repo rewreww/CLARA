@@ -8,6 +8,8 @@ public sealed class PatientDocumentSyncProgress
     private readonly ConcurrentQueue<PatientDocumentSyncEvent> _events = new();
     private long _nextSequence;
 
+    public event Action<PatientDocumentSyncEvent>? EventAdded;
+
     public void Info(string message, string? patientId = null, string? fileName = null) =>
         Add("info", message, patientId, fileName);
 
@@ -30,13 +32,16 @@ public sealed class PatientDocumentSyncProgress
 
     private void Add(string level, string message, string? patientId, string? fileName)
     {
-        _events.Enqueue(new PatientDocumentSyncEvent(
+        var syncEvent = new PatientDocumentSyncEvent(
             Sequence: Interlocked.Increment(ref _nextSequence),
             Level: level,
             Message: message,
             PatientId: patientId,
             FileName: fileName,
-            TimestampUtc: DateTimeOffset.UtcNow));
+            TimestampUtc: DateTimeOffset.UtcNow);
+
+        _events.Enqueue(syncEvent);
+        EventAdded?.Invoke(syncEvent);
 
         while (_events.Count > MaxEvents && _events.TryDequeue(out _))
         {

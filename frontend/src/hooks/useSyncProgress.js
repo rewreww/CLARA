@@ -1,13 +1,32 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { BACKEND_URL } from '../constants'
 
-const MAX_EVENTS = 6
+const PATIENT_DATA_UPDATED_EVENT = 'clara:patient-data-updated'
 
-export function useSyncProgress(patientId) {
-  const [events, setEvents] = useState([])
-  const [syncing, setSyncing] = useState(false)
+function isPdfSavedEvent(event) {
+  return event.level === 'success' && /new data successfully saved/i.test(event.message)
+}
+
+function isDataChangedEvent(event) {
+  return isPdfSavedEvent(event) || /deleted pdf data removed from database/i.test(event.message)
+}
+
+function emitPatientDataUpdated(event) {
+  if (!isDataChangedEvent(event)) return
+  window.dispatchEvent(new CustomEvent(PATIENT_DATA_UPDATED_EVENT, {
+    detail: {
+      patientId: event.patientId,
+      fileName: event.fileName,
+      sequence: event.sequence,
+    },
+  }))
+}
+
+export function useSyncProgress() {
   const [error, setError] = useState(null)
   const lastSequence = useRef(0)
+  const initialized = useRef(false)
+  const processedSequences = useRef(new Set())
 
   const mergeEvents = useCallback((incoming) => {
     if (!incoming?.length) return
@@ -22,7 +41,12 @@ export function useSyncProgress(patientId) {
 
     if (!normalized.length) return
     lastSequence.current = Math.max(lastSequence.current, ...normalized.map(event => event.sequence))
-    setEvents(current => [...current, ...normalized].slice(-MAX_EVENTS))
+
+    normalized.forEach(event => {
+      if (processedSequences.current.has(event.sequence)) return
+      processedSequences.current.add(event.sequence)
+      emitPatientDataUpdated(event)
+    })
   }, [])
 
   const poll = useCallback(async () => {
@@ -30,7 +54,18 @@ export function useSyncProgress(patientId) {
       const res = await fetch(`${BACKEND_URL}/pdfingestion/sync/status?after=${lastSequence.current}`)
       if (!res.ok) throw new Error(`Sync status ${res.status}`)
       const json = await res.json()
-      mergeEvents(json.events || json.Events || [])
+      const incoming = json.events || json.Events || []
+      if (!initialized.current) {
+        const sequences = incoming
+          .map(event => event.sequence ?? event.Sequence)
+          .filter(Boolean)
+        if (sequences.length) {
+          lastSequence.current = Math.max(lastSequence.current, ...sequences)
+        }
+        initialized.current = true
+      } else {
+        mergeEvents(incoming)
+      }
       setError(null)
     } catch (err) {
       setError(err.message)
@@ -43,29 +78,5 @@ export function useSyncProgress(patientId) {
     return () => window.clearInterval(id)
   }, [poll])
 
-  const triggerSync = useCallback(async () => {
-    setSyncing(true)
-    setError(null)
-    try {
-      const res = await fetch(`${BACKEND_URL}/pdfingestion/sync`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folderName: patientId || null }),
-      })
-      if (!res.ok) throw new Error(`Sync failed ${res.status}`)
-      await poll()
-    } catch (err) {
-      setError(err.message)
-      setEvents(current => [...current, {
-        sequence: Date.now(),
-        level: 'error',
-        message: err.message,
-        patientId,
-      }].slice(-MAX_EVENTS))
-    } finally {
-      setSyncing(false)
-    }
-  }, [patientId, poll])
-
-  return { events, syncing, error, triggerSync }
+  return { error }
 }

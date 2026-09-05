@@ -12,7 +12,9 @@ namespace CLARA.Backend.Ingestion
 
             foreach (var page in document.GetPages())
             {
+                text.AppendLine($"[PDF PAGE {page.Number}]");
                 text.AppendLine(page.Text);
+                text.AppendLine();
             }
 
             return text.ToString();

@@ -16,7 +16,13 @@ from fastapi.responses import StreamingResponse
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from mcp_tools import execute_tool, build_tools_prompt, fetch_all_lab_blocks, fetch_patient_context_block
+from mcp_tools import (
+    execute_tool,
+    build_tools_prompt,
+    fetch_all_lab_blocks,
+    fetch_patient_context_block,
+    fetch_patient_document_context,
+)
 from rag.retriever import (
     infer_diagnosis_hint,
     is_management_query,
@@ -93,6 +99,8 @@ OLLAMA_FALLBACK_MODEL = resolve_ollama_model(PREFERRED_FALLBACK_MODELS)
 
 conversation_store: dict[str, list[dict]] = defaultdict(list)
 MAX_HISTORY = 10
+PATIENT_DATA_CACHE_SECONDS = max(0, int(os.getenv("PATIENT_DATA_CACHE_SECONDS", "5")))
+_LAB_RESULTS_CACHE: dict[str, tuple[float, list[dict]]] = {}
 
 SYSTEM_PROMPT = """
 You are CLARA, a cardiovascular clinical AI assistant for licensed physicians.
@@ -171,7 +179,7 @@ def classify_question(message: str) -> str:
 
     is_guideline = any(x in m for x in [
         "treat", "treatment", "manage",
-        "management", "medication",
+        "management",
         "guideline", "therapy",
         "hypertension", "heart failure", "stroke", "diabetes",
         "cardiovascular disease", "hypertensive cardiovascular", "procedure", "procedures",
@@ -303,11 +311,7 @@ def call_groq(prompt: str) -> str:
         "messages": [
             {
                 "role": "system",
-                "content": (
-                    "You are CLARA, a concise cardiovascular clinical AI assistant "
-                    "for licensed physicians. Use provided patient context and "
-                    "guideline context when present."
-                ),
+                "content": "Follow the user's prompt exactly. Do not use outside sources unless the prompt asks for general medical knowledge.",
             },
             {"role": "user", "content": prompt},
         ],
@@ -590,6 +594,12 @@ def run_rule_engine(patient_id: str) -> Dict[str, Any]:
 
 
 def fetch_patient_lab_results(patient_id: str) -> list[dict]:
+    patient_id = str(patient_id or "").strip()
+    if PATIENT_DATA_CACHE_SECONDS > 0:
+        cached = _LAB_RESULTS_CACHE.get(patient_id)
+        if cached and time.monotonic() - cached[0] <= PATIENT_DATA_CACHE_SECONDS:
+            return list(cached[1])
+
     all_results: list = []
     for lab_type in ("chemistry", "hematology", "microscopy"):
         try:
@@ -604,6 +614,8 @@ def fetch_patient_lab_results(patient_id: str) -> list[dict]:
                 all_results.extend(results)
         except Exception:
             continue
+    if PATIENT_DATA_CACHE_SECONDS > 0:
+        _LAB_RESULTS_CACHE[patient_id] = (time.monotonic(), list(all_results))
     return all_results
 
 
@@ -690,6 +702,17 @@ _BROAD_LAB_ASK = re.compile(
     r"panic|critical)\b",
     re.IGNORECASE,
 )
+_SAFETY_RULE_TOPIC = re.compile(
+    r"\b(critical|panic|emergency|urgent|danger(?:ous)?|red flag|life[- ]?threatening|"
+    r"needs? immediate|stat)\b",
+    re.IGNORECASE,
+)
+_STRICT_PATIENT_REFERENCE = re.compile(
+    r"\b(this patient|current patient|selected patient|patient'?s|for him|for her|"
+    r"for them|given his|given her|given their|his labs?|her labs?|their labs?|"
+    r"his diagnosis|her diagnosis|their diagnosis|case|chart|record)\b",
+    re.IGNORECASE,
+)
 _CHEMISTRY_TOPIC = re.compile(
     r"\b(cholesterol|ldl|hdl|triglycerides?|creatinine|glucose|fbs|sodium|potassium|"
     r"electrolytes?|sgpt|alt|chemistry|kidney|renal|liver)\b",
@@ -718,15 +741,18 @@ def wants_full_lab_scan(message: str) -> bool:
     return bool(_LAB_TOPIC.search(message) and _BROAD_LAB_ASK.search(message))
 
 
+def wants_safety_rule_check(message: str, question_type: str) -> bool:
+    if question_type not in ("labs", "both"):
+        return False
+    return bool(_SAFETY_RULE_TOPIC.search(message or ""))
+
+
 def select_lab_tools(message: str, active_section: str = None) -> list[str]:
-    # If doctor is actively viewing a lab section, load that first
     SECTION_TOOL = {
         "chemistry":  "get_chemistry",
         "hematology": "get_hematology",
         "microscopy": "get_microscopy",
     }
-    if active_section and active_section in SECTION_TOOL:
-        return [SECTION_TOOL[active_section]]
 
     if wants_full_lab_scan(message):
         return ["get_all_labs"]
@@ -738,11 +764,22 @@ def select_lab_tools(message: str, active_section: str = None) -> list[str]:
         tools.append("get_hematology")
     if _MICROSCOPY_TOPIC.search(message):
         tools.append("get_microscopy")
-    return tools or ["get_all_labs"]
+
+    if tools:
+        return tools
+
+    # If doctor is actively viewing a lab section and asks a nonspecific lab
+    # follow-up, prefer that section instead of loading all modalities.
+    if active_section and active_section in SECTION_TOOL:
+        return [SECTION_TOOL[active_section]]
+
+    return ["get_all_labs"]
 
 
 def wants_patient_context(message: str, question_type: str) -> bool:
-    if question_type in ("guideline", "both"):
+    if question_type == "guideline":
+        return bool(_STRICT_PATIENT_REFERENCE.search(message or ""))
+    if question_type == "both":
         return True
     return bool(_PATIENT_CONTEXT_TOPIC.search(message or ""))
 
@@ -758,6 +795,13 @@ def _preload_patient_context(pid: str) -> tuple[str, list[str], list[str]]:
     ]
     return "\n".join(lines).strip(), [tool_name], [block]
 
+
+def build_no_tool_prompt() -> str:
+    return (
+        "No patient-data tools are available for this request. "
+        "Answer using only the patient context, lab data, guideline context, "
+        "and conversation history already provided."
+    )
 
 
 def build_prompt(
@@ -855,12 +899,12 @@ def build_guideline_bundle(query: str) -> tuple[str, list[dict]]:
         query,
         diagnosis_hint=diagnosis_hint,
         only_recommendations=management_query,
-        top_k=8,
+        top_k=5,
     )
     if not chunks and management_query:
-        chunks = retrieve(query, diagnosis_hint=diagnosis_hint, top_k=8)
+        chunks = retrieve(query, diagnosis_hint=diagnosis_hint, top_k=5)
     if not chunks and diagnosis_hint:
-        chunks = retrieve(query, top_k=8)
+        chunks = retrieve(query, top_k=5)
     if not chunks:
         return "", []
 
@@ -880,7 +924,7 @@ def build_guideline_bundle(query: str) -> tuple[str, list[dict]]:
         page = chunk.get("page")
         key = (source, page)
         if key not in seen:
-            if len(sources) >= 4:
+            if len(sources) >= 3:
                 continue
             sources.append({
                 "title": source.replace("_", " "),
@@ -1029,17 +1073,38 @@ def chat(request: ChatRequest):
 
     # Resolve question type — short follow-ups inherit context from history
     question_type = resolve_question_type(request.message, history)
+    pid = (request.patient_id or "").strip()
+
+    direct_answer = (
+        try_direct_lab_answer(pid, request.message)
+        if pid and question_type == "labs" else None
+    )
+    if direct_answer:
+        final_response, direct_tools = direct_answer
+        tools_called.extend(t for t in direct_tools if t not in tools_called)
+        conversation_store[session_id].append({"role": "doctor", "content": request.message})
+        conversation_store[session_id].append({"role": "clara", "content": final_response})
+        return ChatResponse(
+            patient_id=request.patient_id,
+            session_id=session_id,
+            response=final_response,
+            tools_called=tools_called,
+            guidelines_used=False,
+            history_length=len(conversation_store[session_id]) // 2,
+            rule_flags=[],
+            is_emergency=False,
+        )
 
     # 1. Retrieve guidelines for guideline or compound questions
-    guidelines = retrieve_guidelines(request.message) if question_type in ("guideline", "both") else ""
+    guidelines, _guideline_sources = build_guideline_bundle(request.message) if question_type in ("guideline", "both") else ("", [])
     guidelines_used = bool(guidelines) and (
         "No relevant guideline" not in guidelines
         and "not initialised"   not in guidelines
         and "not found"         not in guidelines
     )
 
-    # 2. Rule engine runs for lab or compound questions
-    if question_type in ("labs", "both"):
+    # 2. Rule engine runs only for explicit safety/abnormality checks.
+    if wants_safety_rule_check(request.message, question_type):
         rule_result = run_rule_engine(request.patient_id)
     else:
         rule_result = {"flags": [], "is_emergency": False}
@@ -1053,12 +1118,13 @@ def chat(request: ChatRequest):
         lines += [f"  ! {flag}" for flag in rule_flags]
         lines.append("[END ALERTS]")
         emergency_block = "\n".join(lines)
+    elif wants_safety_rule_check(request.message, question_type):
+        emergency_block = "[CLINICAL ALERT FLAGS — RULE ENGINE]\nNo critical lab rule flags were triggered.\n[END ALERTS]"
 
     # 4. History block
     history_block = build_history_block(history)
 
     # 5. Preload lab data for lab or compound questions
-    pid = (request.patient_id or "").strip()
     patient_context_block = ""
     preload_block = ""
 
@@ -1067,7 +1133,7 @@ def chat(request: ChatRequest):
         tools_called.extend(t for t in context_tools if t not in tools_called)
         collected_data.extend(context_data)
 
-    if pid and question_type in ("labs", "both"):
+    if pid and question_type in ("labs", "both") and not wants_safety_rule_check(request.message, question_type):
         # For a follow-up like "Yes", look back at what the original question was about
         source_message = request.message
         if question_type != classify_question(request.message):
@@ -1081,6 +1147,12 @@ def chat(request: ChatRequest):
         tools_called.extend(t for t in lab_tools if t not in tools_called)
         collected_data.extend(lab_data)
 
+    system = SYSTEM_PROMPT.format(
+        tools_section=build_no_tool_prompt()
+        if (patient_context_block or preload_block or guidelines or emergency_block)
+        else build_tools_prompt()
+    )
+
     # 7. Build full prompt
     prompt = build_prompt(
         system, guidelines, emergency_block,
@@ -1092,53 +1164,50 @@ def chat(request: ChatRequest):
         prompt = preload_block + "\n\n" + prompt
 
     final_response = "I was unable to generate a response."
-    direct_answer = (
-        try_direct_lab_answer(request.patient_id, request.message)
-        if question_type in ("labs", "both") else None
-    )
+    allow_model_tools = not (collected_data or guidelines or emergency_block)
 
-    if direct_answer:
-        final_response, direct_tools = direct_answer
-        for tool_name in direct_tools:
-            if tool_name not in tools_called:
-                tools_called.append(tool_name)
-    else:
-        # 8. Tool-use loop
-        for _ in range(4):
-            response_text = call_llm(prompt)
-            tool_call     = parse_tool_call(response_text)
+    # 8. Tool-use loop. Most routes preload the required data, so the model should answer
+    # immediately instead of discovering extra tools on its own.
+    for _ in range(2 if allow_model_tools else 1):
+        response_text = call_llm(prompt)
+        tool_call     = parse_tool_call(response_text)
 
-            if tool_call is None:
-                final_response = clean_response(response_text)
+        if tool_call is None:
+            final_response = clean_response(response_text)
 
-                if not final_response and collected_data:
-                    retry_prompt = "\n".join([
-                        system, "",
-                        "Patient data:",
-                        "\n\n".join(collected_data), "",
-                        f"Question: {request.message}",
-                        "Answer directly in 3 sentences or fewer. No preamble."
-                    ])
-                    final_response = clean_response(call_llm(retry_prompt))
+            if not final_response and collected_data:
+                retry_prompt = "\n".join([
+                    system, "",
+                    "Patient data:",
+                    "\n\n".join(collected_data), "",
+                    f"Question: {request.message}",
+                    "Answer directly in 3 sentences or fewer. No preamble."
+                ])
+                final_response = clean_response(call_llm(retry_prompt))
 
-                break
+            break
 
-            tool_name, patient_id = tool_call
-            if tool_name not in tools_called:
-                tools_called.append(tool_name)
+        if not allow_model_tools:
+            retry_prompt = prompt + "\n\nDo not call tools. Answer directly from the provided context in 5 sentences or fewer."
+            final_response = clean_response(call_llm(retry_prompt))
+            break
 
-            tool_result = execute_tool(tool_name, patient_id)
-            collected_data.append(tool_result)
+        tool_name, patient_id = tool_call
+        if tool_name not in tools_called:
+            tools_called.append(tool_name)
 
-            prompt += "\n".join([
-                "",
-                f"[DATA RETRIEVED - {tool_name}]",
-                tool_result,
-                "",
-                f"Answer this specific question using the data above: {request.message}",
-                "Be direct. Maximum 5 sentences. Start with the finding, not a preamble.",
-                ""
-            ])
+        tool_result = execute_tool(tool_name, patient_id)
+        collected_data.append(tool_result)
+
+        prompt += "\n".join([
+            "",
+            f"[DATA RETRIEVED - {tool_name}]",
+            tool_result,
+            "",
+            f"Answer this specific question using the data above: {request.message}",
+            "Be direct. Maximum 5 sentences. Start with the finding, not a preamble.",
+            ""
+        ])
 
     # 9. Save to memory
     conversation_store[session_id].append({"role": "doctor",  "content": request.message})
@@ -1179,10 +1248,18 @@ def chat_stream(request: ChatRequest):
             history = conversation_store[session_id]
             question_type = resolve_question_type(request.message, history)
             pid = (request.patient_id or "").strip()
-            needs_guidelines = question_type in ("guideline", "both")
-            needs_ml = bool(pid) and wants_ml_assessment(request.message)
-            needs_rules = bool(pid) and (question_type in ("labs", "both", "guideline") or needs_ml)
-            needs_patient_context = bool(pid) and (wants_patient_context(request.message, question_type) or needs_ml)
+            direct_answer = (
+                try_direct_lab_answer(pid, request.message)
+                if pid and question_type == "labs" else None
+            )
+            needs_guidelines = not direct_answer and question_type in ("guideline", "both")
+            needs_ml = not direct_answer and bool(pid) and wants_ml_assessment(request.message)
+            needs_rules = not direct_answer and bool(pid) and (
+                wants_safety_rule_check(request.message, question_type) or needs_ml
+            )
+            needs_patient_context = not direct_answer and bool(pid) and (
+                wants_patient_context(request.message, question_type) or needs_ml
+            )
 
             if not (needs_guidelines or needs_rules or needs_ml):
                 yield status("Preparing a response")
@@ -1210,6 +1287,8 @@ def chat_stream(request: ChatRequest):
                 lines += [f"  ! {flag}" for flag in rule_flags]
                 lines.append("[END ALERTS]")
                 emergency_block = "\n".join(lines)
+            elif wants_safety_rule_check(request.message, question_type):
+                emergency_block = "[CLINICAL ALERT FLAGS - RULE ENGINE]\nNo critical lab rule flags were triggered.\n[END ALERTS]"
 
             patient_context_block = ""
             if needs_patient_context:
@@ -1219,7 +1298,12 @@ def chat_stream(request: ChatRequest):
                 collected_data.extend(context_data)
 
             preload_block = ""
-            if pid and question_type in ("labs", "both"):
+            if (
+                not direct_answer
+                and pid
+                and question_type in ("labs", "both")
+                and not wants_safety_rule_check(request.message, question_type)
+            ):
                 yield status("Reading relevant laboratory results")
                 source_message = request.message
                 if question_type != classify_question(request.message):
@@ -1244,7 +1328,11 @@ def chat_stream(request: ChatRequest):
             clinical_work_performed = needs_guidelines or needs_rules or needs_ml
             if clinical_work_performed:
                 yield status("Integrating retrieved clinical information")
-            system = SYSTEM_PROMPT.format(tools_section=build_tools_prompt())
+            system = SYSTEM_PROMPT.format(
+                tools_section=build_no_tool_prompt()
+                if (patient_context_block or preload_block or guidelines or emergency_block or ml_context)
+                else build_tools_prompt()
+            )
             prompt = build_prompt(
                 system, guidelines, emergency_block,
                 build_history_block(history), request.patient_id, request.message,
@@ -1257,16 +1345,20 @@ def chat_stream(request: ChatRequest):
                 prompt = ml_context + "\n\n" + prompt
 
             final_response = ""
-            direct_answer = try_direct_lab_answer(pid, request.message) if question_type == "labs" else None
             if direct_answer:
                 final_response, direct_tools = direct_answer
                 tools_called.extend(t for t in direct_tools if t not in tools_called)
             else:
-                for _ in range(4):
+                allow_model_tools = not (collected_data or guidelines or emergency_block or ml_context)
+                for _ in range(2 if allow_model_tools else 1):
                     response_text = call_llm(prompt)
                     tool_call = parse_tool_call(response_text)
                     if tool_call is None:
                         final_response = clean_response(response_text)
+                        break
+                    if not allow_model_tools:
+                        retry_prompt = prompt + "\n\nDo not call tools. Answer directly from the provided context in 5 sentences or fewer."
+                        final_response = clean_response(call_llm(retry_prompt))
                         break
                     tool_name, patient_id = tool_call
                     if tool_name not in tools_called:

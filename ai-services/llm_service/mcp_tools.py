@@ -1,11 +1,14 @@
 import requests
 import os
+import time
 from urllib.parse import quote
 
 DATA_SERVICE_URL = os.getenv("DATA_SERVICE_URL", "http://localhost:5000/api/patientdata").rstrip("/")
+PATIENT_DATA_CACHE_SECONDS = max(0, int(os.getenv("PATIENT_DATA_CACHE_SECONDS", "5")))
 
 ALL_LAB_TOOL_NAMES = ("get_chemistry", "get_hematology", "get_microscopy")
 PATIENT_CONTEXT_TOOL_NAME = "get_patient_context"
+_TOOL_CACHE: dict[tuple[str, str], tuple[float, str]] = {}
 
 TOOL_DEFINITIONS = [
     {
@@ -210,6 +213,20 @@ def fetch_patient_context(patient_id: str) -> str:
     return context if context else "No patient context found."
 
 
+def fetch_patient_document_context(patient_id: str, query: str) -> tuple[str, list[dict]]:
+    patient_path = quote(str(patient_id).strip(), safe="")
+    r = requests.get(
+        f"{DATA_SERVICE_URL}/{patient_path}/document-context",
+        params={"query": query or ""},
+        timeout=30,
+    )
+    r.raise_for_status()
+    data = r.json()
+    context = str(data.get("context") or "").strip()
+    sources = data.get("sources") or []
+    return context if context else "No extracted patient PDF text found.", sources
+
+
 def _context_section(patient_id: str, header: str, empty_message: str) -> str:
     context = fetch_patient_context(patient_id)
     lines = context.splitlines()
@@ -231,29 +248,56 @@ def _context_section(patient_id: str, header: str, empty_message: str) -> str:
     return f"{header}\n" + "\n".join(selected)
 
 
+def _cache_get(tool_name: str, patient_id: str) -> str | None:
+    if PATIENT_DATA_CACHE_SECONDS <= 0:
+        return None
+
+    entry = _TOOL_CACHE.get((tool_name, patient_id))
+    if not entry:
+        return None
+
+    cached_at, value = entry
+    if time.monotonic() - cached_at > PATIENT_DATA_CACHE_SECONDS:
+        _TOOL_CACHE.pop((tool_name, patient_id), None)
+        return None
+
+    return value
+
+
+def _cache_set(tool_name: str, patient_id: str, value: str) -> str:
+    if PATIENT_DATA_CACHE_SECONDS > 0:
+        _TOOL_CACHE[(tool_name, patient_id)] = (time.monotonic(), value)
+    return value
+
+
 def execute_tool(tool_name: str, patient_id: str) -> str:
+    patient_id = str(patient_id or "").strip()
+    cached = _cache_get(tool_name, patient_id)
+    if cached is not None:
+        return cached
+
     try:
         if tool_name == PATIENT_CONTEXT_TOOL_NAME:
-            return fetch_patient_context(patient_id)
+            return _cache_set(tool_name, patient_id, fetch_patient_context(patient_id))
 
         elif tool_name == "get_abnormal_labs":
-            return _context_section(patient_id, "[ABNORMAL LABS]", "No abnormal labs found in patient context.")
+            return _cache_set(tool_name, patient_id, _context_section(patient_id, "[ABNORMAL LABS]", "No abnormal labs found in patient context."))
 
         elif tool_name == "get_recent_labs":
-            return _context_section(patient_id, "[RECENT LABS]", "No recent labs found in patient context.")
+            return _cache_set(tool_name, patient_id, _context_section(patient_id, "[RECENT LABS]", "No recent labs found in patient context."))
 
         elif tool_name == "get_diagnoses":
-            return _context_section(patient_id, "[DIAGNOSES]", "No diagnoses found in patient context.")
+            return _cache_set(tool_name, patient_id, _context_section(patient_id, "[DIAGNOSES]", "No diagnoses found in patient context."))
 
         elif tool_name == "get_medications":
-            return _context_section(patient_id, "[MEDICATIONS]", "No medications found in patient context.")
+            return _cache_set(tool_name, patient_id, _context_section(patient_id, "[MEDICATIONS]", "No medications found in patient context."))
 
         elif tool_name == "get_latest_discharge_summary":
-            return _context_section(
+            return _cache_set(tool_name, patient_id, _context_section(
                 patient_id,
                 "[LATEST DISCHARGE SUMMARY]",
                 "No latest discharge summary found in patient context.",
-            )
+            ))
 
         elif tool_name == "get_chemistry":
             r = requests.post(
@@ -262,7 +306,7 @@ def execute_tool(tool_name: str, patient_id: str) -> str:
                 timeout=30
             )
             r.raise_for_status()
-            return format_lab_results(r.json(), "chemistry")
+            return _cache_set(tool_name, patient_id, format_lab_results(r.json(), "chemistry"))
 
         elif tool_name == "get_hematology":
             r = requests.post(
@@ -271,7 +315,7 @@ def execute_tool(tool_name: str, patient_id: str) -> str:
                 timeout=30
             )
             r.raise_for_status()
-            return format_lab_results(r.json(), "hematology")
+            return _cache_set(tool_name, patient_id, format_lab_results(r.json(), "hematology"))
 
         elif tool_name == "get_microscopy":
             r = requests.post(
@@ -280,7 +324,7 @@ def execute_tool(tool_name: str, patient_id: str) -> str:
                 timeout=30
             )
             r.raise_for_status()
-            return format_lab_results(r.json(), "microscopy")
+            return _cache_set(tool_name, patient_id, format_lab_results(r.json(), "microscopy"))
 
         elif tool_name == "get_discharge":
             r = requests.post(
@@ -291,7 +335,7 @@ def execute_tool(tool_name: str, patient_id: str) -> str:
             r.raise_for_status()
             data = r.json()
             if not data.get("found"):
-                return "No discharge summary found."
+                return _cache_set(tool_name, patient_id, "No discharge summary found.")
             pieces = [
                 data.get("final_dx"),
                 data.get("admitting_dx"),
@@ -300,13 +344,13 @@ def execute_tool(tool_name: str, patient_id: str) -> str:
                 data.get("followup"),
             ]
             discharge = "\n".join(str(piece).strip() for piece in pieces if piece)
-            return f"[DISCHARGE SUMMARY]\n{discharge[:2000]}" if discharge else "No discharge summary found."
+            return _cache_set(tool_name, patient_id, f"[DISCHARGE SUMMARY]\n{discharge[:2000]}" if discharge else "No discharge summary found.")
 
         elif tool_name == "get_all_labs":
             parts = []
             for sub in ALL_LAB_TOOL_NAMES:
                 parts.append(execute_tool(sub, patient_id))
-            return "\n\n".join(parts)
+            return _cache_set(tool_name, patient_id, "\n\n".join(parts))
 
         elif tool_name == "get_trends":
             try:
@@ -319,7 +363,7 @@ def execute_tool(tool_name: str, patient_id: str) -> str:
                 data     = r.json()
                 timeline = data.get("timeline", [])
                 if not timeline:
-                    return "No trend data found — ensure labs are stored in date subfolders (YYYY-MM-DD)."
+                    return _cache_set(tool_name, patient_id, "No trend data found — ensure labs are stored in date subfolders (YYYY-MM-DD).")
 
                 lines = ["[LAB TRENDS OVER TIME — CHEMISTRY]"]
                 for entry in timeline:
@@ -333,7 +377,7 @@ def execute_tool(tool_name: str, patient_id: str) -> str:
                             if high is not None and numeric > high: flag = " *** HIGH ***"
                             elif low is not None and numeric < low: flag = " *** LOW ***"
                         lines.append(f"    {res['test_name']}: {res['value']} {res['unit']}{flag}")
-                return "\n".join(lines)
+                return _cache_set(tool_name, patient_id, "\n".join(lines))
             except requests.RequestException as e:
                 return f"Error fetching trends: {str(e)}"
 

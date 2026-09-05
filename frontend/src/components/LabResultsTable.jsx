@@ -17,6 +17,17 @@ function formatRef(low, high) {
   return '—'
 }
 
+function normalizeLabResult(result) {
+  return {
+    testName: result.test_name ?? result.testName ?? result.TestName,
+    value: result.value ?? result.Value,
+    unit: result.unit ?? result.Unit,
+    referenceLow: result.reference_low ?? result.referenceLow ?? result.ReferenceLow,
+    referenceHigh: result.reference_high ?? result.referenceHigh ?? result.ReferenceHigh,
+    flag: result.flag ?? result.Flag,
+  }
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }) {
@@ -247,28 +258,35 @@ export default function LabResultsTable({ results, timeline, labType }) {
     // Prefer timeline (multi-visit) over flat results
     if (timeline && timeline.length > 0) {
       timeline.forEach(entry => {
-        entry.results.forEach(r => {
-          if (!map[r.test_name]) {
-            map[r.test_name] = {
-              unit:    r.unit,
-              refLow:  r.reference_low,
-              refHigh: r.reference_high,
+        ;(entry.results || entry.Results || []).forEach(r => {
+          const lab = normalizeLabResult(r)
+          if (!lab.testName) return
+
+          if (!map[lab.testName]) {
+            map[lab.testName] = {
+              unit:    lab.unit,
+              refLow:  lab.referenceLow,
+              refHigh: lab.referenceHigh,
               points:  [],
             }
           }
+          if (!map[lab.testName].unit && lab.unit) map[lab.testName].unit = lab.unit
+          if (map[lab.testName].refLow == null && lab.referenceLow != null) map[lab.testName].refLow = lab.referenceLow
+          if (map[lab.testName].refHigh == null && lab.referenceHigh != null) map[lab.testName].refHigh = lab.referenceHigh
+
           const s =
-            typeof r.value === 'number' || !isNaN(parseFloat(r.value))
-              ? (r.reference_high != null && (typeof r.value === 'number' ? r.value : parseFloat(r.value)) > r.reference_high
+            typeof lab.value === 'number' || !isNaN(parseFloat(lab.value))
+              ? (lab.referenceHigh != null && (typeof lab.value === 'number' ? lab.value : parseFloat(lab.value)) > lab.referenceHigh
                   ? 'high'
-                  : r.reference_low != null && (typeof r.value === 'number' ? r.value : parseFloat(r.value)) < r.reference_low
+                  : lab.referenceLow != null && (typeof lab.value === 'number' ? lab.value : parseFloat(lab.value)) < lab.referenceLow
                     ? 'low' : null)
               : null
-          map[r.test_name].points.push({
+          map[lab.testName].points.push({
             date:      entry.date,
-            value:     r.value,
+            value:     lab.value,
             flag:      s,
-            ref_low:   r.reference_low,
-            ref_high:  r.reference_high,
+            ref_low:   lab.referenceLow,
+            ref_high:  lab.referenceHigh,
           })
         })
       })
@@ -281,11 +299,19 @@ export default function LabResultsTable({ results, timeline, labType }) {
     // Fallback: flat single-visit results
     if (results && results.length > 0) {
       results.forEach(r => {
-        map[r.test_name] = {
-          unit:    r.unit,
-          refLow:  r.reference_low,
-          refHigh: r.reference_high,
-          points:  [{ value: r.value, ref_low: r.reference_low, ref_high: r.reference_high }],
+        const lab = normalizeLabResult(r)
+        if (!lab.testName) return
+
+        map[lab.testName] = {
+          unit:    lab.unit,
+          refLow:  lab.referenceLow,
+          refHigh: lab.referenceHigh,
+          points:  [{
+            value:    lab.value,
+            flag:     lab.flag,
+            ref_low:  lab.referenceLow,
+            ref_high: lab.referenceHigh,
+          }],
         }
       })
       return { testMap: map, hasTrend: false, visitCount: 1 }

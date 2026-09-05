@@ -1,16 +1,18 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import TopBar          from './components/TopBar'
 import Sidebar         from './components/SideBar'
 import MainContent     from './components/MainContent'
 import ChatPanel       from './components/ChatPanel'
-import SyncNotifications from './components/SyncNotifications'
+import SyncProgressWatcher from './components/SyncProgressWatcher'
 import { useLabData }  from './hooks/useLabData'
 import { useChat }     from './hooks/useChat'
+import { LABS_URL }    from './constants'
 
 export default function App() {
   const [activeApp,       setActiveApp]       = useState('patients')
   const [selectedPatient, setSelectedPatient] = useState(null)
   const [activeSection,   setActiveSection]   = useState('overview')
+  const [refreshKey,      setRefreshKey]      = useState(0)
   const sessionId = useRef('session_' + Date.now()).current
 
   const { data: labData, loading: labLoading, error: labError, load, reset } = useLabData()
@@ -27,13 +29,31 @@ export default function App() {
     if (selectedPatient) load(section, selectedPatient.id)
   }, [selectedPatient, load])
 
-  const handleLoad = useCallback(() => {
-    if (selectedPatient) load(activeSection, selectedPatient.id)
+  const handleLoad = useCallback((options = {}) => {
+    if (selectedPatient) load(activeSection, selectedPatient.id, options)
   }, [selectedPatient, activeSection, load])
 
   const handleSend = useCallback((message, section) => {
     send(message, selectedPatient?.id, section)
   }, [send, selectedPatient])
+
+  useEffect(() => {
+    const handlePatientDataUpdated = event => {
+      const updatedPatientId = event.detail?.patientId
+      if (!selectedPatient?.id || updatedPatientId !== selectedPatient.id) return
+      setRefreshKey(key => key + 1)
+      fetch(`${LABS_URL}/patients`)
+        .then(response => response.ok ? response.json() : null)
+        .then(data => {
+          const freshPatient = data?.patients?.find(patient => patient.id === selectedPatient.id)
+          if (freshPatient) setSelectedPatient(freshPatient)
+        })
+        .catch(() => {})
+    }
+
+    window.addEventListener('clara:patient-data-updated', handlePatientDataUpdated)
+    return () => window.removeEventListener('clara:patient-data-updated', handlePatientDataUpdated)
+  }, [selectedPatient?.id])
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-bg text-[#dde4f0]"
@@ -60,6 +80,7 @@ export default function App() {
             labLoading={labLoading}
             labError={labError}
             onLoad={handleLoad}
+            refreshKey={refreshKey}
           />
           <div className="w-[340px] shrink-0">
             <ChatPanel
@@ -74,7 +95,7 @@ export default function App() {
         </>
 
       </div>
-      <SyncNotifications patient={selectedPatient} />
+      <SyncProgressWatcher />
     </div>
   )
 }

@@ -23,7 +23,7 @@ function patientDetails(patient) {
 
 export default function MainContent({
   patient, activeSection,
-  labData, labLoading, labError, onLoad
+  labData, labLoading, labError, onLoad, refreshKey
 }) {
   const {
     data: trendData,
@@ -35,14 +35,20 @@ export default function MainContent({
 
   const isLabSection = LAB_TYPES.includes(activeSection)
 
-  // Automatically load trends whenever a lab section is selected
   useEffect(() => {
     if (isLabSection && patient) {
       loadTrend(patient.id, activeSection)
     } else {
       resetTrend()
     }
-  }, [activeSection, patient?.id])
+  }, [activeSection, patient?.id, refreshKey])
+
+  useEffect(() => {
+    if (!patient || !refreshKey) return
+    if (isLabSection || activeSection === 'discharge') {
+      onLoad({ silent: true })
+    }
+  }, [refreshKey, patient?.id, activeSection, isLabSection, onLoad])
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-bg">
@@ -103,12 +109,13 @@ export default function MainContent({
           </div>
 
         ) : activeSection === 'overview' ? (
-          <OverviewPanel patient={patient} />
+          <OverviewPanel patient={patient} refreshKey={refreshKey} />
 
         ) : activeSection === 'discharge' ? (
           <DischargePanel
             data={labData?.type === 'discharge' ? labData : null}
             patient={patient}
+            refreshKey={refreshKey}
           />
 
         ) : activeSection === 'prescriptions' ? (
@@ -118,7 +125,7 @@ export default function MainContent({
               Loading prescriptions...
             </div>
           ) : (
-            <PrescriptionsPanel patient={patient} />
+            <PrescriptionsPanel patient={patient} refreshKey={refreshKey} />
           )
 
         ) : isLabSection ? (

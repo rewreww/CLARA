@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { LABS_URL } from '../constants'
 
-export function useVitals(patientId) {
+export function useVitals(patientId, refreshKey = 0) {
   const [vitals,   setVitals]   = useState(null)
   const [trends,   setTrends]   = useState(null)
   const [loading,  setLoading]  = useState(false)
@@ -23,7 +23,7 @@ export function useVitals(patientId) {
     }).then(r => r.json()).then(d => setTrends(d.timeline || [])).catch(() => setTrends(null))
 
     Promise.all([latest, timeline]).finally(() => setLoading(false))
-  }, [patientId])
+  }, [patientId, refreshKey])
 
   return { vitals, trends, loading }
 }
