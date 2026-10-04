@@ -164,7 +164,7 @@ export function useChat(sessionId) {
             updateLastMessage(last => {
               last.tools      = event.tools_called    || []
               last.guidelines = event.guidelines_used || false
-              last.sources    = event.guideline_sources || []
+              last.sources    = event.sources || event.guideline_sources || []
               last.mlUsed     = event.ml_used || false
             })
           }

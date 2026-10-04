@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../backend/Ingestion/PdfParser.cs" Link="PdfParser.cs" />
+    <Compile Include="../../backend/Ingestion/ClinicalTextExtractor.cs" Link="ClinicalTextExtractor.cs" />
+    <Reference Include="../../backend/bin/Debug/net8.0/UglyToad.PdfPig*.dll" />
+  </ItemGroup>
+</Project>

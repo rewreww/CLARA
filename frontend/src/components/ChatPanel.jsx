@@ -1,6 +1,18 @@
 import { useRef, useEffect, useState } from 'react'
 import { QUICK_PROMPTS } from '../constants'
 
+function sourcePanelTitle(sources = []) {
+  const hasPatientPdf = sources.some(source => source.type === 'patient_pdf')
+  const hasGuidelines = sources.some(source => source.type === 'guideline')
+  if (hasPatientPdf && !hasGuidelines) return 'PDF sources'
+  if (hasGuidelines && !hasPatientPdf) return 'Guideline sources'
+  return 'Sources'
+}
+
+function sourceBadge(source) {
+  return source.type === 'patient_pdf' ? 'PDF' : 'CPG'
+}
+
 function MessageBubble({ msg }) {
   const isDoctor = msg.role === 'doctor'
   const workedFor = msg.durationMs == null ? null : `${(msg.durationMs / 1000).toFixed(1)}s`
@@ -62,12 +74,12 @@ function MessageBubble({ msg }) {
         <div className="w-full max-w-[92%] px-[10px] py-[8px] rounded-[6px]"
           style={{ background: '#091426', border: '1px solid #183254' }}>
           <div className="font-mono text-[8px] uppercase tracking-[0.1em] mb-[5px]" style={{ color: '#5d8fbd' }}>
-            Guideline sources
+            {sourcePanelTitle(msg.sources)}
           </div>
           <div className="flex flex-col gap-[4px]">
             {msg.sources.slice(0, 4).map((source, index) => (
               <div key={`${source.source}_${source.page}_${index}`} className="flex items-center gap-[6px] min-w-0">
-                <span className="font-mono text-[9px] text-accent2 shrink-0">[PDF]</span>
+                <span className="font-mono text-[9px] text-accent2 shrink-0">[{sourceBadge(source)}]</span>
                 <span className="font-mono text-[9px] text-[#b9cce3] truncate">{source.title}</span>
                 {source.page && <span className="font-mono text-[9px] text-[#6b8eae] shrink-0">p.{source.page}</span>}
               </div>

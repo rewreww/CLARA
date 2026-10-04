@@ -1,0 +1,304 @@
+[
+  {
+    "path": "00001\\discharge\\2023-02-23\\patient_00001_Discharge.pdf",
+    "pages": 2,
+    "text_characters": [
+      2253,
+      2076
+    ],
+    "sha256": "4a15aa0bd272cd8b492eb6c37fdb2684c7315ceae82033c5194148176fb7c73f"
+  },
+  {
+    "path": "00001\\discharge\\2023-06-12\\patient_00001_Discharge.pdf",
+    "pages": 3,
+    "text_characters": [
+      1907,
+      1417,
+      340
+    ],
+    "sha256": "756e9b2c1fe8388561fa3133590b968f92b82e18585c6b2d072a9752ecf0aae7"
+  },
+  {
+    "path": "00001\\labs\\chemistry\\2024-12-03\\patient_00001_Chemistry.pdf",
+    "pages": 1,
+    "text_characters": [
+      1344
+    ],
+    "sha256": "143cc84098da0b8ad68bec2c0a3dd8350d8befd3262d36caf62c6f45e491b69d"
+  },
+  {
+    "path": "00001\\labs\\chemistry\\2025-14-04\\patient_00001_Chemistry.pdf",
+    "pages": 1,
+    "text_characters": [
+      1344
+    ],
+    "sha256": "143cc84098da0b8ad68bec2c0a3dd8350d8befd3262d36caf62c6f45e491b69d"
+  },
+  {
+    "path": "00001\\labs\\hematology\\2025-12-03\\patient_00001_Hematology.pdf",
+    "pages": 1,
+    "text_characters": [
+      1276
+    ],
+    "sha256": "4248d0ff063939d64d9e79cf9f0844b5fc493ea6ec45d6fe641737c088725914"
+  },
+  {
+    "path": "00001\\labs\\microscopy\\2024-12-03\\patient_00001_Micoscopy.pdf",
+    "pages": 1,
+    "text_characters": [
+      1167
+    ],
+    "sha256": "9ef30932eed0db7b6cebc0129bec23729e783e430ae94abd02237f60dfcc472c"
+  },
+  {
+    "path": "00002\\discharge\\patient_00001_Discharge.pdf",
+    "pages": 2,
+    "text_characters": [
+      2253,
+      2076
+    ],
+    "sha256": "4a15aa0bd272cd8b492eb6c37fdb2684c7315ceae82033c5194148176fb7c73f"
+  },
+  {
+    "path": "00002\\labs\\chemistry\\2025-07-17\\patient_00002_chemistry.pdf",
+    "pages": 1,
+    "text_characters": [
+      1490
+    ],
+    "sha256": "4281030d1ca5a6935d4a899fc1a42f642bde400197ca0a436463775a4e807f7f"
+  },
+  {
+    "path": "00002\\labs\\chemistry\\2026-02-11\\patient_00002_chemistry.pdf",
+    "pages": 1,
+    "text_characters": [
+      1570
+    ],
+    "sha256": "cb4529c0072264b13fe15ed93dc6b6588fd5e6d8cd14d3592b1e15d27295d8b6"
+  },
+  {
+    "path": "00002\\labs\\hematology\\2024-07-15\\patient_00002_hematology.pdf",
+    "pages": 1,
+    "text_characters": [
+      1155
+    ],
+    "sha256": "36f86ef2daedc2d15dea1860c82884d542986fd7cf8d81e2504a60e8c098e8d1"
+  },
+  {
+    "path": "00002\\labs\\hematology\\2025-07-17\\patient_00002_hematology.pdf",
+    "pages": 1,
+    "text_characters": [
+      1155
+    ],
+    "sha256": "36f86ef2daedc2d15dea1860c82884d542986fd7cf8d81e2504a60e8c098e8d1"
+  },
+  {
+    "path": "00003\\discharge\\2026-22-1\\NEW.pdf",
+    "pages": 2,
+    "text_characters": [
+      1890,
+      733
+    ],
+    "sha256": "9d89d62dedc0b264978ffa91f1390a7a5512a1bd89ec7edbf0c07312837ba202"
+  },
+  {
+    "path": "00003\\discharge\\2026-22-1\\patient_00003_Discharge.pdf",
+    "pages": 2,
+    "text_characters": [
+      1749,
+      1449
+    ],
+    "sha256": "072a234675dfe0bea94df1ea67c03d2d8d1d2c6a6fccaee017aca973b988bda7"
+  },
+  {
+    "path": "00003\\labs\\chemistry\\2026-14-01\\new.pdf",
+    "pages": 1,
+    "text_characters": [
+      706
+    ],
+    "sha256": "95e065b748c381f3443753ff039f65aab6e273d39b549132648b660c3121ed51"
+  },
+  {
+    "path": "00003\\labs\\chemistry\\2026-14-01\\patient_00003_chemistry.pdf",
+    "pages": 1,
+    "text_characters": [
+      493
+    ],
+    "sha256": "dd95c0eab45c987f1d3ed8e83e68067b6b6048a66fdf7e8f07b069ab40ca5c36"
+  },
+  {
+    "path": "00003\\labs\\hematology\\2026-14-01\\new.pdf",
+    "pages": 2,
+    "text_characters": [
+      1357,
+      0
+    ],
+    "sha256": "998f04d6a7d54dd2f54c3614eeeee061f54b173e5d3448d24395007aaac42c89"
+  },
+  {
+    "path": "00003\\labs\\hematology\\2026-14-01\\patient_00003_hematology.pdf",
+    "pages": 2,
+    "text_characters": [
+      823,
+      146
+    ],
+    "sha256": "f9d5308035c9433016feb7ade1175f250c8eec46a46e8c015681d260940cccaa"
+  },
+  {
+    "path": "00003\\labs\\microscopy\\new.pdf",
+    "pages": 2,
+    "text_characters": [
+      1215,
+      34
+    ],
+    "sha256": "0603bff9e15f0af7f701fe1f7e88f320b7ed17d86773189db447ed41d6528d26"
+  },
+  {
+    "path": "00003\\labs\\microscopy\\patient_00003_microscopy.pdf",
+    "pages": 1,
+    "text_characters": [
+      933
+    ],
+    "sha256": "e7f5d0db5e7218651a319f13fb4d75a31fc7a696945c73c8ff75f5f207ba80e6"
+  },
+  {
+    "path": "00004\\discharge\\2025-23-4\\NEW.pdf",
+    "pages": 2,
+    "text_characters": [
+      1893,
+      733
+    ],
+    "sha256": "4d19ab6886737f6ff9a0494af61760e4f4c9666d25f2037c2369e5934dcb956d"
+  },
+  {
+    "path": "00004\\discharge\\2025-23-4\\patient_00004_Discharge.pdf",
+    "pages": 2,
+    "text_characters": [
+      1152,
+      816
+    ],
+    "sha256": "6e02585034317ce5fd5c24d61e80f8732bff66b86fc99888e319589e0ae89eb2"
+  },
+  {
+    "path": "00004\\labs\\chemistry\\2025-10-4\\new.pdf",
+    "pages": 2,
+    "text_characters": [
+      1383,
+      0
+    ],
+    "sha256": "02b736e251e57864ad2f86e4f8d843b0941d8a2fe020e2c56cd520843cae85e6"
+  },
+  {
+    "path": "00004\\labs\\chemistry\\2025-10-4\\patient_00004_chemistry.pdf",
+    "pages": 1,
+    "text_characters": [
+      1118
+    ],
+    "sha256": "b94c8cf4c265da6653bed667babaf8a27915bdc44a55d1ffabbe89341bf15167"
+  },
+  {
+    "path": "00004\\labs\\hematology\\2025-10-4\\patient_00004_hematology.pdf",
+    "pages": 1,
+    "text_characters": [
+      1009
+    ],
+    "sha256": "6b48d35336c5f386384913c4a87e11e41d1fe7ba7f39371874b752884d937353"
+  },
+  {
+    "path": "00004\\labs\\hematology\\new.pdf",
+    "pages": 2,
+    "text_characters": [
+      1361,
+      0
+    ],
+    "sha256": "22f93c13fee144c9a497acceabc615fe79ab14d274438d287c3e60a3b9f2a171"
+  },
+  {
+    "path": "00004\\labs\\microscopy\\2025-10-4\\new.pdf",
+    "pages": 2,
+    "text_characters": [
+      1187,
+      34
+    ],
+    "sha256": "00bf2d1ce23e9f0735f9a5bc2ce4de95cddafc28ef0adafc2a820f8fc8be40ee"
+  },
+  {
+    "path": "00004\\labs\\microscopy\\2025-10-4\\patient_00004_microscopy.pdf",
+    "pages": 1,
+    "text_characters": [
+      924
+    ],
+    "sha256": "6192709c2a27a086dcaf60089436eab75a64949cbc3f86447804728eca1b85a4"
+  },
+  {
+    "path": "00005\\discharge\\2025-09-05\\new.pdf",
+    "pages": 3,
+    "text_characters": [
+      2275,
+      1609,
+      495
+    ],
+    "sha256": "01dead6df60dd6fa8a5bff64ad1599546396dac9d1505fe348a1f16c0c27dd27"
+  },
+  {
+    "path": "00005\\discharge\\2025-09-05\\patient_00005_Discharge.pdf",
+    "pages": 2,
+    "text_characters": [
+      913,
+      1453
+    ],
+    "sha256": "92352811cbd27f54f87c97be2a2e9567c7b56e00f60ab797fb12fda7e9b4bfff"
+  },
+  {
+    "path": "00005\\labs\\chemistry\\2025-05-05\\new.pdf",
+    "pages": 2,
+    "text_characters": [
+      1388,
+      0
+    ],
+    "sha256": "36157b704a35168b9748d856a17e2faa20c3153d11633f86da06cb23a44a639a"
+  },
+  {
+    "path": "00005\\labs\\chemistry\\2025-05-05\\patient_00005_chemistry.pdf",
+    "pages": 1,
+    "text_characters": [
+      1153
+    ],
+    "sha256": "515acde870e29178221e27371e2ad037e90c3572d1ee50bc52bbb15787b48823"
+  },
+  {
+    "path": "00005\\labs\\hematology\\2025-05-05\\new.pdf",
+    "pages": 2,
+    "text_characters": [
+      1354,
+      0
+    ],
+    "sha256": "7b815546a9412490e9bb11b4f952a27735efbc16849d7494a49ede3dd796929a"
+  },
+  {
+    "path": "00005\\labs\\hematology\\2025-05-05\\patient_00005_hematology.pdf",
+    "pages": 2,
+    "text_characters": [
+      961,
+      53
+    ],
+    "sha256": "4d31d080e6b9c0331ebcddd9213a11ae98d8347dae0d3bd1f67965ac6f25979b"
+  },
+  {
+    "path": "00005\\labs\\microscopy\\2025-05-05\\new.pdf",
+    "pages": 2,
+    "text_characters": [
+      1186,
+      34
+    ],
+    "sha256": "2c0acf32d92349094a6005e23926c4d003b35a9237fc57d19c5c9d9662b5d289"
+  },
+  {
+    "path": "00005\\labs\\microscopy\\2025-05-05\\patient_00005_microscopy.pdf",
+    "pages": 2,
+    "text_characters": [
+      765,
+      144
+    ],
+    "sha256": "bd3cd7489a2c5f6c093b25ed602670a1867550d39f832b53c7745b61291980ab"
+  }
+]

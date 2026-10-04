@@ -1,0 +1,66 @@
+{
+  "train": {
+    "count": 37,
+    "filenames": [
+      "0027_prescription_THYROID_HYPER_Stavros.pdf",
+      "0001_prescription_DEPRESSION_GAD_Edwards.pdf",
+      "0002_pathology_request_MS_RELAPSE_Wagner.pdf",
+      "0003_pathology_report_GORD_BARRETT_Mehta.pdf",
+      "0004_physiotherapy_assessment_KNEE_OA_Kumar.pdf",
+      "0032_imaging_report_CROHNS_DISEASE_El-Sayed.pdf",
+      "0006_referral_letter_COLON_CA_Powell.pdf",
+      "0023_referral_letter_SEVERE_DEPRESSION_Edwards.pdf",
+      "0017_ed_assessment_GASTRO_VIRAL_Stewart.pdf",
+      "0049_ed_assessment_AKI_PRERENAL_Ferrari.pdf",
+      "0026_ed_assessment_PERICARDITIS_Martin.pdf",
+      "0031_vascular_ultrasound_report_CELLULITIS_Wong.pdf",
+      "0009_infusion_pump_checklist_LINE_SEPSIS_Romano.pdf",
+      "0040_progress_note_UTI_SEPSIS_Phillips.pdf",
+      "0010_progress_note_COVID_PNEUMONIA_Green.pdf",
+      "0012_ecg_report_NSTEMI_Jenkins.pdf",
+      "0013_audiology_assessment_PRESBYACUSIS_Liu.pdf",
+      "0014_patient_safety_checklist_PNEUMOTHORAX_White.pdf",
+      "0015_admission_checklist_DEPRESSION_GAD_Henderson.pdf",
+      "0050_medication_chart_CAP_PNEUMONIA_Stavros.pdf",
+      "0016_medication_chart_AORTIC_STENOSIS_Kowalski.pdf",
+      "0018_endoscopy_report_CROHNS_DISEASE_Martin.pdf",
+      "0019_ophthalmology_assessment_AMD_MACULAR_Bennett.pdf",
+      "0020_ecg_12lead_AORTIC_STENOSIS_Wagner.pdf",
+      "0021_ambulance_record_NEPHROLITHIASIS_Sanders.pdf",
+      "0022_internal_correspondence_PALPITATIONS_OUTPATIENT_Collins.pdf",
+      "0024_external_correspondence_SCHIZOPHRENIA_McKenzie.pdf",
+      "0028_fluid_order_PANCREATITIS_Sullivan.pdf",
+      "0030_correct_patient_checklist_COLON_CA_Kowalski.pdf",
+      "0042_discharge_summary_CELLULITIS_Pham.pdf",
+      "0048_discharge_summary_PE_PULMONARY_EMBOLISM_Stewart.pdf",
+      "0041_discharge_summary_AORTIC_STENOSIS_Conti.pdf",
+      "0035_anaesthetic_record_CHOLELITHIASIS_Morris.pdf",
+      "0037_speech_pathology_assessment_STROKE_APHASIA_King.pdf",
+      "0038_medical_certificate_STEMI_ACUTE_Martin.pdf",
+      "0047_mental_health_assessment_SCHIZOPHRENIA_Thomas.pdf",
+      "0046_consent_for_treatment_CHOLECYSTECTOMY_Ferrari.pdf"
+    ]
+  },
+  "val": {
+    "count": 0,
+    "filenames": []
+  },
+  "test": {
+    "count": 13,
+    "filenames": [
+      "0039_prescription_PE_PULMONARY_EMBOLISM_MacDonald.pdf",
+      "0044_pathology_report_PANCREATIC_CA_Kaminski.pdf",
+      "0036_physiotherapy_assessment_STROKE_APHASIA_Clark.pdf",
+      "0005_imaging_report_POLYTRAUMA_Foster.pdf",
+      "0025_referral_letter_THYROID_HYPO_Russo.pdf",
+      "0007_ed_assessment_CARDIOMYOPATHY_DCM_Stewart.pdf",
+      "0008_vascular_ultrasound_report_CELLULITIS_Brown.pdf",
+      "0011_progress_note_PEPTIC_ULCER_Murray.pdf",
+      "0043_ecg_report_EPILEPSY_Hill.pdf",
+      "0029_medication_chart_SVT_AVNRT_Ross.pdf",
+      "0034_fluid_order_NSTEMI_Murphy.pdf",
+      "0033_discharge_summary_CAP_PNEUMONIA_Khan.pdf",
+      "0045_mental_health_assessment_DEPRESSION_GAD_McKenzie.pdf"
+    ]
+  }
+}

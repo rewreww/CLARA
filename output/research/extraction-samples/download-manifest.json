@@ -1,0 +1,227 @@
+[
+  {
+    "dataset": "RootCauseAnalytics/synthetic-australian-medical-documents-sample",
+    "commit": "75d0072abf04f324303069bd2f6753c429fd9a52",
+    "license": "CC-BY-NC-4.0",
+    "source_url": "https://huggingface.co/datasets/RootCauseAnalytics/synthetic-australian-medical-documents-sample/resolve/75d0072abf04f324303069bd2f6753c429fd9a52/README.md",
+    "local_path": "output\\research\\extraction-samples\\australian\\README.md",
+    "bytes": 10448,
+    "sha256": "6fb428ffa632213e6a6e9f829b80ef45ae26c5826dba471703d08cbf57396c72"
+  },
+  {
+    "dataset": "RootCauseAnalytics/synthetic-australian-medical-documents-sample",
+    "commit": "75d0072abf04f324303069bd2f6753c429fd9a52",
+    "license": "CC-BY-NC-4.0",
+    "source_url": "https://huggingface.co/datasets/RootCauseAnalytics/synthetic-australian-medical-documents-sample/resolve/75d0072abf04f324303069bd2f6753c429fd9a52/bboxes.jsonl",
+    "local_path": "output\\research\\extraction-samples\\australian\\bboxes.jsonl",
+    "bytes": 56468,
+    "sha256": "e4522973349ad74c3d1d97a33af9c2ed0434678d656f37a854afd38551d1e756"
+  },
+  {
+    "dataset": "RootCauseAnalytics/synthetic-australian-medical-documents-sample",
+    "commit": "75d0072abf04f324303069bd2f6753c429fd9a52",
+    "license": "CC-BY-NC-4.0",
+    "source_url": "https://huggingface.co/datasets/RootCauseAnalytics/synthetic-australian-medical-documents-sample/resolve/75d0072abf04f324303069bd2f6753c429fd9a52/ground_truth.csv",
+    "local_path": "output\\research\\extraction-samples\\australian\\ground_truth.csv",
+    "bytes": 87451,
+    "sha256": "1df62d07866dc0c98559b3bcdee4631a88af257d185148614dc0ba4693754b8a"
+  },
+  {
+    "dataset": "RootCauseAnalytics/synthetic-australian-medical-documents-sample",
+    "commit": "75d0072abf04f324303069bd2f6753c429fd9a52",
+    "license": "CC-BY-NC-4.0",
+    "source_url": "https://huggingface.co/datasets/RootCauseAnalytics/synthetic-australian-medical-documents-sample/resolve/75d0072abf04f324303069bd2f6753c429fd9a52/ground_truth.jsonl",
+    "local_path": "output\\research\\extraction-samples\\australian\\ground_truth.jsonl",
+    "bytes": 106684,
+    "sha256": "98675695bd366b7f21ecc5c956130f0b9bc927f29add1b9ce3060b9c371af5dc"
+  },
+  {
+    "dataset": "RootCauseAnalytics/synthetic-australian-medical-documents-sample",
+    "commit": "75d0072abf04f324303069bd2f6753c429fd9a52",
+    "license": "CC-BY-NC-4.0",
+    "source_url": "https://huggingface.co/datasets/RootCauseAnalytics/synthetic-australian-medical-documents-sample/resolve/75d0072abf04f324303069bd2f6753c429fd9a52/manifest.json",
+    "local_path": "output\\research\\extraction-samples\\australian\\manifest.json",
+    "bytes": 1897,
+    "sha256": "cff893e76fd578c1ea6efb8d9394070fec2027178f850714445ee9aee954dc58"
+  },
+  {
+    "dataset": "RootCauseAnalytics/synthetic-australian-medical-documents-sample",
+    "commit": "75d0072abf04f324303069bd2f6753c429fd9a52",
+    "license": "CC-BY-NC-4.0",
+    "source_url": "https://huggingface.co/datasets/RootCauseAnalytics/synthetic-australian-medical-documents-sample/resolve/75d0072abf04f324303069bd2f6753c429fd9a52/pdfs/0003_pathology_report_GORD_BARRETT_Mehta.pdf",
+    "local_path": "output\\research\\extraction-samples\\australian\\pdfs\\0003_pathology_report_GORD_BARRETT_Mehta.pdf",
+    "bytes": 3968,
+    "sha256": "f4f2a1a4e4cd5b3db01a2aab74f08f014abf6c2c6b6a3c2fb19fae44d434c867"
+  },
+  {
+    "dataset": "RootCauseAnalytics/synthetic-australian-medical-documents-sample",
+    "commit": "75d0072abf04f324303069bd2f6753c429fd9a52",
+    "license": "CC-BY-NC-4.0",
+    "source_url": "https://huggingface.co/datasets/RootCauseAnalytics/synthetic-australian-medical-documents-sample/resolve/75d0072abf04f324303069bd2f6753c429fd9a52/pdfs/0033_discharge_summary_CAP_PNEUMONIA_Khan.pdf",
+    "local_path": "output\\research\\extraction-samples\\australian\\pdfs\\0033_discharge_summary_CAP_PNEUMONIA_Khan.pdf",
+    "bytes": 7077,
+    "sha256": "e4440e57f61ff764f039a84f53710910fd9acbe2b6af73e71f9ad55991ea642b"
+  },
+  {
+    "dataset": "RootCauseAnalytics/synthetic-australian-medical-documents-sample",
+    "commit": "75d0072abf04f324303069bd2f6753c429fd9a52",
+    "license": "CC-BY-NC-4.0",
+    "source_url": "https://huggingface.co/datasets/RootCauseAnalytics/synthetic-australian-medical-documents-sample/resolve/75d0072abf04f324303069bd2f6753c429fd9a52/pdfs/0041_discharge_summary_AORTIC_STENOSIS_Conti.pdf",
+    "local_path": "output\\research\\extraction-samples\\australian\\pdfs\\0041_discharge_summary_AORTIC_STENOSIS_Conti.pdf",
+    "bytes": 6767,
+    "sha256": "7b338815fe10a5bfcebc613aa5f97161202d02682192dff48b7249a83113c577"
+  },
+  {
+    "dataset": "RootCauseAnalytics/synthetic-australian-medical-documents-sample",
+    "commit": "75d0072abf04f324303069bd2f6753c429fd9a52",
+    "license": "CC-BY-NC-4.0",
+    "source_url": "https://huggingface.co/datasets/RootCauseAnalytics/synthetic-australian-medical-documents-sample/resolve/75d0072abf04f324303069bd2f6753c429fd9a52/pdfs/0042_discharge_summary_CELLULITIS_Pham.pdf",
+    "local_path": "output\\research\\extraction-samples\\australian\\pdfs\\0042_discharge_summary_CELLULITIS_Pham.pdf",
+    "bytes": 6762,
+    "sha256": "878446f0536a1d8d942c24198e3e766892244e5e81be665169c8218a5785d40b"
+  },
+  {
+    "dataset": "RootCauseAnalytics/synthetic-australian-medical-documents-sample",
+    "commit": "75d0072abf04f324303069bd2f6753c429fd9a52",
+    "license": "CC-BY-NC-4.0",
+    "source_url": "https://huggingface.co/datasets/RootCauseAnalytics/synthetic-australian-medical-documents-sample/resolve/75d0072abf04f324303069bd2f6753c429fd9a52/pdfs/0044_pathology_report_PANCREATIC_CA_Kaminski.pdf",
+    "local_path": "output\\research\\extraction-samples\\australian\\pdfs\\0044_pathology_report_PANCREATIC_CA_Kaminski.pdf",
+    "bytes": 4078,
+    "sha256": "d40b2bafb053e62c629e68245e8285eb73a06f49d765d2fab13d3a758037621e"
+  },
+  {
+    "dataset": "RootCauseAnalytics/synthetic-australian-medical-documents-sample",
+    "commit": "75d0072abf04f324303069bd2f6753c429fd9a52",
+    "license": "CC-BY-NC-4.0",
+    "source_url": "https://huggingface.co/datasets/RootCauseAnalytics/synthetic-australian-medical-documents-sample/resolve/75d0072abf04f324303069bd2f6753c429fd9a52/pdfs/0048_discharge_summary_PE_PULMONARY_EMBOLISM_Stewart.pdf",
+    "local_path": "output\\research\\extraction-samples\\australian\\pdfs\\0048_discharge_summary_PE_PULMONARY_EMBOLISM_Stewart.pdf",
+    "bytes": 6374,
+    "sha256": "ef80e6727156f608d3f12191ab574a7ac533d174c1e836c8a9f86625b9fdb7ef"
+  },
+  {
+    "dataset": "RootCauseAnalytics/synthetic-australian-medical-documents-sample",
+    "commit": "75d0072abf04f324303069bd2f6753c429fd9a52",
+    "license": "CC-BY-NC-4.0",
+    "source_url": "https://huggingface.co/datasets/RootCauseAnalytics/synthetic-australian-medical-documents-sample/resolve/75d0072abf04f324303069bd2f6753c429fd9a52/pdfs_scanned/0003_pathology_report_GORD_BARRETT_Mehta_scanned.pdf",
+    "local_path": "output\\research\\extraction-samples\\australian\\pdfs_scanned\\0003_pathology_report_GORD_BARRETT_Mehta_scanned.pdf",
+    "bytes": 404490,
+    "sha256": "4ec64250068e12a2a5e1d8230acf88525fdeba4dc6e7b7515f89cc42ca885790"
+  },
+  {
+    "dataset": "RootCauseAnalytics/synthetic-australian-medical-documents-sample",
+    "commit": "75d0072abf04f324303069bd2f6753c429fd9a52",
+    "license": "CC-BY-NC-4.0",
+    "source_url": "https://huggingface.co/datasets/RootCauseAnalytics/synthetic-australian-medical-documents-sample/resolve/75d0072abf04f324303069bd2f6753c429fd9a52/pdfs_scanned/0033_discharge_summary_CAP_PNEUMONIA_Khan.pdf",
+    "local_path": "output\\research\\extraction-samples\\australian\\pdfs_scanned\\0033_discharge_summary_CAP_PNEUMONIA_Khan.pdf",
+    "bytes": 7077,
+    "sha256": "e4440e57f61ff764f039a84f53710910fd9acbe2b6af73e71f9ad55991ea642b"
+  },
+  {
+    "dataset": "RootCauseAnalytics/synthetic-australian-medical-documents-sample",
+    "commit": "75d0072abf04f324303069bd2f6753c429fd9a52",
+    "license": "CC-BY-NC-4.0",
+    "source_url": "https://huggingface.co/datasets/RootCauseAnalytics/synthetic-australian-medical-documents-sample/resolve/75d0072abf04f324303069bd2f6753c429fd9a52/pdfs_scanned/0041_discharge_summary_AORTIC_STENOSIS_Conti_scanned.pdf",
+    "local_path": "output\\research\\extraction-samples\\australian\\pdfs_scanned\\0041_discharge_summary_AORTIC_STENOSIS_Conti_scanned.pdf",
+    "bytes": 983972,
+    "sha256": "44eeed4a6c523187fa7dd02e75d4648f0a93e24021a369134f3cdd7852959993"
+  },
+  {
+    "dataset": "RootCauseAnalytics/synthetic-australian-medical-documents-sample",
+    "commit": "75d0072abf04f324303069bd2f6753c429fd9a52",
+    "license": "CC-BY-NC-4.0",
+    "source_url": "https://huggingface.co/datasets/RootCauseAnalytics/synthetic-australian-medical-documents-sample/resolve/75d0072abf04f324303069bd2f6753c429fd9a52/pdfs_scanned/0042_discharge_summary_CELLULITIS_Pham_poor.pdf",
+    "local_path": "output\\research\\extraction-samples\\australian\\pdfs_scanned\\0042_discharge_summary_CELLULITIS_Pham_poor.pdf",
+    "bytes": 625024,
+    "sha256": "8115a2e1f04ac9a19492fa6998cc35b99a0aa9e15950a3573a0cf64b7369530c"
+  },
+  {
+    "dataset": "RootCauseAnalytics/synthetic-australian-medical-documents-sample",
+    "commit": "75d0072abf04f324303069bd2f6753c429fd9a52",
+    "license": "CC-BY-NC-4.0",
+    "source_url": "https://huggingface.co/datasets/RootCauseAnalytics/synthetic-australian-medical-documents-sample/resolve/75d0072abf04f324303069bd2f6753c429fd9a52/pdfs_scanned/0044_pathology_report_PANCREATIC_CA_Kaminski.pdf",
+    "local_path": "output\\research\\extraction-samples\\australian\\pdfs_scanned\\0044_pathology_report_PANCREATIC_CA_Kaminski.pdf",
+    "bytes": 4078,
+    "sha256": "d40b2bafb053e62c629e68245e8285eb73a06f49d765d2fab13d3a758037621e"
+  },
+  {
+    "dataset": "RootCauseAnalytics/synthetic-australian-medical-documents-sample",
+    "commit": "75d0072abf04f324303069bd2f6753c429fd9a52",
+    "license": "CC-BY-NC-4.0",
+    "source_url": "https://huggingface.co/datasets/RootCauseAnalytics/synthetic-australian-medical-documents-sample/resolve/75d0072abf04f324303069bd2f6753c429fd9a52/pdfs_scanned/0048_discharge_summary_PE_PULMONARY_EMBOLISM_Stewart_fax.pdf",
+    "local_path": "output\\research\\extraction-samples\\australian\\pdfs_scanned\\0048_discharge_summary_PE_PULMONARY_EMBOLISM_Stewart_fax.pdf",
+    "bytes": 253914,
+    "sha256": "7d6a3458df6e6c894d5ef09886b541fc8f4db942bd51835c350237ac36191dc7"
+  },
+  {
+    "dataset": "RootCauseAnalytics/synthetic-australian-medical-documents-sample",
+    "commit": "75d0072abf04f324303069bd2f6753c429fd9a52",
+    "license": "CC-BY-NC-4.0",
+    "source_url": "https://huggingface.co/datasets/RootCauseAnalytics/synthetic-australian-medical-documents-sample/resolve/75d0072abf04f324303069bd2f6753c429fd9a52/splits.json",
+    "local_path": "output\\research\\extraction-samples\\australian\\splits.json",
+    "bytes": 3029,
+    "sha256": "6f2e5259582249bbcc0c0d37c2535f36cd3f98dd0c42ab7dea927d44fea2e4e8"
+  },
+  {
+    "dataset": "morzel85/synthetic-medical-document-recognition-benchmark",
+    "commit": "6cef8159f4a0e30b9f8d306ca1422035f8fa622a",
+    "license": "CC-BY-4.0",
+    "source_url": "https://huggingface.co/datasets/morzel85/synthetic-medical-document-recognition-benchmark/resolve/6cef8159f4a0e30b9f8d306ca1422035f8fa622a/README.md",
+    "local_path": "output\\research\\extraction-samples\\recognition\\README.md",
+    "bytes": 13431,
+    "sha256": "1e25b439726dd2f4551e222cc98e59606b4b6264e2859b3d8cf24d02554522e4"
+  },
+  {
+    "dataset": "morzel85/synthetic-medical-document-recognition-benchmark",
+    "commit": "6cef8159f4a0e30b9f8d306ca1422035f8fa622a",
+    "license": "CC-BY-4.0",
+    "source_url": "https://huggingface.co/datasets/morzel85/synthetic-medical-document-recognition-benchmark/resolve/6cef8159f4a0e30b9f8d306ca1422035f8fa622a/data/fhir/patients/synthetic_Adam_Hirthe_1ce276e5.json",
+    "local_path": "output\\research\\extraction-samples\\recognition\\data\\fhir\\patients\\synthetic_Adam_Hirthe_1ce276e5.json",
+    "bytes": 3321239,
+    "sha256": "e6501dc58d3d8ae8443a461ca9295dc96d06d23cf2297c3d83b5082e8732b227"
+  },
+  {
+    "dataset": "morzel85/synthetic-medical-document-recognition-benchmark",
+    "commit": "6cef8159f4a0e30b9f8d306ca1422035f8fa622a",
+    "license": "CC-BY-4.0",
+    "source_url": "https://huggingface.co/datasets/morzel85/synthetic-medical-document-recognition-benchmark/resolve/6cef8159f4a0e30b9f8d306ca1422035f8fa622a/data/manifest.json",
+    "local_path": "output\\research\\extraction-samples\\recognition\\data\\manifest.json",
+    "bytes": 1109,
+    "sha256": "551fdcd04c1e6c804c65dbd46a8230935a7f4f2c85ef59d36c6f8b6ae1458229"
+  },
+  {
+    "dataset": "morzel85/synthetic-medical-document-recognition-benchmark",
+    "commit": "6cef8159f4a0e30b9f8d306ca1422035f8fa622a",
+    "license": "CC-BY-4.0",
+    "source_url": "https://huggingface.co/datasets/morzel85/synthetic-medical-document-recognition-benchmark/resolve/6cef8159f4a0e30b9f8d306ca1422035f8fa622a/data/pdf/synthetic_Adam_Hirthe_1ce276e5_diagnostic_type_1_ver_1.pdf",
+    "local_path": "output\\research\\extraction-samples\\recognition\\data\\pdf\\synthetic_Adam_Hirthe_1ce276e5_diagnostic_type_1_ver_1.pdf",
+    "bytes": 251712,
+    "sha256": "ce22b0b6d65a8273f27b0332954d14805cbce3898b785394fdb3087211169aab"
+  },
+  {
+    "dataset": "morzel85/synthetic-medical-document-recognition-benchmark",
+    "commit": "6cef8159f4a0e30b9f8d306ca1422035f8fa622a",
+    "license": "CC-BY-4.0",
+    "source_url": "https://huggingface.co/datasets/morzel85/synthetic-medical-document-recognition-benchmark/resolve/6cef8159f4a0e30b9f8d306ca1422035f8fa622a/data/pdf/synthetic_Adam_Hirthe_1ce276e5_diagnostic_type_1_ver_1_dpi_300_clear_2p_img.pdf",
+    "local_path": "output\\research\\extraction-samples\\recognition\\data\\pdf\\synthetic_Adam_Hirthe_1ce276e5_diagnostic_type_1_ver_1_dpi_300_clear_2p_img.pdf",
+    "bytes": 1282928,
+    "sha256": "38db3ba4ca40d6cd4da197a893f3091eecab387bdda0d17449c5be5d257052a6"
+  },
+  {
+    "dataset": "morzel85/synthetic-medical-document-recognition-benchmark",
+    "commit": "6cef8159f4a0e30b9f8d306ca1422035f8fa622a",
+    "license": "CC-BY-4.0",
+    "source_url": "https://huggingface.co/datasets/morzel85/synthetic-medical-document-recognition-benchmark/resolve/6cef8159f4a0e30b9f8d306ca1422035f8fa622a/data/pdf/synthetic_Adam_Hirthe_1ce276e5_notes_type_1_ver_1.pdf",
+    "local_path": "output\\research\\extraction-samples\\recognition\\data\\pdf\\synthetic_Adam_Hirthe_1ce276e5_notes_type_1_ver_1.pdf",
+    "bytes": 105856,
+    "sha256": "cae0fbbf1bc1a44d9b3de8336560460c4fccadcb25f1703126080be24157984c"
+  },
+  {
+    "dataset": "morzel85/synthetic-medical-document-recognition-benchmark",
+    "commit": "6cef8159f4a0e30b9f8d306ca1422035f8fa622a",
+    "license": "CC-BY-4.0",
+    "source_url": "https://huggingface.co/datasets/morzel85/synthetic-medical-document-recognition-benchmark/resolve/6cef8159f4a0e30b9f8d306ca1422035f8fa622a/data/pdf/synthetic_Adam_Hirthe_1ce276e5_report_type_1_ver_1.pdf",
+    "local_path": "output\\research\\extraction-samples\\recognition\\data\\pdf\\synthetic_Adam_Hirthe_1ce276e5_report_type_1_ver_1.pdf",
+    "bytes": 402775,
+    "sha256": "1bb581069ac28ef960e677131c2f58b82e4e12a170c8de82d0e4990f8be0e38e"
+  }
+]

@@ -1,0 +1,34 @@
+{
+  "patients": [
+    "synthetic_Adam_Hirthe_1ce276e5.json",
+    "synthetic_Andres_O'Hara_348deeaf.json",
+    "synthetic_Carolann_Pfeffer_ebd5380d.json",
+    "synthetic_Marion_Cormier_2a636504.json",
+    "synthetic_Rebecka_Aufderhar_8e9abf1d.json"
+  ],
+  "supporting_fhir": [
+    "synthetic_organization_23120a86.json",
+    "synthetic_organization_628f4e68.json",
+    "synthetic_organization_86c3d8af.json",
+    "synthetic_organization_8b2ec3b3.json",
+    "synthetic_organization_a32e395a.json",
+    "synthetic_practitioner_09369163.json",
+    "synthetic_practitioner_2aaee80b.json",
+    "synthetic_practitioner_316f5a5f.json",
+    "synthetic_practitioner_5c8bc93a.json",
+    "synthetic_practitioner_681894d7.json",
+    "synthetic_practitioner_8e83d815.json",
+    "synthetic_practitioner_aff1547c.json",
+    "synthetic_practitioner_b37f638e.json",
+    "synthetic_practitioner_c6415dda.json",
+    "synthetic_practitioner_d546cb3d.json",
+    "synthetic_practitioner_d909a838.json"
+  ],
+  "file_counts": {
+    "html": 135,
+    "pdf": 1890,
+    "png": 5707,
+    "patient_fhir": 5,
+    "supporting_fhir": 16
+  }
+}

@@ -1,0 +1,408 @@
+{
+  "_id": "69fbfa701f63ef7fe2611bec",
+  "id": "RootCauseAnalytics/synthetic-australian-medical-documents-sample",
+  "author": "RootCauseAnalytics",
+  "sha": "75d0072abf04f324303069bd2f6753c429fd9a52",
+  "lastModified": "2026-05-07T13:55:07.000Z",
+  "private": false,
+  "gated": false,
+  "disabled": false,
+  "tags": [
+    "task_categories:token-classification",
+    "task_categories:image-classification",
+    "task_categories:image-to-text",
+    "task_categories:object-detection",
+    "task_categories:document-question-answering",
+    "task_categories:text-classification",
+    "language:en",
+    "license:cc-by-nc-4.0",
+    "size_categories:n<1K",
+    "modality:document",
+    "library:datasets",
+    "library:mlcroissant",
+    "doi:10.57967/hf/8713",
+    "region:us",
+    "medical",
+    "healthcare",
+    "clinical",
+    "australian",
+    "health",
+    "synthetic",
+    "medical-record",
+    "document-ai",
+    "ocr",
+    "llm",
+    "sample",
+    "model",
+    "icd-10-am",
+    "named-entity-recognition",
+    "layout-analysis"
+  ],
+  "description": "\n\t\n\t\t\n\t\n\t\n\t\tSynthetic Australian Medical Documents - Sample\n\t\n\nA 50-document free sample of a 5,000-document library of synthetic Australian medical PDFs. PHI-free. Modelled on Australian healthcare documentation. Pre-labelled with structured ground truth and pixel-precise bounding boxes. Released under CC-BY-NC 4.0 for evaluation and non-commercial research.\nSee Pricing & licensing below.\n\n\t\n\t\t\n\t\n\t\n\t\tWhat's in this sample\n\t\n\n\n\t\n\t\t\nField\nValue\n\n\n\t\t\nDocuments\n50\n\n\nDocument types\n29 (of 45 in\u2026 See the full description on the dataset page: https://huggingface.co/datasets/RootCauseAnalytics/synthetic-australian-medical-documents-sample.",
+  "downloads": 173,
+  "likes": 5,
+  "cardData": {
+    "license": "cc-by-nc-4.0",
+    "language": [
+      "en"
+    ],
+    "task_categories": [
+      "token-classification",
+      "image-classification",
+      "image-to-text",
+      "object-detection",
+      "document-question-answering",
+      "text-classification"
+    ],
+    "tags": [
+      "medical",
+      "healthcare",
+      "clinical",
+      "australian",
+      "health",
+      "synthetic",
+      "medical-record",
+      "document-ai",
+      "ocr",
+      "llm",
+      "sample",
+      "model",
+      "icd-10-am",
+      "named-entity-recognition",
+      "layout-analysis"
+    ],
+    "size_categories": [
+      "n<1K"
+    ],
+    "pretty_name": "Synthetic Australian Medical Documents - Sample",
+    "thumbnail": "preview.png"
+  },
+  "siblings": [
+    {
+      "rfilename": ".gitattributes"
+    },
+    {
+      "rfilename": "README.md"
+    },
+    {
+      "rfilename": "bboxes.jsonl"
+    },
+    {
+      "rfilename": "ground_truth.csv"
+    },
+    {
+      "rfilename": "ground_truth.jsonl"
+    },
+    {
+      "rfilename": "manifest.json"
+    },
+    {
+      "rfilename": "pdfs/0001_prescription_DEPRESSION_GAD_Edwards.pdf"
+    },
+    {
+      "rfilename": "pdfs/0002_pathology_request_MS_RELAPSE_Wagner.pdf"
+    },
+    {
+      "rfilename": "pdfs/0003_pathology_report_GORD_BARRETT_Mehta.pdf"
+    },
+    {
+      "rfilename": "pdfs/0004_physiotherapy_assessment_KNEE_OA_Kumar.pdf"
+    },
+    {
+      "rfilename": "pdfs/0005_imaging_report_POLYTRAUMA_Foster.pdf"
+    },
+    {
+      "rfilename": "pdfs/0006_referral_letter_COLON_CA_Powell.pdf"
+    },
+    {
+      "rfilename": "pdfs/0007_ed_assessment_CARDIOMYOPATHY_DCM_Stewart.pdf"
+    },
+    {
+      "rfilename": "pdfs/0008_vascular_ultrasound_report_CELLULITIS_Brown.pdf"
+    },
+    {
+      "rfilename": "pdfs/0009_infusion_pump_checklist_LINE_SEPSIS_Romano.pdf"
+    },
+    {
+      "rfilename": "pdfs/0010_progress_note_COVID_PNEUMONIA_Green.pdf"
+    },
+    {
+      "rfilename": "pdfs/0011_progress_note_PEPTIC_ULCER_Murray.pdf"
+    },
+    {
+      "rfilename": "pdfs/0012_ecg_report_NSTEMI_Jenkins.pdf"
+    },
+    {
+      "rfilename": "pdfs/0013_audiology_assessment_PRESBYACUSIS_Liu.pdf"
+    },
+    {
+      "rfilename": "pdfs/0014_patient_safety_checklist_PNEUMOTHORAX_White.pdf"
+    },
+    {
+      "rfilename": "pdfs/0015_admission_checklist_DEPRESSION_GAD_Henderson.pdf"
+    },
+    {
+      "rfilename": "pdfs/0016_medication_chart_AORTIC_STENOSIS_Kowalski.pdf"
+    },
+    {
+      "rfilename": "pdfs/0017_ed_assessment_GASTRO_VIRAL_Stewart.pdf"
+    },
+    {
+      "rfilename": "pdfs/0018_endoscopy_report_CROHNS_DISEASE_Martin.pdf"
+    },
+    {
+      "rfilename": "pdfs/0019_ophthalmology_assessment_AMD_MACULAR_Bennett.pdf"
+    },
+    {
+      "rfilename": "pdfs/0020_ecg_12lead_AORTIC_STENOSIS_Wagner.pdf"
+    },
+    {
+      "rfilename": "pdfs/0021_ambulance_record_NEPHROLITHIASIS_Sanders.pdf"
+    },
+    {
+      "rfilename": "pdfs/0022_internal_correspondence_PALPITATIONS_OUTPATIENT_Collins.pdf"
+    },
+    {
+      "rfilename": "pdfs/0023_referral_letter_SEVERE_DEPRESSION_Edwards.pdf"
+    },
+    {
+      "rfilename": "pdfs/0024_external_correspondence_SCHIZOPHRENIA_McKenzie.pdf"
+    },
+    {
+      "rfilename": "pdfs/0025_referral_letter_THYROID_HYPO_Russo.pdf"
+    },
+    {
+      "rfilename": "pdfs/0026_ed_assessment_PERICARDITIS_Martin.pdf"
+    },
+    {
+      "rfilename": "pdfs/0027_prescription_THYROID_HYPER_Stavros.pdf"
+    },
+    {
+      "rfilename": "pdfs/0028_fluid_order_PANCREATITIS_Sullivan.pdf"
+    },
+    {
+      "rfilename": "pdfs/0029_medication_chart_SVT_AVNRT_Ross.pdf"
+    },
+    {
+      "rfilename": "pdfs/0030_correct_patient_checklist_COLON_CA_Kowalski.pdf"
+    },
+    {
+      "rfilename": "pdfs/0031_vascular_ultrasound_report_CELLULITIS_Wong.pdf"
+    },
+    {
+      "rfilename": "pdfs/0032_imaging_report_CROHNS_DISEASE_El-Sayed.pdf"
+    },
+    {
+      "rfilename": "pdfs/0033_discharge_summary_CAP_PNEUMONIA_Khan.pdf"
+    },
+    {
+      "rfilename": "pdfs/0034_fluid_order_NSTEMI_Murphy.pdf"
+    },
+    {
+      "rfilename": "pdfs/0035_anaesthetic_record_CHOLELITHIASIS_Morris.pdf"
+    },
+    {
+      "rfilename": "pdfs/0036_physiotherapy_assessment_STROKE_APHASIA_Clark.pdf"
+    },
+    {
+      "rfilename": "pdfs/0037_speech_pathology_assessment_STROKE_APHASIA_King.pdf"
+    },
+    {
+      "rfilename": "pdfs/0038_medical_certificate_STEMI_ACUTE_Martin.pdf"
+    },
+    {
+      "rfilename": "pdfs/0039_prescription_PE_PULMONARY_EMBOLISM_MacDonald.pdf"
+    },
+    {
+      "rfilename": "pdfs/0040_progress_note_UTI_SEPSIS_Phillips.pdf"
+    },
+    {
+      "rfilename": "pdfs/0041_discharge_summary_AORTIC_STENOSIS_Conti.pdf"
+    },
+    {
+      "rfilename": "pdfs/0042_discharge_summary_CELLULITIS_Pham.pdf"
+    },
+    {
+      "rfilename": "pdfs/0043_ecg_report_EPILEPSY_Hill.pdf"
+    },
+    {
+      "rfilename": "pdfs/0044_pathology_report_PANCREATIC_CA_Kaminski.pdf"
+    },
+    {
+      "rfilename": "pdfs/0045_mental_health_assessment_DEPRESSION_GAD_McKenzie.pdf"
+    },
+    {
+      "rfilename": "pdfs/0046_consent_for_treatment_CHOLECYSTECTOMY_Ferrari.pdf"
+    },
+    {
+      "rfilename": "pdfs/0047_mental_health_assessment_SCHIZOPHRENIA_Thomas.pdf"
+    },
+    {
+      "rfilename": "pdfs/0048_discharge_summary_PE_PULMONARY_EMBOLISM_Stewart.pdf"
+    },
+    {
+      "rfilename": "pdfs/0049_ed_assessment_AKI_PRERENAL_Ferrari.pdf"
+    },
+    {
+      "rfilename": "pdfs/0050_medication_chart_CAP_PNEUMONIA_Stavros.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0001_prescription_DEPRESSION_GAD_Edwards_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0002_pathology_request_MS_RELAPSE_Wagner_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0003_pathology_report_GORD_BARRETT_Mehta_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0004_physiotherapy_assessment_KNEE_OA_Kumar_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0005_imaging_report_POLYTRAUMA_Foster_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0006_referral_letter_COLON_CA_Powell.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0007_ed_assessment_CARDIOMYOPATHY_DCM_Stewart_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0008_vascular_ultrasound_report_CELLULITIS_Brown_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0009_infusion_pump_checklist_LINE_SEPSIS_Romano_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0010_progress_note_COVID_PNEUMONIA_Green.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0011_progress_note_PEPTIC_ULCER_Murray.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0012_ecg_report_NSTEMI_Jenkins.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0013_audiology_assessment_PRESBYACUSIS_Liu_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0014_patient_safety_checklist_PNEUMOTHORAX_White.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0015_admission_checklist_DEPRESSION_GAD_Henderson_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0016_medication_chart_AORTIC_STENOSIS_Kowalski_poor.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0017_ed_assessment_GASTRO_VIRAL_Stewart_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0018_endoscopy_report_CROHNS_DISEASE_Martin_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0019_ophthalmology_assessment_AMD_MACULAR_Bennett_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0020_ecg_12lead_AORTIC_STENOSIS_Wagner_poor.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0021_ambulance_record_NEPHROLITHIASIS_Sanders_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0022_internal_correspondence_PALPITATIONS_OUTPATIENT_Collins.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0023_referral_letter_SEVERE_DEPRESSION_Edwards_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0024_external_correspondence_SCHIZOPHRENIA_McKenzie_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0025_referral_letter_THYROID_HYPO_Russo_poor.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0026_ed_assessment_PERICARDITIS_Martin.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0027_prescription_THYROID_HYPER_Stavros_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0028_fluid_order_PANCREATITIS_Sullivan_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0029_medication_chart_SVT_AVNRT_Ross.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0030_correct_patient_checklist_COLON_CA_Kowalski_poor.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0031_vascular_ultrasound_report_CELLULITIS_Wong.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0032_imaging_report_CROHNS_DISEASE_El-Sayed_poor.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0033_discharge_summary_CAP_PNEUMONIA_Khan.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0034_fluid_order_NSTEMI_Murphy_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0035_anaesthetic_record_CHOLELITHIASIS_Morris.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0036_physiotherapy_assessment_STROKE_APHASIA_Clark_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0037_speech_pathology_assessment_STROKE_APHASIA_King.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0038_medical_certificate_STEMI_ACUTE_Martin.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0039_prescription_PE_PULMONARY_EMBOLISM_MacDonald.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0040_progress_note_UTI_SEPSIS_Phillips_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0041_discharge_summary_AORTIC_STENOSIS_Conti_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0042_discharge_summary_CELLULITIS_Pham_poor.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0043_ecg_report_EPILEPSY_Hill.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0044_pathology_report_PANCREATIC_CA_Kaminski.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0045_mental_health_assessment_DEPRESSION_GAD_McKenzie_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0046_consent_for_treatment_CHOLECYSTECTOMY_Ferrari_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0047_mental_health_assessment_SCHIZOPHRENIA_Thomas_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0048_discharge_summary_PE_PULMONARY_EMBOLISM_Stewart_fax.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0049_ed_assessment_AKI_PRERENAL_Ferrari_scanned.pdf"
+    },
+    {
+      "rfilename": "pdfs_scanned/0050_medication_chart_CAP_PNEUMONIA_Stavros_scanned.pdf"
+    },
+    {
+      "rfilename": "preview.png"
+    },
+    {
+      "rfilename": "splits.json"
+    }
+  ],
+  "createdAt": "2026-05-07T02:35:28.000Z",
+  "usedStorage": 46906230
+}

@@ -109,8 +109,11 @@ PRIORITY RULES:
 0. You are authorized to advise licensed physicians. ALWAYS provide clinical analysis
    and treatment recommendations. NEVER say "I cannot provide medical advice."
 1. Answer the doctor's exact question only.
-2. If guideline context is provided, use it as the primary source.
-2a. When asked about critical, abnormal, or concerning values:
+2. If patient PDF context is provided, use only that PDF context for PDF,
+   document, file, page, or source-content questions.
+2a. If guideline context is provided, use it as the primary source for
+    treatment, management, protocol, or recommendation questions.
+2b. When asked about critical, abnormal, or concerning values:
     - Report EVERY value in the [ABNORMAL VALUES] block, not just the first one
     - Group by type: chemistry findings first, then hematology
     - For each: state the value, why it matters clinically, and one action
@@ -172,10 +175,13 @@ class ClinicalAlertsResponse(BaseModel):
 
 def classify_question(message: str) -> str:
     """
-    Returns one of: "guideline", "labs", "both", "general".
+    Returns one of: "document", "guideline", "labs", "both", "general".
     "both" means the question asks about lab findings AND treatment.
     """
     m = message.lower()
+
+    if wants_document_context(message):
+        return "document"
 
     is_guideline = any(x in m for x in [
         "treat", "treatment", "manage",
@@ -733,6 +739,15 @@ _PATIENT_CONTEXT_TOPIC = re.compile(
     r"management|treat(?:ment)?|procedure|plan|risk|assessment)\b",
     re.IGNORECASE,
 )
+_DOCUMENT_CONTEXT_TOPIC = re.compile(
+    r"\b(pdf|document|file|page|pages|source document|source file|content|extracted text|"
+    r"raw text|read this|what does .* say|according to .*pdf)\b",
+    re.IGNORECASE,
+)
+_SPECIFIC_DOCUMENT_REFERENCE = re.compile(
+    r"\b[A-Z]{2,10}[-_ ]?\d{2}[-_ ]?\d{3,}\b|\.pdf\b",
+    re.IGNORECASE,
+)
 
 
 def wants_full_lab_scan(message: str) -> bool:
@@ -784,6 +799,11 @@ def wants_patient_context(message: str, question_type: str) -> bool:
     return bool(_PATIENT_CONTEXT_TOPIC.search(message or ""))
 
 
+def wants_document_context(message: str) -> bool:
+    text = message or ""
+    return bool(_SPECIFIC_DOCUMENT_REFERENCE.search(text) or _DOCUMENT_CONTEXT_TOPIC.search(text))
+
+
 def _preload_patient_context(pid: str) -> tuple[str, list[str], list[str]]:
     tool_name, block = fetch_patient_context_block(pid)
     if not block or block.startswith("Error fetching"):
@@ -796,11 +816,47 @@ def _preload_patient_context(pid: str) -> tuple[str, list[str], list[str]]:
     return "\n".join(lines).strip(), [tool_name], [block]
 
 
+def _preload_document_context(pid: str, message: str) -> tuple[str, list[str], list[str], list[dict]]:
+    try:
+        block, sources = fetch_patient_document_context(pid, message)
+    except Exception:
+        return "", [], [], []
+
+    if not block or block.startswith("No extracted") or block.startswith("No matching"):
+        return "", [], [], sources
+
+    lines = [
+        "[PATIENT PDF CONTEXT - PRELOADED BY SERVER]",
+        "Do NOT call tools. Answer using only these patient PDF excerpts.",
+        "Start with: Based on <PDF source> p.<page>, ... when a page is available.",
+        "Only cite or mention PDF sources present in this block.",
+        block,
+    ]
+    return "\n".join(lines).strip(), ["get_patient_documents"], [block], sources
+
+
+def _source_display_name(source: dict) -> str:
+    title = str(source.get("title") or source.get("source") or "the patient PDF").strip()
+    page = source.get("page")
+    if page:
+        return f"{title} p.{page}"
+    return title
+
+
+def ensure_pdf_source_opening(text: str, sources: list[dict]) -> str:
+    cleaned = (text or "").strip()
+    if not cleaned or not sources:
+        return cleaned
+    if re.match(r"^\s*based\s+(on|from)\b", cleaned, re.IGNORECASE):
+        return cleaned
+    return f"Based on {_source_display_name(sources[0])}: {cleaned}"
+
+
 def build_no_tool_prompt() -> str:
     return (
         "No patient-data tools are available for this request. "
-        "Answer using only the patient context, lab data, guideline context, "
-        "and conversation history already provided."
+        "Answer using only the patient PDF context, patient context, lab data, "
+        "guideline context, and conversation history already provided."
     )
 
 
@@ -840,6 +896,10 @@ def build_prompt(
     parts.append(
         "If you already have enough information in the prompt to answer, respond directly. "
         "Use conversation history for follow-up questions."
+    )
+    parts.append(
+        "If [PATIENT PDF CONTEXT] is present, answer from that PDF context only and start by naming "
+        "the PDF source and page when available."
     )
     parts.append(
         "Give an evidence-grounded, decisive clinical answer when guideline context is available. "
@@ -931,6 +991,7 @@ def build_guideline_bundle(query: str) -> tuple[str, list[dict]]:
                 "source": source,
                 "page": page,
                 "section": chunk.get("section_heading") or "",
+                "type": "guideline",
             })
             seen.add(key)
         region = "Philippine" if chunk.get("is_philippine") else "International"
@@ -1095,8 +1156,20 @@ def chat(request: ChatRequest):
             is_emergency=False,
         )
 
-    # 1. Retrieve guidelines for guideline or compound questions
-    guidelines, _guideline_sources = build_guideline_bundle(request.message) if question_type in ("guideline", "both") else ("", [])
+    document_context_block = ""
+    patient_sources: list[dict] = []
+    if pid and question_type == "document":
+        document_context_block, document_tools, document_data, patient_sources = _preload_document_context(pid, request.message)
+        tools_called.extend(t for t in document_tools if t not in tools_called)
+        collected_data.extend(document_data)
+
+    # 1. Retrieve guidelines for guideline or compound questions. PDF/document
+    # questions stay isolated so source cards cannot point at unrelated PDFs.
+    guidelines, _guideline_sources = (
+        build_guideline_bundle(request.message)
+        if question_type in ("guideline", "both") and not document_context_block
+        else ("", [])
+    )
     guidelines_used = bool(guidelines) and (
         "No relevant guideline" not in guidelines
         and "not initialised"   not in guidelines
@@ -1128,7 +1201,7 @@ def chat(request: ChatRequest):
     patient_context_block = ""
     preload_block = ""
 
-    if pid and wants_patient_context(request.message, question_type) and question_type != "labs":
+    if pid and wants_patient_context(request.message, question_type) and question_type not in ("labs", "document"):
         patient_context_block, context_tools, context_data = _preload_patient_context(pid)
         tools_called.extend(t for t in context_tools if t not in tools_called)
         collected_data.extend(context_data)
@@ -1149,7 +1222,7 @@ def chat(request: ChatRequest):
 
     system = SYSTEM_PROMPT.format(
         tools_section=build_no_tool_prompt()
-        if (patient_context_block or preload_block or guidelines or emergency_block)
+        if (document_context_block or patient_context_block or preload_block or guidelines or emergency_block)
         else build_tools_prompt()
     )
 
@@ -1162,9 +1235,11 @@ def chat(request: ChatRequest):
         prompt = patient_context_block + "\n\n" + prompt
     if preload_block:
         prompt = preload_block + "\n\n" + prompt
+    if document_context_block:
+        prompt = document_context_block + "\n\n" + prompt
 
     final_response = "I was unable to generate a response."
-    allow_model_tools = not (collected_data or guidelines or emergency_block)
+    allow_model_tools = not (collected_data or guidelines or emergency_block or document_context_block)
 
     # 8. Tool-use loop. Most routes preload the required data, so the model should answer
     # immediately instead of discovering extra tools on its own.
@@ -1209,6 +1284,9 @@ def chat(request: ChatRequest):
             ""
         ])
 
+    if patient_sources:
+        final_response = ensure_pdf_source_opening(final_response, patient_sources)
+
     # 9. Save to memory
     conversation_store[session_id].append({"role": "doctor",  "content": request.message})
     conversation_store[session_id].append({"role": "clara",   "content": final_response})
@@ -1235,6 +1313,7 @@ def chat_stream(request: ChatRequest):
         tools_called: list[str] = []
         collected_data: list[str] = []
         guideline_sources: list[dict] = []
+        patient_sources: list[dict] = []
         ml_predictions: list[dict] = []
         ml_coverage: dict = {}
 
@@ -1252,16 +1331,17 @@ def chat_stream(request: ChatRequest):
                 try_direct_lab_answer(pid, request.message)
                 if pid and question_type == "labs" else None
             )
-            needs_guidelines = not direct_answer and question_type in ("guideline", "both")
+            needs_document_context = not direct_answer and bool(pid) and question_type == "document"
+            needs_guidelines = not direct_answer and not needs_document_context and question_type in ("guideline", "both")
             needs_ml = not direct_answer and bool(pid) and wants_ml_assessment(request.message)
             needs_rules = not direct_answer and bool(pid) and (
                 wants_safety_rule_check(request.message, question_type) or needs_ml
             )
             needs_patient_context = not direct_answer and bool(pid) and (
-                wants_patient_context(request.message, question_type) or needs_ml
+                (wants_patient_context(request.message, question_type) and not needs_document_context) or needs_ml
             )
 
-            if not (needs_guidelines or needs_rules or needs_ml):
+            if not (needs_document_context or needs_guidelines or needs_rules or needs_ml):
                 yield status("Preparing a response")
 
             guidelines = ""
@@ -1269,6 +1349,13 @@ def chat_stream(request: ChatRequest):
                 yield status("Checking cardiovascular guidelines")
                 guidelines, guideline_sources = build_guideline_bundle(request.message)
             guidelines_used = bool(guideline_sources)
+
+            document_context_block = ""
+            if needs_document_context:
+                yield status("Reading patient PDF source")
+                document_context_block, document_tools, document_data, patient_sources = _preload_document_context(pid, request.message)
+                tools_called.extend(t for t in document_tools if t not in tools_called)
+                collected_data.extend(document_data)
 
             lab_results: list[dict] = []
             rule_flags: list[str] = []
@@ -1325,12 +1412,12 @@ def chat_stream(request: ChatRequest):
                     tools_called.append("ml_assessment")
                     ml_context = format_ml_context(ml_predictions, ml_coverage)
 
-            clinical_work_performed = needs_guidelines or needs_rules or needs_ml
+            clinical_work_performed = needs_document_context or needs_guidelines or needs_rules or needs_ml
             if clinical_work_performed:
                 yield status("Integrating retrieved clinical information")
             system = SYSTEM_PROMPT.format(
                 tools_section=build_no_tool_prompt()
-                if (patient_context_block or preload_block or guidelines or emergency_block or ml_context)
+                if (document_context_block or patient_context_block or preload_block or guidelines or emergency_block or ml_context)
                 else build_tools_prompt()
             )
             prompt = build_prompt(
@@ -1343,13 +1430,15 @@ def chat_stream(request: ChatRequest):
                 prompt = preload_block + "\n\n" + prompt
             if ml_context:
                 prompt = ml_context + "\n\n" + prompt
+            if document_context_block:
+                prompt = document_context_block + "\n\n" + prompt
 
             final_response = ""
             if direct_answer:
                 final_response, direct_tools = direct_answer
                 tools_called.extend(t for t in direct_tools if t not in tools_called)
             else:
-                allow_model_tools = not (collected_data or guidelines or emergency_block or ml_context)
+                allow_model_tools = not (collected_data or guidelines or emergency_block or ml_context or document_context_block)
                 for _ in range(2 if allow_model_tools else 1):
                     response_text = call_llm(prompt)
                     tool_call = parse_tool_call(response_text)
@@ -1373,12 +1462,15 @@ def chat_stream(request: ChatRequest):
 
             if not final_response:
                 final_response = "I was unable to generate a response from the available patient data."
+            if patient_sources:
+                final_response = ensure_pdf_source_opening(final_response, patient_sources)
 
             yield event({
                 "type": "meta",
                 "tools_called": tools_called,
                 "guidelines_used": guidelines_used,
                 "guideline_sources": guideline_sources,
+                "sources": patient_sources + guideline_sources,
                 "rule_flags": rule_flags,
                 "is_emergency": is_emergency,
                 "ml_used": bool(ml_predictions),

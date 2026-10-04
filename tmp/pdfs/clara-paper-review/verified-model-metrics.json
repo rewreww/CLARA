@@ -1,0 +1,130 @@
+[
+  {
+    "target": "heart_failure_type",
+    "saved_confusion_matches": true,
+    "train_class_counts": {
+      "2": 1197,
+      "0": 371,
+      "1": 38
+    }
+  },
+  {
+    "target": "myocardial_infarction",
+    "saved_confusion_matches": true,
+    "train_class_counts": {
+      "0": 1492,
+      "1": 114
+    },
+    "average_precision": 0.44251686235229654,
+    "ap_baseline_test_prevalence": 0.07231920199501247,
+    "brier": 0.0562274195253849,
+    "constant_training_prevalence_brier": 0.06709091828770156,
+    "auroc": 0.8841305153874676,
+    "f1": 0.2857142857142857,
+    "masked_average_precision": 0.06533688611894764,
+    "masked_f1": 0.0,
+    "masked_auroc": 0.46551724137931033
+  },
+  {
+    "target": "congestive_heart_failure",
+    "saved_confusion_matches": true,
+    "train_class_counts": {
+      "1": 1497,
+      "0": 109
+    },
+    "average_precision": 0.9944169582592473,
+    "ap_baseline_test_prevalence": 0.9326683291770573,
+    "brier": 0.018312916159629822,
+    "constant_training_prevalence_brier": 0.06279840724858231,
+    "auroc": 0.941968706674589,
+    "f1": 0.9894179894179894,
+    "masked_average_precision": 0.9599583637137228,
+    "masked_f1": 0.9651612903225807,
+    "masked_auroc": 0.6408199643493762
+  },
+  {
+    "target": "death_28d",
+    "saved_confusion_matches": true,
+    "train_class_counts": {
+      "0": 1575,
+      "1": 31
+    },
+    "average_precision": 0.354119034144501,
+    "ap_baseline_test_prevalence": 0.014962593516209476,
+    "brier": 0.012275542132556438,
+    "constant_training_prevalence_brier": 0.014757550099633402,
+    "auroc": 0.7687763713080169,
+    "f1": 0.0,
+    "masked_average_precision": 0.025758199987249777,
+    "masked_f1": 0.0,
+    "masked_auroc": 0.5455696202531645
+  },
+  {
+    "target": "readmission_28d",
+    "saved_confusion_matches": true,
+    "train_class_counts": {
+      "0": 1502,
+      "1": 104
+    },
+    "average_precision": 0.15534332345161594,
+    "ap_baseline_test_prevalence": 0.08977556109725686,
+    "brier": 0.08760473132133484,
+    "constant_training_prevalence_brier": 0.08234183008799034,
+    "auroc": 0.6312024353120244,
+    "f1": 0.0,
+    "masked_average_precision": 0.12023417999045652,
+    "masked_f1": 0.0,
+    "masked_auroc": 0.5592846270928462
+  },
+  {
+    "target": "death_6mo",
+    "saved_confusion_matches": true,
+    "train_class_counts": {
+      "0": 1560,
+      "1": 46
+    },
+    "average_precision": 0.27225933377772765,
+    "ap_baseline_test_prevalence": 0.02743142144638404,
+    "brier": 0.024136746302247047,
+    "constant_training_prevalence_brier": 0.026680405493773984,
+    "auroc": 0.7468531468531467,
+    "f1": 0.16666666666666666,
+    "masked_average_precision": 0.04073156111092591,
+    "masked_f1": 0.0,
+    "masked_auroc": 0.45594405594405596
+  },
+  {
+    "target": "readmission_6mo",
+    "saved_confusion_matches": true,
+    "train_class_counts": {
+      "0": 991,
+      "1": 615
+    },
+    "average_precision": 0.5381517624302802,
+    "ap_baseline_test_prevalence": 0.3940149625935162,
+    "brier": 0.24198557436466217,
+    "constant_training_prevalence_brier": 0.23888984926228937,
+    "auroc": 0.6267906443715163,
+    "f1": 0.42023346303501946,
+    "masked_average_precision": 0.45020016193017987,
+    "masked_f1": 0.4425287356321839,
+    "masked_auroc": 0.5444079804136064
+  },
+  {
+    "target": "ed_return_6mo",
+    "saved_confusion_matches": true,
+    "train_class_counts": {
+      "0": 987,
+      "1": 619
+    },
+    "average_precision": 0.5113282039585727,
+    "ap_baseline_test_prevalence": 0.38902743142144636,
+    "brier": 0.2483152598142624,
+    "constant_training_prevalence_brier": 0.23769803313443447,
+    "auroc": 0.6150444793301937,
+    "f1": 0.4222222222222222,
+    "masked_average_precision": 0.42748300063679934,
+    "masked_f1": 0.47593582887700536,
+    "masked_auroc": 0.5338827838827839
+  }
+]

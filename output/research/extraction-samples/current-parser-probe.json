@@ -1,0 +1,925 @@
+{
+  "Scope": "Read-only isolated invocation of current production C# parsers. Synthetic probes and public sample documents; not an F1 evaluation.",
+  "Probes": [
+    {
+      "Name": "Explicit low percentage",
+      "Text": "BASOPHILS 0.5 % 0 - 1",
+      "Expected": "BASOPHILS numeric value 0.5, unit %",
+      "Observed": [
+        {
+          "TestName": "BASOPHILS",
+          "RawValue": "50.0",
+          "NumericValue": 50.0,
+          "Unit": "%",
+          "ReferenceLow": null,
+          "ReferenceHigh": null,
+          "Flag": null
+        }
+      ]
+    },
+    {
+      "Name": "Scientific notation",
+      "Text": "CREATININE 1.2e3 mg/dL",
+      "Expected": "CREATININE numeric value 1200, unit mg/dL (deliberate numeric stress case)",
+      "Observed": [
+        {
+          "TestName": "CREATININE",
+          "RawValue": "1.2",
+          "NumericValue": 1.2,
+          "Unit": "mg/dL",
+          "ReferenceLow": null,
+          "ReferenceHigh": null,
+          "Flag": null
+        }
+      ]
+    },
+    {
+      "Name": "Repeated dated result",
+      "Text": "01/01/2026 CREATININE 1.2 mg/dL\n02/01/2026 CREATININE 1.8 mg/dL",
+      "Expected": "Two distinct creatinine observations with their dates",
+      "Observed": [
+        {
+          "TestName": "CREATININE",
+          "RawValue": "1.2",
+          "NumericValue": 1.2,
+          "Unit": "mg/dL",
+          "ReferenceLow": null,
+          "ReferenceHigh": null,
+          "Flag": null
+        }
+      ]
+    },
+    {
+      "Name": "Unicode unit",
+      "Text": "CREATININE 98 \u00B5mol/L",
+      "Expected": "CREATININE value 98 and unit \u00B5mol/L",
+      "Observed": [
+        {
+          "TestName": "CREATININE",
+          "RawValue": "98",
+          "NumericValue": 98,
+          "Unit": null,
+          "ReferenceLow": null,
+          "ReferenceHigh": null,
+          "Flag": null
+        }
+      ]
+    }
+  ],
+  "AlternateHeadings": {
+    "Input": "DISCHARGE SUMMARY\nChief Complaint\nShortness of breath.\nPrincipal diagnosis:\nAortic stenosis.\nClinical course:\nThe patient improved and was discharged.",
+    "Observed": {
+      "Header": {
+        "Facility": null,
+        "DocumentTitle": "DISCHARGE SUMMARY",
+        "PatientName": "improved and was discharged.",
+        "Age": null,
+        "Sex": null,
+        "CivilStatus": null,
+        "HospitalNo": null,
+        "Service": null,
+        "RoomWard": null,
+        "AttendingPhysician": null,
+        "ReferralDoctors": null,
+        "DateAdmitted": null,
+        "TimeAdmitted": null,
+        "DateDischarged": null,
+        "TimeDischarged": null
+      },
+      "ConditionOnDischarge": null,
+      "ChiefComplaint": null,
+      "AdmittingDiagnosis": null,
+      "FinalDiagnosis": null,
+      "HistoryOfPresentIllness": null,
+      "PastMedicalHistory": null,
+      "Allergies": null,
+      "FollowUp": null,
+      "PhysicalExam": {
+        "Vitals": null,
+        "Findings": null
+      },
+      "LaboratoryData": null,
+      "Labs": [],
+      "HospitalCourse": [],
+      "Medications": [],
+      "Instructions": []
+    }
+  },
+  "Documents": [
+    {
+      "File": "australian\\pdfs_scanned\\0003_pathology_report_GORD_BARRETT_Mehta_scanned.pdf",
+      "TextCharacters": 0,
+      "InferredLabType": "unknown",
+      "Labs": [],
+      "Discharge": {
+        "Header": {
+          "Facility": "[PDF PAGE 1]",
+          "DocumentTitle": null,
+          "PatientName": null,
+          "Age": "1]",
+          "Sex": null,
+          "CivilStatus": null,
+          "HospitalNo": null,
+          "Service": null,
+          "RoomWard": null,
+          "AttendingPhysician": null,
+          "ReferralDoctors": null,
+          "DateAdmitted": null,
+          "TimeAdmitted": null,
+          "DateDischarged": null,
+          "TimeDischarged": null
+        },
+        "ConditionOnDischarge": null,
+        "ChiefComplaint": null,
+        "AdmittingDiagnosis": null,
+        "FinalDiagnosis": null,
+        "HistoryOfPresentIllness": null,
+        "PastMedicalHistory": null,
+        "Allergies": null,
+        "FollowUp": null,
+        "PhysicalExam": {
+          "Vitals": null,
+          "Findings": null
+        },
+        "LaboratoryData": null,
+        "Labs": [],
+        "HospitalCourse": [],
+        "Medications": [],
+        "Instructions": []
+      }
+    },
+    {
+      "File": "australian\\pdfs_scanned\\0033_discharge_summary_CAP_PNEUMONIA_Khan.pdf",
+      "TextCharacters": 3193,
+      "InferredLabType": "unknown",
+      "Labs": [
+        {
+          "TestName": "NEUTROPHILS",
+          "RawValue": "16.1",
+          "NumericValue": 16.1,
+          "Unit": "x10^9/L",
+          "ReferenceLow": null,
+          "ReferenceHigh": null,
+          "Flag": null
+        },
+        {
+          "TestName": "CREATININE",
+          "RawValue": "98",
+          "NumericValue": 98,
+          "Unit": null,
+          "ReferenceLow": null,
+          "ReferenceHigh": null,
+          "Flag": null
+        }
+      ],
+      "Discharge": {
+        "Header": {
+          "Facility": "[PDF PAGE 1] Coastal District HospitalDischarge Summary12 Marine Parade, Coogee Heights NSW 2034 | Tel: (02) 9665 7000 | Fax: (02) 9665 7001South Eastern Sydney Local Health District | NSW HealthAll patient data is fictional. Any resemblance to real individuals is coincidental.Generated for MEDISCAN Document AI training | Batch ID: AUS-TRN-0033SYNTHETIC TRAINING DOCUMENT - NOT FOR CLINICAL USEPatient Name:Nicholas KhanDate of Birth:11/06/1954 (Age 71)Address:27 Mill Dr, Bankstown NSW2200GP:Dr Sarah Ng, EastsideGeneral PracticeMedical Record No.:667727Medicare No.:2271 40415 1Next of Kin:Kyle Khan (Son) 0458 601 716Allergies:Penicillin (rash), NSAIDs(asthma)ADMISSION DETAILSDate Admitted:05/02/2025 via EmergencyDeptWard:8E (Geriatrics)Admitting Clinician:Dr H. Vasquez (PGY3Registrar, General Medicine)DischargeDestination:Home (independent)Date Discharged:10/02/2025Length of Stay:5 daysConsultant:Prof A. Patel (Staff Specialist)Discharge Mode:Self / family transportPRESENTING COMPLAINTMr Khan self-self-presented with a three-day history of pyrexia, productive cough, and right-sided pleuritic pain.CURB-65 score 2 on admission.PRINCIPAL DIAGNOSISCommunity acquired pneumonia, right lower lobe (ICD-10-AM: J18.1)ADDITIONAL DIAGNOSES1. Type 2 diabetes mellitus2. Hypertension3. Mild chronic kidney disease (eGFR 65 mL/min/1.73m2)",
+          "DocumentTitle": null,
+          "PatientName": "data is fictional. Any resemblance to real individuals is coincidental.Generated for MEDISCAN Document AI training | Batch ID: AUS-TRN-0033SYNTHETIC TRAINING DOCUMENT - NOT FOR CLINICAL USEPatient Name:Nicholas KhanDate of Birth:11/06/1954 (Age 71)Address:27 Mill Dr, Bankstown NSW2200GP:Dr Sarah Ng, EastsideGeneral PracticeMedical Record No.:667727Medicare No.:2271 40415 1Next of Kin:Kyle Khan (Son) 0458 601 716Allergies:Penicillin (rash), NSAIDs(asthma)ADMISSION DETAILSDate Admitted:05/02/2025 via EmergencyDeptWard:8E (Geriatrics)Admitting Clinician:Dr H. Vasquez (PGY3Registrar, General Medicine)DischargeDestination:Home (independent)Date Discharged:10/02/2025Length of Stay:5 daysConsultant:Prof A. Patel (Staff Specialist)Discharge Mode:Self / family transportPRESENTING COMPLAINTMr Khan self-self-presented with a three-day history of pyrexia, productive cough, and right-sided pleuritic pain.CURB-65 score 2 on admission.PRINCIPAL DIAGNOSISCommunity acquired pneumonia, right lower lobe (ICD-10-AM: J18.1)ADDITIONAL DIAGNOSES1. Type 2 diabetes mellitus2. Hypertension3. Mild chronic kidney disease (eGFR 65 mL/min/1.73m2)",
+          "Age": "1] Coastal District HospitalDischarge Summary12 Marine Parade, Coogee Heights NSW 2034 | Tel: (02) 9665 7000 | Fax: (02) 9665 7001South Eastern Sydney Local Health District | NSW HealthAll",
+          "Sex": null,
+          "CivilStatus": null,
+          "HospitalNo": null,
+          "Service": null,
+          "RoomWard": null,
+          "AttendingPhysician": null,
+          "ReferralDoctors": null,
+          "DateAdmitted": "05/02/2025 via EmergencyDeptWard:8E (Geriatrics)Admitting Clinician:Dr H. Vasquez (PGY3Registrar, General Medicine)DischargeDestination:Home (independent)Date Discharged:10/02/2025Length of Stay:5 daysConsultant:Prof A. Patel (Staff Specialist)Discharge Mode:Self / family transportPRESENTING COMPLAINTMr Khan self-self-presented with a three-day history of pyrexia, productive cough, and right-sided pleuritic pain.CURB-65 score 2 on admission.PRINCIPAL DIAGNOSISCommunity acquired pneumonia, right lower lobe (ICD-10-AM: J18.1)ADDITIONAL DIAGNOSES1. Type 2 diabetes mellitus2. Hypertension3. Mild chronic kidney disease (eGFR 65 mL/min/1.73m2)",
+          "TimeAdmitted": null,
+          "DateDischarged": "10/02/2025Length of Stay:5 daysConsultant:Prof A. Patel (Staff Specialist)Discharge Mode:Self / family transportPRESENTING COMPLAINTMr Khan self-self-presented with a three-day history of pyrexia, productive cough, and right-sided pleuritic pain.CURB-65 score 2 on admission.PRINCIPAL DIAGNOSISCommunity acquired pneumonia, right lower lobe (ICD-10-AM: J18.1)ADDITIONAL DIAGNOSES1. Type 2 diabetes mellitus2. Hypertension3. Mild chronic kidney disease (eGFR 65 mL/min/1.73m2)",
+          "TimeDischarged": null
+        },
+        "ConditionOnDischarge": null,
+        "ChiefComplaint": null,
+        "AdmittingDiagnosis": null,
+        "FinalDiagnosis": null,
+        "HistoryOfPresentIllness": null,
+        "PastMedicalHistory": null,
+        "Allergies": "Penicillin (rash), NSAIDs(asthma)ADMISSION DETAILSDate Admitted:05/02/2025 via E",
+        "FollowUp": "CXR arranged at 6 weeks.MEDICATIONS AT DISCHARGEMedicationDose / Route / FrequencyNotesAmoxicillin1g PO TDSNEW - 4 days remaining to complete 7-day courseParacetamol1g PO QID PRNfor pain/feverMetformin500mg PO BDUnchangedPerindopril5mg PO maneUnchangedAtorvastatin20mg PO nocteUnchanged [PDF PAGE 2] MRN: 667727 | Khan, Nicholas | DOB: 11/06/1954Coastal District Hospital - Discharge Summary (continued)All patient data is fictional. Any resemblance to real individuals is coincidental.Generated for MEDISCAN Document AI training | Batch ID: AUS-TRN-0033SYNTHETIC TRAINING DOCUMENT - NOT FOR CLINICAL USEKEY INVESTIGATIONSBloods on admission (05/02/2025): WCC 18.4 x10^9/L (H), Neutrophils 16.1 x10^9/L (H), CRP 245 mg/L (H), Hb 126g/L, Creatinine 98 umol/L, Lactate 1.8 mmol/L, Procalcitonin 4.2 ug/L (H).Bloods at discharge (10/02/2025): WCC 8.2 x10^9/L, CRP 32 mg/L (H).Imaging: Right lower lobe consolidation with associated air bronchograms. No pleural effusion. No cavitation. RepeatCXR pre-discharge: marked interval improvement of right lower lobe consolidation.FOLLOW-UP PLAN1. Re-present if recurrence of fever, worsening shortness of breath, or new pleuritic chest pain.2. GP review at 1 week. Repeat CXR in 6 weeks to confirm radiographic resolution.3. Pneumococcal vaccination to be considered if not up to date.4. Complete the remaining 4 days of oral amoxicillin.ALERTS AND PRECAUTIONSALLERGY: Penicillin (rash)ALLERGY: NSAIDs (asthma)Ensure vaccination status reviewed: pneumococcal, influenza, COVID-19.PREPARED BYDr Hamish Vasquez, PGY3 Registrar, General MedicineReviewed and approved by: Prof Anika Patel, Staff Specialist, General MedicineDate: 10/02/2025 Dr H. Vasquez (PGY3 Registrar)Prof A. Patel (Staff Specialist)",
+        "PhysicalExam": {
+          "Vitals": null,
+          "Findings": null
+        },
+        "LaboratoryData": null,
+        "Labs": [],
+        "HospitalCourse": [],
+        "Medications": [],
+        "Instructions": []
+      }
+    },
+    {
+      "File": "australian\\pdfs_scanned\\0041_discharge_summary_AORTIC_STENOSIS_Conti_scanned.pdf",
+      "TextCharacters": 0,
+      "InferredLabType": "unknown",
+      "Labs": [],
+      "Discharge": {
+        "Header": {
+          "Facility": "[PDF PAGE 1] [PDF PAGE 2]",
+          "DocumentTitle": null,
+          "PatientName": null,
+          "Age": "1] [PDF PAGE 2]",
+          "Sex": null,
+          "CivilStatus": null,
+          "HospitalNo": null,
+          "Service": null,
+          "RoomWard": null,
+          "AttendingPhysician": null,
+          "ReferralDoctors": null,
+          "DateAdmitted": null,
+          "TimeAdmitted": null,
+          "DateDischarged": null,
+          "TimeDischarged": null
+        },
+        "ConditionOnDischarge": null,
+        "ChiefComplaint": null,
+        "AdmittingDiagnosis": null,
+        "FinalDiagnosis": null,
+        "HistoryOfPresentIllness": null,
+        "PastMedicalHistory": null,
+        "Allergies": null,
+        "FollowUp": null,
+        "PhysicalExam": {
+          "Vitals": null,
+          "Findings": null
+        },
+        "LaboratoryData": null,
+        "Labs": [],
+        "HospitalCourse": [],
+        "Medications": [],
+        "Instructions": []
+      }
+    },
+    {
+      "File": "australian\\pdfs_scanned\\0042_discharge_summary_CELLULITIS_Pham_poor.pdf",
+      "TextCharacters": 0,
+      "InferredLabType": "unknown",
+      "Labs": [],
+      "Discharge": {
+        "Header": {
+          "Facility": "[PDF PAGE 1] [PDF PAGE 2]",
+          "DocumentTitle": null,
+          "PatientName": null,
+          "Age": "1] [PDF PAGE 2]",
+          "Sex": null,
+          "CivilStatus": null,
+          "HospitalNo": null,
+          "Service": null,
+          "RoomWard": null,
+          "AttendingPhysician": null,
+          "ReferralDoctors": null,
+          "DateAdmitted": null,
+          "TimeAdmitted": null,
+          "DateDischarged": null,
+          "TimeDischarged": null
+        },
+        "ConditionOnDischarge": null,
+        "ChiefComplaint": null,
+        "AdmittingDiagnosis": null,
+        "FinalDiagnosis": null,
+        "HistoryOfPresentIllness": null,
+        "PastMedicalHistory": null,
+        "Allergies": null,
+        "FollowUp": null,
+        "PhysicalExam": {
+          "Vitals": null,
+          "Findings": null
+        },
+        "LaboratoryData": null,
+        "Labs": [],
+        "HospitalCourse": [],
+        "Medications": [],
+        "Instructions": []
+      }
+    },
+    {
+      "File": "australian\\pdfs_scanned\\0044_pathology_report_PANCREATIC_CA_Kaminski.pdf",
+      "TextCharacters": 1386,
+      "InferredLabType": "unknown",
+      "Labs": [
+        {
+          "TestName": "BILIRUBIN",
+          "RawValue": "168 umol/L. CT demonstrated 28mm pancreatic head mass with biliary obstruction.EUS-guided biopsy confirmed adenocarcinom",
+          "NumericValue": null,
+          "Unit": null,
+          "ReferenceLow": null,
+          "ReferenceHigh": null,
+          "Flag": null
+        }
+      ],
+      "Discharge": {
+        "Header": {
+          "Facility": "[PDF PAGE 1] Sydney Diagnostic PathologyHistopathology ReportLevel 5, 200 George Street, Sydney NSW 2000Tel: (02) 9290 2000 | Fax: (02) 9290 2001NATA Accredited Laboratory No. 14091SYNTHETIC TRAINING DOCUMENTLab Ref: H26-04035All patient data is fictional. Any resemblance to real individuals is coincidental.Generated for MEDISCAN Document AI training | Batch ID: AUS-TRN-0044SYNTHETIC TRAINING DOCUMENT - NOT FOR CLINICAL USEPatient NameBrenda Amelia KaminskiDate of Birth22/08/1950 (Age 75)Address58 Eucalyptus Cres, KillaraNSW 2071Specimen Collected21/09/2026Specimen TypeTissue specimenMedical Record No.541062Medicare No.3286 18061 7Requesting ClinicianDr J. HossainSpecimen Received21/09/2026 17:20FacilityHunter Valley Base HospitalCLINICAL NOTESMrs Kaminski presented with 6-week history of progressive jaundice, unintentional weight loss (8kg), andsteatorrhoea. Bilirubin 168 umol/L. CT demonstrated 28mm pancreatic head mass with biliary obstruction.EUS-guided biopsy confirmed adenocarcinoma.MACROSCOPIC DESCRIPTIONSpecimen received and processed per standard protocol. Sections submitted as labelled.MICROSCOPIC DESCRIPTIONSections show histologically unremarkable tissue with no evidence of malignancy.DIAGNOSISPancreatic ductal adenocarcinoma (head of pancreas, T2N1M0)Tissue specimenCOMMENTFindings as described. Clinical correlation suggested.AUTHORISED BYDr Anish Brown, FRCPAStaff Specialist, Anatomical PathologyProvider No.: TRN-PROV-83011Date reported: 24/09/2026Electronically authorised. No signature required. Dr A. Brown (Pathologist)",
+          "DocumentTitle": null,
+          "PatientName": "data is fictional. Any resemblance to real individuals is coincidental.Generated for MEDISCAN Document AI training | Batch ID: AUS-TRN-0044SYNTHETIC TRAINING DOCUMENT - NOT FOR CLINICAL USEPatient NameBrenda Amelia KaminskiDate of Birth22/08/1950 (Age 75)Address58 Eucalyptus Cres, KillaraNSW 2071Specimen Collected21/09/2026Specimen TypeTissue specimenMedical Record No.541062Medicare No.3286 18061 7Requesting ClinicianDr J. HossainSpecimen Received21/09/2026 17:20FacilityHunter Valley Base HospitalCLINICAL NOTESMrs Kaminski presented with 6-week history of progressive jaundice, unintentional weight loss (8kg), andsteatorrhoea. Bilirubin 168 umol/L. CT demonstrated 28mm pancreatic head mass with biliary obstruction.EUS-guided biopsy confirmed adenocarcinoma.MACROSCOPIC DESCRIPTIONSpecimen received and processed per standard protocol. Sections submitted as labelled.MICROSCOPIC DESCRIPTIONSections show histologically unremarkable tissue with no evidence of malignancy.DIAGNOSISPancreatic ductal adenocarcinoma (head of pancreas, T2N1M0)Tissue specimenCOMMENTFindings as described. Clinical correlation suggested.AUTHORISED BYDr Anish Brown, FRCPAStaff Specialist, Anatomical PathologyProvider No.: TRN-PROV-83011Date reported: 24/09/2026Electronically authorised. No signature required. Dr A. Brown (Pathologist)",
+          "Age": "1] Sydney Diagnostic PathologyHistopathology ReportLevel 5, 200 George Street, Sydney NSW 2000Tel: (02) 9290 2000 | Fax: (02) 9290 2001NATA Accredited Laboratory No. 14091SYNTHETIC TRAINING DOCUMENTLab Ref: H26-04035All",
+          "Sex": null,
+          "CivilStatus": null,
+          "HospitalNo": null,
+          "Service": null,
+          "RoomWard": null,
+          "AttendingPhysician": null,
+          "ReferralDoctors": null,
+          "DateAdmitted": null,
+          "TimeAdmitted": null,
+          "DateDischarged": null,
+          "TimeDischarged": null
+        },
+        "ConditionOnDischarge": null,
+        "ChiefComplaint": null,
+        "AdmittingDiagnosis": null,
+        "FinalDiagnosis": null,
+        "HistoryOfPresentIllness": null,
+        "PastMedicalHistory": null,
+        "Allergies": null,
+        "FollowUp": null,
+        "PhysicalExam": {
+          "Vitals": null,
+          "Findings": null
+        },
+        "LaboratoryData": null,
+        "Labs": [],
+        "HospitalCourse": [],
+        "Medications": [],
+        "Instructions": []
+      }
+    },
+    {
+      "File": "australian\\pdfs_scanned\\0048_discharge_summary_PE_PULMONARY_EMBOLISM_Stewart_fax.pdf",
+      "TextCharacters": 0,
+      "InferredLabType": "unknown",
+      "Labs": [],
+      "Discharge": {
+        "Header": {
+          "Facility": "[PDF PAGE 1] [PDF PAGE 2]",
+          "DocumentTitle": null,
+          "PatientName": null,
+          "Age": "1] [PDF PAGE 2]",
+          "Sex": null,
+          "CivilStatus": null,
+          "HospitalNo": null,
+          "Service": null,
+          "RoomWard": null,
+          "AttendingPhysician": null,
+          "ReferralDoctors": null,
+          "DateAdmitted": null,
+          "TimeAdmitted": null,
+          "DateDischarged": null,
+          "TimeDischarged": null
+        },
+        "ConditionOnDischarge": null,
+        "ChiefComplaint": null,
+        "AdmittingDiagnosis": null,
+        "FinalDiagnosis": null,
+        "HistoryOfPresentIllness": null,
+        "PastMedicalHistory": null,
+        "Allergies": null,
+        "FollowUp": null,
+        "PhysicalExam": {
+          "Vitals": null,
+          "Findings": null
+        },
+        "LaboratoryData": null,
+        "Labs": [],
+        "HospitalCourse": [],
+        "Medications": [],
+        "Instructions": []
+      }
+    },
+    {
+      "File": "australian\\pdfs\\0003_pathology_report_GORD_BARRETT_Mehta.pdf",
+      "TextCharacters": 1278,
+      "InferredLabType": "unknown",
+      "Labs": [],
+      "Discharge": {
+        "Header": {
+          "Facility": "[PDF PAGE 1] Hunter Pathology NetworkHistopathology ReportBuilding C, 300 Vineyard Drive, Hunter Valley Central NSW 2330Tel: (02) 4998 2100 | Fax: (02) 4998 2101NATA Accredited Laboratory No. 13845SYNTHETIC TRAINING DOCUMENTLab Ref: H26-05845All patient data is fictional. Any resemblance to real individuals is coincidental.Generated for MEDISCAN Document AI training | Batch ID: AUS-TRN-0003SYNTHETIC TRAINING DOCUMENT - NOT FOR CLINICAL USEPatient NameLucas Andrew MehtaDate of Birth21/02/1961 (Age 65)Address25 Burns Bay Cl, BurwoodNSW 2134Specimen Collected10/09/2026Specimen TypeTissue specimenMedical Record No.574384Medicare No.6084 98143 8Requesting ClinicianDr B. HernandezSpecimen Received10/09/2026 12:17FacilityIllawarra Coast HospitalCLINICAL NOTESMr Mehta presents with breakthrough reflux symptoms despite high-dose PPI therapy. Surveillance gastroscopyplanned.MACROSCOPIC DESCRIPTIONSpecimen received and processed per standard protocol. Sections submitted as labelled.MICROSCOPIC DESCRIPTIONSections show histologically unremarkable tissue with no evidence of malignancy.DIAGNOSISLong-segment Barrett oesophagus with low-grade dysplasiaTissue specimenCOMMENTFindings as described. Clinical correlation suggested.AUTHORISED BYDr Joseph Robinson, FRCPAStaff Specialist, Anatomical PathologyProvider No.: TRN-PROV-97500Date reported: 12/09/2026Electronically authorised. No signature required. Dr J. Robinson (Pathologist)",
+          "DocumentTitle": null,
+          "PatientName": "data is fictional. Any resemblance to real individuals is coincidental.Generated for MEDISCAN Document AI training | Batch ID: AUS-TRN-0003SYNTHETIC TRAINING DOCUMENT - NOT FOR CLINICAL USEPatient NameLucas Andrew MehtaDate of Birth21/02/1961 (Age 65)Address25 Burns Bay Cl, BurwoodNSW 2134Specimen Collected10/09/2026Specimen TypeTissue specimenMedical Record No.574384Medicare No.6084 98143 8Requesting ClinicianDr B. HernandezSpecimen Received10/09/2026 12:17FacilityIllawarra Coast HospitalCLINICAL NOTESMr Mehta presents with breakthrough reflux symptoms despite high-dose PPI therapy. Surveillance gastroscopyplanned.MACROSCOPIC DESCRIPTIONSpecimen received and processed per standard protocol. Sections submitted as labelled.MICROSCOPIC DESCRIPTIONSections show histologically unremarkable tissue with no evidence of malignancy.DIAGNOSISLong-segment Barrett oesophagus with low-grade dysplasiaTissue specimenCOMMENTFindings as described. Clinical correlation suggested.AUTHORISED BYDr Joseph Robinson, FRCPAStaff Specialist, Anatomical PathologyProvider No.: TRN-PROV-97500Date reported: 12/09/2026Electronically authorised. No signature required. Dr J. Robinson (Pathologist)",
+          "Age": "1] Hunter Pathology NetworkHistopathology ReportBuilding C, 300 Vineyard Drive, Hunter Valley Central NSW 2330Tel: (02) 4998 2100 | Fax: (02) 4998 2101NATA Accredited Laboratory No. 13845SYNTHETIC TRAINING DOCUMENTLab Ref: H26-05845All",
+          "Sex": null,
+          "CivilStatus": null,
+          "HospitalNo": null,
+          "Service": null,
+          "RoomWard": null,
+          "AttendingPhysician": null,
+          "ReferralDoctors": null,
+          "DateAdmitted": null,
+          "TimeAdmitted": null,
+          "DateDischarged": null,
+          "TimeDischarged": null
+        },
+        "ConditionOnDischarge": null,
+        "ChiefComplaint": null,
+        "AdmittingDiagnosis": null,
+        "FinalDiagnosis": null,
+        "HistoryOfPresentIllness": null,
+        "PastMedicalHistory": null,
+        "Allergies": null,
+        "FollowUp": null,
+        "PhysicalExam": {
+          "Vitals": null,
+          "Findings": null
+        },
+        "LaboratoryData": null,
+        "Labs": [],
+        "HospitalCourse": [],
+        "Medications": [],
+        "Instructions": []
+      }
+    },
+    {
+      "File": "australian\\pdfs\\0033_discharge_summary_CAP_PNEUMONIA_Khan.pdf",
+      "TextCharacters": 3193,
+      "InferredLabType": "unknown",
+      "Labs": [
+        {
+          "TestName": "NEUTROPHILS",
+          "RawValue": "16.1",
+          "NumericValue": 16.1,
+          "Unit": "x10^9/L",
+          "ReferenceLow": null,
+          "ReferenceHigh": null,
+          "Flag": null
+        },
+        {
+          "TestName": "CREATININE",
+          "RawValue": "98",
+          "NumericValue": 98,
+          "Unit": null,
+          "ReferenceLow": null,
+          "ReferenceHigh": null,
+          "Flag": null
+        }
+      ],
+      "Discharge": {
+        "Header": {
+          "Facility": "[PDF PAGE 1] Coastal District HospitalDischarge Summary12 Marine Parade, Coogee Heights NSW 2034 | Tel: (02) 9665 7000 | Fax: (02) 9665 7001South Eastern Sydney Local Health District | NSW HealthAll patient data is fictional. Any resemblance to real individuals is coincidental.Generated for MEDISCAN Document AI training | Batch ID: AUS-TRN-0033SYNTHETIC TRAINING DOCUMENT - NOT FOR CLINICAL USEPatient Name:Nicholas KhanDate of Birth:11/06/1954 (Age 71)Address:27 Mill Dr, Bankstown NSW2200GP:Dr Sarah Ng, EastsideGeneral PracticeMedical Record No.:667727Medicare No.:2271 40415 1Next of Kin:Kyle Khan (Son) 0458 601 716Allergies:Penicillin (rash), NSAIDs(asthma)ADMISSION DETAILSDate Admitted:05/02/2025 via EmergencyDeptWard:8E (Geriatrics)Admitting Clinician:Dr H. Vasquez (PGY3Registrar, General Medicine)DischargeDestination:Home (independent)Date Discharged:10/02/2025Length of Stay:5 daysConsultant:Prof A. Patel (Staff Specialist)Discharge Mode:Self / family transportPRESENTING COMPLAINTMr Khan self-self-presented with a three-day history of pyrexia, productive cough, and right-sided pleuritic pain.CURB-65 score 2 on admission.PRINCIPAL DIAGNOSISCommunity acquired pneumonia, right lower lobe (ICD-10-AM: J18.1)ADDITIONAL DIAGNOSES1. Type 2 diabetes mellitus2. Hypertension3. Mild chronic kidney disease (eGFR 65 mL/min/1.73m2)",
+          "DocumentTitle": null,
+          "PatientName": "data is fictional. Any resemblance to real individuals is coincidental.Generated for MEDISCAN Document AI training | Batch ID: AUS-TRN-0033SYNTHETIC TRAINING DOCUMENT - NOT FOR CLINICAL USEPatient Name:Nicholas KhanDate of Birth:11/06/1954 (Age 71)Address:27 Mill Dr, Bankstown NSW2200GP:Dr Sarah Ng, EastsideGeneral PracticeMedical Record No.:667727Medicare No.:2271 40415 1Next of Kin:Kyle Khan (Son) 0458 601 716Allergies:Penicillin (rash), NSAIDs(asthma)ADMISSION DETAILSDate Admitted:05/02/2025 via EmergencyDeptWard:8E (Geriatrics)Admitting Clinician:Dr H. Vasquez (PGY3Registrar, General Medicine)DischargeDestination:Home (independent)Date Discharged:10/02/2025Length of Stay:5 daysConsultant:Prof A. Patel (Staff Specialist)Discharge Mode:Self / family transportPRESENTING COMPLAINTMr Khan self-self-presented with a three-day history of pyrexia, productive cough, and right-sided pleuritic pain.CURB-65 score 2 on admission.PRINCIPAL DIAGNOSISCommunity acquired pneumonia, right lower lobe (ICD-10-AM: J18.1)ADDITIONAL DIAGNOSES1. Type 2 diabetes mellitus2. Hypertension3. Mild chronic kidney disease (eGFR 65 mL/min/1.73m2)",
+          "Age": "1] Coastal District HospitalDischarge Summary12 Marine Parade, Coogee Heights NSW 2034 | Tel: (02) 9665 7000 | Fax: (02) 9665 7001South Eastern Sydney Local Health District | NSW HealthAll",
+          "Sex": null,
+          "CivilStatus": null,
+          "HospitalNo": null,
+          "Service": null,
+          "RoomWard": null,
+          "AttendingPhysician": null,
+          "ReferralDoctors": null,
+          "DateAdmitted": "05/02/2025 via EmergencyDeptWard:8E (Geriatrics)Admitting Clinician:Dr H. Vasquez (PGY3Registrar, General Medicine)DischargeDestination:Home (independent)Date Discharged:10/02/2025Length of Stay:5 daysConsultant:Prof A. Patel (Staff Specialist)Discharge Mode:Self / family transportPRESENTING COMPLAINTMr Khan self-self-presented with a three-day history of pyrexia, productive cough, and right-sided pleuritic pain.CURB-65 score 2 on admission.PRINCIPAL DIAGNOSISCommunity acquired pneumonia, right lower lobe (ICD-10-AM: J18.1)ADDITIONAL DIAGNOSES1. Type 2 diabetes mellitus2. Hypertension3. Mild chronic kidney disease (eGFR 65 mL/min/1.73m2)",
+          "TimeAdmitted": null,
+          "DateDischarged": "10/02/2025Length of Stay:5 daysConsultant:Prof A. Patel (Staff Specialist)Discharge Mode:Self / family transportPRESENTING COMPLAINTMr Khan self-self-presented with a three-day history of pyrexia, productive cough, and right-sided pleuritic pain.CURB-65 score 2 on admission.PRINCIPAL DIAGNOSISCommunity acquired pneumonia, right lower lobe (ICD-10-AM: J18.1)ADDITIONAL DIAGNOSES1. Type 2 diabetes mellitus2. Hypertension3. Mild chronic kidney disease (eGFR 65 mL/min/1.73m2)",
+          "TimeDischarged": null
+        },
+        "ConditionOnDischarge": null,
+        "ChiefComplaint": null,
+        "AdmittingDiagnosis": null,
+        "FinalDiagnosis": null,
+        "HistoryOfPresentIllness": null,
+        "PastMedicalHistory": null,
+        "Allergies": "Penicillin (rash), NSAIDs(asthma)ADMISSION DETAILSDate Admitted:05/02/2025 via E",
+        "FollowUp": "CXR arranged at 6 weeks.MEDICATIONS AT DISCHARGEMedicationDose / Route / FrequencyNotesAmoxicillin1g PO TDSNEW - 4 days remaining to complete 7-day courseParacetamol1g PO QID PRNfor pain/feverMetformin500mg PO BDUnchangedPerindopril5mg PO maneUnchangedAtorvastatin20mg PO nocteUnchanged [PDF PAGE 2] MRN: 667727 | Khan, Nicholas | DOB: 11/06/1954Coastal District Hospital - Discharge Summary (continued)All patient data is fictional. Any resemblance to real individuals is coincidental.Generated for MEDISCAN Document AI training | Batch ID: AUS-TRN-0033SYNTHETIC TRAINING DOCUMENT - NOT FOR CLINICAL USEKEY INVESTIGATIONSBloods on admission (05/02/2025): WCC 18.4 x10^9/L (H), Neutrophils 16.1 x10^9/L (H), CRP 245 mg/L (H), Hb 126g/L, Creatinine 98 umol/L, Lactate 1.8 mmol/L, Procalcitonin 4.2 ug/L (H).Bloods at discharge (10/02/2025): WCC 8.2 x10^9/L, CRP 32 mg/L (H).Imaging: Right lower lobe consolidation with associated air bronchograms. No pleural effusion. No cavitation. RepeatCXR pre-discharge: marked interval improvement of right lower lobe consolidation.FOLLOW-UP PLAN1. Re-present if recurrence of fever, worsening shortness of breath, or new pleuritic chest pain.2. GP review at 1 week. Repeat CXR in 6 weeks to confirm radiographic resolution.3. Pneumococcal vaccination to be considered if not up to date.4. Complete the remaining 4 days of oral amoxicillin.ALERTS AND PRECAUTIONSALLERGY: Penicillin (rash)ALLERGY: NSAIDs (asthma)Ensure vaccination status reviewed: pneumococcal, influenza, COVID-19.PREPARED BYDr Hamish Vasquez, PGY3 Registrar, General MedicineReviewed and approved by: Prof Anika Patel, Staff Specialist, General MedicineDate: 10/02/2025 Dr H. Vasquez (PGY3 Registrar)Prof A. Patel (Staff Specialist)",
+        "PhysicalExam": {
+          "Vitals": null,
+          "Findings": null
+        },
+        "LaboratoryData": null,
+        "Labs": [],
+        "HospitalCourse": [],
+        "Medications": [],
+        "Instructions": []
+      }
+    },
+    {
+      "File": "australian\\pdfs\\0041_discharge_summary_AORTIC_STENOSIS_Conti.pdf",
+      "TextCharacters": 2809,
+      "InferredLabType": "unknown",
+      "Labs": [
+        {
+          "TestName": "CREATININE",
+          "RawValue": "108",
+          "NumericValue": 108,
+          "Unit": null,
+          "ReferenceLow": null,
+          "ReferenceHigh": null,
+          "Flag": null
+        }
+      ],
+      "Discharge": {
+        "Header": {
+          "Facility": "[PDF PAGE 1] Hunter Valley Base HospitalDischarge Summary300 Vineyard Drive, Hunter Valley Central NSW 2330 | Tel: (02) 4998 2000 | Fax: (02) 4998 2001Hunter New England Local Health District | NSW HealthAll patient data is fictional. Any resemblance to real individuals is coincidental.Generated for MEDISCAN Document AI training | Batch ID: AUS-TRN-0041SYNTHETIC TRAINING DOCUMENT - NOT FOR CLINICAL USEPatient Name:Gregory Raj ContiDate of Birth:26/07/1937 (Age 88)Address:160 River Tce, LeichhardtNSW 2040GP:Dr Richard Hussein, BaysideMedical CentreMedical Record No.:895263Medicare No.:5510 30224 7Next of Kin:Priya Conti (Wife) 0443 501921Allergies:Iodine contrast (mild rash)ADMISSION DETAILSDate Admitted:13/09/2025 via EmergencyDeptWard:5B (Cardiology)Admitting Clinician:Dr H. Nandakumar (AdvancedTrainee, Cardiology)DischargeDestination:Home with community nursingDate Discharged:15/09/2025Length of Stay:2 daysConsultant:A/Prof M. Whitfield (StaffSpecialist)Discharge Mode:Self / family transportPRESENTING COMPLAINTMr Conti attends for cardiology review with 6-month Past medical history of gradually gradually worsening dyspnoeaon exertion. Also, chest tightness. Episode of near-syncope on stairs a 2-week history ago. Now limited to 50mwalking.PRINCIPAL DIAGNOSISSevere aortic stenosis with progressive exertional symptoms (ICD-10-AM: I35.0)ADDITIONAL DIAGNOSES1. Hypertension2. Atrial fibrillation (paroxysmal)3. Mild chronic kidney diseaseHOSPITAL COURSEAdmitted for elective transcatheter aortic valve implantation (TAVI) workup. Heart team review confirmed appropriatefor TAVI. Pre-procedure CT and angiogram completed. Procedure performed without complication; transfemoralapproach. Discharged Day 3 post-procedure on dual antiplatelet therapy.MEDICATIONS AT DISCHARGEMedicationDose / Route / FrequencyNotesAspirin100mg PO maneNEW - lifelongClopidogrel75mg PO maneNEW - 6 monthsApixaban5mg PO BDUnchanged - paroxysmal AFBisoprolol5mg PO maneUnchangedFurosemide40mg PO maneUnchangedKEY INVESTIGATIONSBloods on admission (13/09/2025): BNP 420 pg/mL (H), Creatinine 108 umol/L, Hb 118 g/L (L). [PDF PAGE 2] MRN: 895263 | Conti, Gregory | DOB: 26/07/1937Hunter Valley Base Hospital -",
+          "DocumentTitle": "Discharge Summary",
+          "PatientName": "data is fictional. Any resemblance to real individuals is coincidental.Generated for MEDISCAN Document AI training | Batch ID: AUS-TRN-0041SYNTHETIC TRAINING DOCUMENT - NOT FOR CLINICAL USEPatient Name:Gregory Raj ContiDate of Birth:26/07/1937 (Age 88)Address:160 River Tce, LeichhardtNSW 2040GP:Dr Richard Hussein, BaysideMedical CentreMedical Record No.:895263Medicare No.:5510 30224 7Next of Kin:Priya Conti (Wife) 0443 501921Allergies:Iodine contrast (mild rash)ADMISSION DETAILSDate Admitted:13/09/2025 via EmergencyDeptWard:5B (Cardiology)Admitting Clinician:Dr H. Nandakumar (AdvancedTrainee, Cardiology)DischargeDestination:Home with community nursingDate Discharged:15/09/2025Length of Stay:2 daysConsultant:A/Prof M. Whitfield (StaffSpecialist)Discharge Mode:Self / family transportPRESENTING COMPLAINTMr Conti attends for cardiology review with 6-month Past medical history of gradually gradually worsening dyspnoeaon exertion. Also, chest tightness. Episode of near-syncope on stairs a 2-week history ago. Now limited to 50mwalking.PRINCIPAL DIAGNOSISSevere aortic stenosis with progressive exertional symptoms (ICD-10-AM: I35.0)ADDITIONAL DIAGNOSES1. Hypertension2. Atrial fibrillation (paroxysmal)3. Mild chronic kidney diseaseHOSPITAL COURSEAdmitted for elective transcatheter aortic valve implantation (TAVI) workup. Heart team review confirmed appropriatefor TAVI. Pre-procedure CT and angiogram completed. Procedure performed without complication; transfemoralapproach. Discharged Day 3 post-procedure on dual antiplatelet therapy.MEDICATIONS AT DISCHARGEMedicationDose / Route / FrequencyNotesAspirin100mg PO maneNEW - lifelongClopidogrel75mg PO maneNEW - 6 monthsApixaban5mg PO BDUnchanged - paroxysmal AFBisoprolol5mg PO maneUnchangedFurosemide40mg PO maneUnchangedKEY INVESTIGATIONSBloods on admission (13/09/2025): BNP 420 pg/mL (H), Creatinine 108 umol/L, Hb 118 g/L (L). [PDF PAGE 2] MRN: 895263 | Conti, Gregory | DOB: 26/07/1937Hunter Valley Base Hospital - Discharge Summary (continued)All",
+          "Age": "1] Hunter Valley Base HospitalDischarge Summary300 Vineyard Drive, Hunter Valley Central NSW 2330 | Tel: (02) 4998 2000 | Fax: (02) 4998 2001Hunter New England Local Health District | NSW HealthAll",
+          "Sex": null,
+          "CivilStatus": null,
+          "HospitalNo": null,
+          "Service": null,
+          "RoomWard": null,
+          "AttendingPhysician": null,
+          "ReferralDoctors": null,
+          "DateAdmitted": "13/09/2025 via EmergencyDeptWard:5B (Cardiology)Admitting Clinician:Dr H. Nandakumar (AdvancedTrainee, Cardiology)DischargeDestination:Home with community nursingDate Discharged:15/09/2025Length of Stay:2 daysConsultant:A/Prof M. Whitfield (StaffSpecialist)Discharge Mode:Self / family transportPRESENTING COMPLAINTMr Conti attends for cardiology review with 6-month Past medical history of gradually gradually worsening dyspnoeaon exertion. Also, chest tightness. Episode of near-syncope on stairs a 2-week history ago. Now limited to 50mwalking.PRINCIPAL DIAGNOSISSevere aortic stenosis with progressive exertional symptoms (ICD-10-AM: I35.0)ADDITIONAL DIAGNOSES1. Hypertension2. Atrial fibrillation (paroxysmal)3. Mild chronic kidney diseaseHOSPITAL COURSEAdmitted for elective transcatheter aortic valve implantation (TAVI) workup. Heart team review confirmed appropriatefor TAVI. Pre-procedure CT and angiogram completed. Procedure performed without complication; transfemoralapproach. Discharged Day 3 post-procedure on dual antiplatelet therapy.MEDICATIONS AT DISCHARGEMedicationDose / Route / FrequencyNotesAspirin100mg PO maneNEW - lifelongClopidogrel75mg PO maneNEW - 6 monthsApixaban5mg PO BDUnchanged - paroxysmal AFBisoprolol5mg PO maneUnchangedFurosemide40mg PO maneUnchangedKEY INVESTIGATIONSBloods on admission (13/09/2025): BNP 420 pg/mL (H), Creatinine 108 umol/L, Hb 118 g/L (L). [PDF PAGE 2] MRN: 895263 | Conti, Gregory | DOB: 26/07/1937Hunter Valley Base Hospital - Discharge Summary (continued)All",
+          "TimeAdmitted": null,
+          "DateDischarged": "15/09/2025Length of Stay:2 daysConsultant:A/Prof M. Whitfield (StaffSpecialist)Discharge Mode:Self / family transportPRESENTING COMPLAINTMr Conti attends for cardiology review with 6-month Past medical history of gradually gradually worsening dyspnoeaon exertion. Also, chest tightness. Episode of near-syncope on stairs a 2-week history ago. Now limited to 50mwalking.PRINCIPAL DIAGNOSISSevere aortic stenosis with progressive exertional symptoms (ICD-10-AM: I35.0)ADDITIONAL DIAGNOSES1. Hypertension2. Atrial fibrillation (paroxysmal)3. Mild chronic kidney diseaseHOSPITAL COURSEAdmitted for elective transcatheter aortic valve implantation (TAVI) workup. Heart team review confirmed appropriatefor TAVI. Pre-procedure CT and angiogram completed. Procedure performed without complication; transfemoralapproach. Discharged Day 3 post-procedure on dual antiplatelet therapy.MEDICATIONS AT DISCHARGEMedicationDose / Route / FrequencyNotesAspirin100mg PO maneNEW - lifelongClopidogrel75mg PO maneNEW - 6 monthsApixaban5mg PO BDUnchanged - paroxysmal AFBisoprolol5mg PO maneUnchangedFurosemide40mg PO maneUnchangedKEY INVESTIGATIONSBloods on admission (13/09/2025): BNP 420 pg/mL (H), Creatinine 108 umol/L, Hb 118 g/L (L). [PDF PAGE 2] MRN: 895263 | Conti, Gregory | DOB: 26/07/1937Hunter Valley Base Hospital - Discharge Summary (continued)All",
+          "TimeDischarged": null
+        },
+        "ConditionOnDischarge": null,
+        "ChiefComplaint": null,
+        "AdmittingDiagnosis": null,
+        "FinalDiagnosis": null,
+        "HistoryOfPresentIllness": null,
+        "PastMedicalHistory": null,
+        "Allergies": "Iodine contrast (mild rash)ADMISSION DETAILSDate Admitted:13/09/2025 via Emergen",
+        "FollowUp": "PLAN1. Cardiology outpatient review at 6 weeks.2. GP review at 1 week.3. Repeat TTE at 30 days post-TAVI.4. Continue clopidogrel for 6 months.ALERTS AND PRECAUTIONSALLERGY: Iodine contrast (mild rash)TAVI valve in situ. Endocarditis prophylaxis for dental procedures.PREPARED BYDr Hamish Nandakumar, Advanced Trainee, CardiologyReviewed and approved by: A/Prof Matthew Whitfield, Staff Specialist, CardiologyDate: 15/09/2025 Dr H. Nandakumar (Advanced Trainee)A/Prof M. Whitfield (Staff Specialist)",
+        "PhysicalExam": {
+          "Vitals": null,
+          "Findings": null
+        },
+        "LaboratoryData": null,
+        "Labs": [],
+        "HospitalCourse": [],
+        "Medications": [],
+        "Instructions": []
+      }
+    },
+    {
+      "File": "australian\\pdfs\\0042_discharge_summary_CELLULITIS_Pham.pdf",
+      "TextCharacters": 2805,
+      "InferredLabType": "unknown",
+      "Labs": [
+        {
+          "TestName": "GLUCOSE",
+          "RawValue": "9.8 mmol/L (H).Bloods at discharge (09/05/2025): WCC 8.2 x10^9/L, CRP 18 mg/L (H). [PDF PAGE 2] MRN: 145635 | Pham, Hass",
+          "NumericValue": null,
+          "Unit": null,
+          "ReferenceLow": null,
+          "ReferenceHigh": null,
+          "Flag": null
+        }
+      ],
+      "Discharge": {
+        "Header": {
+          "Facility": "[PDF PAGE 1] Greater Western HospitalDischarge Summary55 Federation Street, Western Plains NSW 2830 | Tel: (02) 6883 1000 | Fax: (02) 6883 1001Western NSW Local Health District | NSW HealthAll patient data is fictional. Any resemblance to real individuals is coincidental.Generated for MEDISCAN Document AI training | Batch ID: AUS-TRN-0042SYNTHETIC TRAINING DOCUMENT - NOT FOR CLINICAL USEPatient Name:Hassan Nicholas PhamDate of Birth:05/08/1963 (Age 62)Address:349 Castlereagh Pde,Chatswood NSW 2067GP:Dr Olivia Chen, Tweed CoastFamily MedicineMedical Record No.:145635Medicare No.:5586 71046 4Next of Kin:Robert Pham (Brother) 0452497 341Allergies:Penicillin (rash), NSAIDs(asthma)ADMISSION DETAILSDate Admitted:07/05/2025 via EmergencyDeptWard:8E (Geriatrics)Admitting Clinician:Dr P. Walker (PGY3 Registrar,General Medicine)DischargeDestination:Home (independent)Date Discharged:09/05/2025Length of Stay:2 daysConsultant:Dr R. Liu (Staff Specialist)Discharge Mode:Patient transportPRESENTING COMPLAINTMr Pham was brought in with a 4-day history of progressive redness, warmth. Also, pain over the right lower leg.Reported a small skin break following gardening 1 week prior. Fevers to 38.5 C in the past 24 hours.PRINCIPAL DIAGNOSISCellulitis of right lower leg (ICD-10-AM: L03.115)ADDITIONAL DIAGNOSES1. Type 2 diabetes mellitus2. Chronic venous insufficiency3. Tinea pedisHOSPITAL COURSETreated with IV flucloxacillin 2g 6-hourly with marked recovery of erythema and resolution of fevers within 48 hours.Switched to oral cefalexin to complete a 10-day total antibiotic course. Tinea pedis identified as likely portal of entry;treated with topical terbinafine. Diabetes optimised during admission with input from diabetes educator.MEDICATIONS AT DISCHARGEMedicationDose / Route / FrequencyNotesCefalexin500mg PO QIDNEW - 6 days remainingTerbinafine1% TOP dailyNEW - to feet for tinea pedis, 4 weeksMetformin1000mg PO BDUnchangedAtorvastatin20mg PO nocteUnchangedParacetamol1g PO QID PRNfor painKEY INVESTIGATIONSBloods on admission (07/05/2025): WCC 13.6 x10^9/L (H), CRP 98 mg/L (H), Glucose 9.8 mmol/L (H).Bloods at discharge (09/05/2025): WCC 8.2 x10^9/L, CRP 18 mg/L (H). [PDF PAGE 2] MRN: 145635 | Pham, Hassan | DOB: 05/08/1963Greater Western Hospital -",
+          "DocumentTitle": "Discharge Summary",
+          "PatientName": "data is fictional. Any resemblance to real individuals is coincidental.Generated for MEDISCAN Document AI training | Batch ID: AUS-TRN-0042SYNTHETIC TRAINING DOCUMENT - NOT FOR CLINICAL USEPatient Name:Hassan Nicholas PhamDate of Birth:05/08/1963 (Age 62)Address:349 Castlereagh Pde,Chatswood NSW 2067GP:Dr Olivia Chen, Tweed CoastFamily MedicineMedical Record No.:145635Medicare No.:5586 71046 4Next of Kin:Robert Pham (Brother) 0452497 341Allergies:Penicillin (rash), NSAIDs(asthma)ADMISSION DETAILSDate Admitted:07/05/2025 via EmergencyDeptWard:8E (Geriatrics)Admitting Clinician:Dr P. Walker (PGY3 Registrar,General Medicine)DischargeDestination:Home (independent)Date Discharged:09/05/2025Length of Stay:2 daysConsultant:Dr R. Liu (Staff Specialist)Discharge Mode:Patient transportPRESENTING COMPLAINTMr Pham was brought in with a 4-day history of progressive redness, warmth. Also, pain over the right lower leg.Reported a small skin break following gardening 1 week prior. Fevers to 38.5 C in the past 24 hours.PRINCIPAL DIAGNOSISCellulitis of right lower leg (ICD-10-AM: L03.115)ADDITIONAL DIAGNOSES1. Type 2 diabetes mellitus2. Chronic venous insufficiency3. Tinea pedisHOSPITAL COURSETreated with IV flucloxacillin 2g 6-hourly with marked recovery of erythema and resolution of fevers within 48 hours.Switched to oral cefalexin to complete a 10-day total antibiotic course. Tinea pedis identified as likely portal of entry;treated with topical terbinafine. Diabetes optimised during admission with input from diabetes educator.MEDICATIONS AT DISCHARGEMedicationDose / Route / FrequencyNotesCefalexin500mg PO QIDNEW - 6 days remainingTerbinafine1% TOP dailyNEW - to feet for tinea pedis, 4 weeksMetformin1000mg PO BDUnchangedAtorvastatin20mg PO nocteUnchangedParacetamol1g PO QID PRNfor painKEY INVESTIGATIONSBloods on admission (07/05/2025): WCC 13.6 x10^9/L (H), CRP 98 mg/L (H), Glucose 9.8 mmol/L (H).Bloods at discharge (09/05/2025): WCC 8.2 x10^9/L, CRP 18 mg/L (H). [PDF PAGE 2] MRN: 145635 | Pham, Hassan | DOB: 05/08/1963Greater Western Hospital - Discharge Summary (continued)All",
+          "Age": "1] Greater Western HospitalDischarge Summary55 Federation Street, Western Plains NSW 2830 | Tel: (02) 6883 1000 | Fax: (02) 6883 1001Western NSW Local Health District | NSW HealthAll",
+          "Sex": null,
+          "CivilStatus": null,
+          "HospitalNo": null,
+          "Service": null,
+          "RoomWard": null,
+          "AttendingPhysician": null,
+          "ReferralDoctors": null,
+          "DateAdmitted": "07/05/2025 via EmergencyDeptWard:8E (Geriatrics)Admitting Clinician:Dr P. Walker (PGY3 Registrar,General Medicine)DischargeDestination:Home (independent)Date Discharged:09/05/2025Length of Stay:2 daysConsultant:Dr R. Liu (Staff Specialist)Discharge Mode:Patient transportPRESENTING COMPLAINTMr Pham was brought in with a 4-day history of progressive redness, warmth. Also, pain over the right lower leg.Reported a small skin break following gardening 1 week prior. Fevers to 38.5 C in the past 24 hours.PRINCIPAL DIAGNOSISCellulitis of right lower leg (ICD-10-AM: L03.115)ADDITIONAL DIAGNOSES1. Type 2 diabetes mellitus2. Chronic venous insufficiency3. Tinea pedisHOSPITAL COURSETreated with IV flucloxacillin 2g 6-hourly with marked recovery of erythema and resolution of fevers within 48 hours.Switched to oral cefalexin to complete a 10-day total antibiotic course. Tinea pedis identified as likely portal of entry;treated with topical terbinafine. Diabetes optimised during admission with input from diabetes educator.MEDICATIONS AT DISCHARGEMedicationDose / Route / FrequencyNotesCefalexin500mg PO QIDNEW - 6 days remainingTerbinafine1% TOP dailyNEW - to feet for tinea pedis, 4 weeksMetformin1000mg PO BDUnchangedAtorvastatin20mg PO nocteUnchangedParacetamol1g PO QID PRNfor painKEY INVESTIGATIONSBloods on admission (07/05/2025): WCC 13.6 x10^9/L (H), CRP 98 mg/L (H), Glucose 9.8 mmol/L (H).Bloods at discharge (09/05/2025): WCC 8.2 x10^9/L, CRP 18 mg/L (H). [PDF PAGE 2] MRN: 145635 | Pham, Hassan | DOB: 05/08/1963Greater Western Hospital - Discharge Summary (continued)All",
+          "TimeAdmitted": null,
+          "DateDischarged": "09/05/2025Length of Stay:2 daysConsultant:Dr R. Liu (Staff Specialist)Discharge Mode:Patient transportPRESENTING COMPLAINTMr Pham was brought in with a 4-day history of progressive redness, warmth. Also, pain over the right lower leg.Reported a small skin break following gardening 1 week prior. Fevers to 38.5 C in the past 24 hours.PRINCIPAL DIAGNOSISCellulitis of right lower leg (ICD-10-AM: L03.115)ADDITIONAL DIAGNOSES1. Type 2 diabetes mellitus2. Chronic venous insufficiency3. Tinea pedisHOSPITAL COURSETreated with IV flucloxacillin 2g 6-hourly with marked recovery of erythema and resolution of fevers within 48 hours.Switched to oral cefalexin to complete a 10-day total antibiotic course. Tinea pedis identified as likely portal of entry;treated with topical terbinafine. Diabetes optimised during admission with input from diabetes educator.MEDICATIONS AT DISCHARGEMedicationDose / Route / FrequencyNotesCefalexin500mg PO QIDNEW - 6 days remainingTerbinafine1% TOP dailyNEW - to feet for tinea pedis, 4 weeksMetformin1000mg PO BDUnchangedAtorvastatin20mg PO nocteUnchangedParacetamol1g PO QID PRNfor painKEY INVESTIGATIONSBloods on admission (07/05/2025): WCC 13.6 x10^9/L (H), CRP 98 mg/L (H), Glucose 9.8 mmol/L (H).Bloods at discharge (09/05/2025): WCC 8.2 x10^9/L, CRP 18 mg/L (H). [PDF PAGE 2] MRN: 145635 | Pham, Hassan | DOB: 05/08/1963Greater Western Hospital - Discharge Summary (continued)All",
+          "TimeDischarged": null
+        },
+        "ConditionOnDischarge": null,
+        "ChiefComplaint": null,
+        "AdmittingDiagnosis": null,
+        "FinalDiagnosis": null,
+        "HistoryOfPresentIllness": null,
+        "PastMedicalHistory": null,
+        "Allergies": "Penicillin (rash), NSAIDs(asthma)ADMISSION DETAILSDate Admitted:07/05/2025 via E",
+        "FollowUp": "PLAN1. Complete remaining 6 days of oral cefalexin.2. Re-present to ED if worsening erythema, fever, or systemic symptoms.3. GP review at 1 week for clinical review and consideration of compression therapy.4. Continue topical antifungal therapy for 4 weeks.ALERTS AND PRECAUTIONSALLERGY: Penicillin (rash)ALLERGY: NSAIDs (asthma)Diabetes optimisation referral.Foot care education provided to reduce risk of recurrence.PREPARED BYDr Priya Walker, PGY3 Registrar, General MedicineReviewed and approved by: Dr Robert Liu, Staff Specialist, General MedicineDate: 09/05/2025 Dr P. Walker (PGY3 Registrar)Dr R. Liu (Staff Specialist)",
+        "PhysicalExam": {
+          "Vitals": null,
+          "Findings": null
+        },
+        "LaboratoryData": null,
+        "Labs": [],
+        "HospitalCourse": [],
+        "Medications": [],
+        "Instructions": []
+      }
+    },
+    {
+      "File": "australian\\pdfs\\0044_pathology_report_PANCREATIC_CA_Kaminski.pdf",
+      "TextCharacters": 1386,
+      "InferredLabType": "unknown",
+      "Labs": [
+        {
+          "TestName": "BILIRUBIN",
+          "RawValue": "168 umol/L. CT demonstrated 28mm pancreatic head mass with biliary obstruction.EUS-guided biopsy confirmed adenocarcinom",
+          "NumericValue": null,
+          "Unit": null,
+          "ReferenceLow": null,
+          "ReferenceHigh": null,
+          "Flag": null
+        }
+      ],
+      "Discharge": {
+        "Header": {
+          "Facility": "[PDF PAGE 1] Sydney Diagnostic PathologyHistopathology ReportLevel 5, 200 George Street, Sydney NSW 2000Tel: (02) 9290 2000 | Fax: (02) 9290 2001NATA Accredited Laboratory No. 14091SYNTHETIC TRAINING DOCUMENTLab Ref: H26-04035All patient data is fictional. Any resemblance to real individuals is coincidental.Generated for MEDISCAN Document AI training | Batch ID: AUS-TRN-0044SYNTHETIC TRAINING DOCUMENT - NOT FOR CLINICAL USEPatient NameBrenda Amelia KaminskiDate of Birth22/08/1950 (Age 75)Address58 Eucalyptus Cres, KillaraNSW 2071Specimen Collected21/09/2026Specimen TypeTissue specimenMedical Record No.541062Medicare No.3286 18061 7Requesting ClinicianDr J. HossainSpecimen Received21/09/2026 17:20FacilityHunter Valley Base HospitalCLINICAL NOTESMrs Kaminski presented with 6-week history of progressive jaundice, unintentional weight loss (8kg), andsteatorrhoea. Bilirubin 168 umol/L. CT demonstrated 28mm pancreatic head mass with biliary obstruction.EUS-guided biopsy confirmed adenocarcinoma.MACROSCOPIC DESCRIPTIONSpecimen received and processed per standard protocol. Sections submitted as labelled.MICROSCOPIC DESCRIPTIONSections show histologically unremarkable tissue with no evidence of malignancy.DIAGNOSISPancreatic ductal adenocarcinoma (head of pancreas, T2N1M0)Tissue specimenCOMMENTFindings as described. Clinical correlation suggested.AUTHORISED BYDr Anish Brown, FRCPAStaff Specialist, Anatomical PathologyProvider No.: TRN-PROV-83011Date reported: 24/09/2026Electronically authorised. No signature required. Dr A. Brown (Pathologist)",
+          "DocumentTitle": null,
+          "PatientName": "data is fictional. Any resemblance to real individuals is coincidental.Generated for MEDISCAN Document AI training | Batch ID: AUS-TRN-0044SYNTHETIC TRAINING DOCUMENT - NOT FOR CLINICAL USEPatient NameBrenda Amelia KaminskiDate of Birth22/08/1950 (Age 75)Address58 Eucalyptus Cres, KillaraNSW 2071Specimen Collected21/09/2026Specimen TypeTissue specimenMedical Record No.541062Medicare No.3286 18061 7Requesting ClinicianDr J. HossainSpecimen Received21/09/2026 17:20FacilityHunter Valley Base HospitalCLINICAL NOTESMrs Kaminski presented with 6-week history of progressive jaundice, unintentional weight loss (8kg), andsteatorrhoea. Bilirubin 168 umol/L. CT demonstrated 28mm pancreatic head mass with biliary obstruction.EUS-guided biopsy confirmed adenocarcinoma.MACROSCOPIC DESCRIPTIONSpecimen received and processed per standard protocol. Sections submitted as labelled.MICROSCOPIC DESCRIPTIONSections show histologically unremarkable tissue with no evidence of malignancy.DIAGNOSISPancreatic ductal adenocarcinoma (head of pancreas, T2N1M0)Tissue specimenCOMMENTFindings as described. Clinical correlation suggested.AUTHORISED BYDr Anish Brown, FRCPAStaff Specialist, Anatomical PathologyProvider No.: TRN-PROV-83011Date reported: 24/09/2026Electronically authorised. No signature required. Dr A. Brown (Pathologist)",
+          "Age": "1] Sydney Diagnostic PathologyHistopathology ReportLevel 5, 200 George Street, Sydney NSW 2000Tel: (02) 9290 2000 | Fax: (02) 9290 2001NATA Accredited Laboratory No. 14091SYNTHETIC TRAINING DOCUMENTLab Ref: H26-04035All",
+          "Sex": null,
+          "CivilStatus": null,
+          "HospitalNo": null,
+          "Service": null,
+          "RoomWard": null,
+          "AttendingPhysician": null,
+          "ReferralDoctors": null,
+          "DateAdmitted": null,
+          "TimeAdmitted": null,
+          "DateDischarged": null,
+          "TimeDischarged": null
+        },
+        "ConditionOnDischarge": null,
+        "ChiefComplaint": null,
+        "AdmittingDiagnosis": null,
+        "FinalDiagnosis": null,
+        "HistoryOfPresentIllness": null,
+        "PastMedicalHistory": null,
+        "Allergies": null,
+        "FollowUp": null,
+        "PhysicalExam": {
+          "Vitals": null,
+          "Findings": null
+        },
+        "LaboratoryData": null,
+        "Labs": [],
+        "HospitalCourse": [],
+        "Medications": [],
+        "Instructions": []
+      }
+    },
+    {
+      "File": "australian\\pdfs\\0048_discharge_summary_PE_PULMONARY_EMBOLISM_Stewart.pdf",
+      "TextCharacters": 2496,
+      "InferredLabType": "unknown",
+      "Labs": [],
+      "Discharge": {
+        "Header": {
+          "Facility": "[PDF PAGE 1] Greater Western HospitalDischarge Summary55 Federation Street, Western Plains NSW 2830 | Tel: (02) 6883 1000 | Fax: (02) 6883 1001Western NSW Local Health District | NSW HealthAll patient data is fictional. Any resemblance to real individuals is coincidental.Generated for MEDISCAN Document AI training | Batch ID: AUS-TRN-0048SYNTHETIC TRAINING DOCUMENT - NOT FOR CLINICAL USEPatient Name:Ryan Christopher StewartDate of Birth:25/06/1977 (Age 48)Address:309 King Cl, Leichhardt NSW2040GP:Dr Zara Jones, EastsideGeneral PracticeMedical Record No.:545161Medicare No.:5877 95436 2Next of Kin:Stefan Stewart (Father) 0456764 302Allergies:Aspirin (asthma)ADMISSION DETAILSDate Admitted:04/04/2025 via EmergencyDeptWard:6C (Respiratory)Admitting Clinician:Dr O. Lin (Advanced Trainee,Respiratory Medicine)DischargeDestination:Home (independent)Date Discharged:09/04/2025Length of Stay:5 daysConsultant:A/Prof S. Goldstein (StaffSpecialist)Discharge Mode:Patient transportPRESENTING COMPLAINTMr Stewart presented with sudden-onset right-sided pleuritic chest pain and progressive dyspnoea over 24 hours.Recent 14-hour flight a three-day history prior. SpO2 91% on arrival.PRINCIPAL DIAGNOSISAcute bilateral pulmonary embolism (ICD-10-AM: I26.99)ADDITIONAL DIAGNOSES1. Recent long-haul travel2. Hormonal contraception (where applicable)",
+          "DocumentTitle": null,
+          "PatientName": "data is fictional. Any resemblance to real individuals is coincidental.Generated for MEDISCAN Document AI training | Batch ID: AUS-TRN-0048SYNTHETIC TRAINING DOCUMENT - NOT FOR CLINICAL USEPatient Name:Ryan Christopher StewartDate of Birth:25/06/1977 (Age 48)Address:309 King Cl, Leichhardt NSW2040GP:Dr Zara Jones, EastsideGeneral PracticeMedical Record No.:545161Medicare No.:5877 95436 2Next of Kin:Stefan Stewart (Father) 0456764 302Allergies:Aspirin (asthma)ADMISSION DETAILSDate Admitted:04/04/2025 via EmergencyDeptWard:6C (Respiratory)Admitting Clinician:Dr O. Lin (Advanced Trainee,Respiratory Medicine)DischargeDestination:Home (independent)Date Discharged:09/04/2025Length of Stay:5 daysConsultant:A/Prof S. Goldstein (StaffSpecialist)Discharge Mode:Patient transportPRESENTING COMPLAINTMr Stewart presented with sudden-onset right-sided pleuritic chest pain and progressive dyspnoea over 24 hours.Recent 14-hour flight a three-day history prior. SpO2 91% on arrival.PRINCIPAL DIAGNOSISAcute bilateral pulmonary embolism (ICD-10-AM: I26.99)ADDITIONAL DIAGNOSES1. Recent long-haul travel2. Hormonal contraception (where applicable)",
+          "Age": "1] Greater Western HospitalDischarge Summary55 Federation Street, Western Plains NSW 2830 | Tel: (02) 6883 1000 | Fax: (02) 6883 1001Western NSW Local Health District | NSW HealthAll",
+          "Sex": null,
+          "CivilStatus": null,
+          "HospitalNo": null,
+          "Service": null,
+          "RoomWard": null,
+          "AttendingPhysician": null,
+          "ReferralDoctors": null,
+          "DateAdmitted": "04/04/2025 via EmergencyDeptWard:6C (Respiratory)Admitting Clinician:Dr O. Lin (Advanced Trainee,Respiratory Medicine)DischargeDestination:Home (independent)Date Discharged:09/04/2025Length of Stay:5 daysConsultant:A/Prof S. Goldstein (StaffSpecialist)Discharge Mode:Patient transportPRESENTING COMPLAINTMr Stewart presented with sudden-onset right-sided pleuritic chest pain and progressive dyspnoea over 24 hours.Recent 14-hour flight a three-day history prior. SpO2 91% on arrival.PRINCIPAL DIAGNOSISAcute bilateral pulmonary embolism (ICD-10-AM: I26.99)ADDITIONAL DIAGNOSES1. Recent long-haul travel2. Hormonal contraception (where applicable)",
+          "TimeAdmitted": null,
+          "DateDischarged": "09/04/2025Length of Stay:5 daysConsultant:A/Prof S. Goldstein (StaffSpecialist)Discharge Mode:Patient transportPRESENTING COMPLAINTMr Stewart presented with sudden-onset right-sided pleuritic chest pain and progressive dyspnoea over 24 hours.Recent 14-hour flight a three-day history prior. SpO2 91% on arrival.PRINCIPAL DIAGNOSISAcute bilateral pulmonary embolism (ICD-10-AM: I26.99)ADDITIONAL DIAGNOSES1. Recent long-haul travel2. Hormonal contraception (where applicable)",
+          "TimeDischarged": null
+        },
+        "ConditionOnDischarge": null,
+        "ChiefComplaint": null,
+        "AdmittingDiagnosis": null,
+        "FinalDiagnosis": null,
+        "HistoryOfPresentIllness": null,
+        "PastMedicalHistory": null,
+        "Allergies": "Aspirin (asthma)ADMISSION DETAILSDate Admitted:04/04/2025 via EmergencyDeptWard:",
+        "FollowUp": "PLAN [PDF PAGE 2] MRN: 545161 | Stewart, Ryan | DOB: 25/06/1977Greater Western Hospital - Discharge Summary (continued)All patient data is fictional. Any resemblance to real individuals is coincidental.Generated for MEDISCAN Document AI training | Batch ID: AUS-TRN-0048SYNTHETIC TRAINING DOCUMENT - NOT FOR CLINICAL USE1. Continue apixaban for 6 months minimum.2. GP review at 1 week.3. Respiratory clinic at 4 weeks.4. Outpatient thrombophilia screen.ALERTS AND PRECAUTIONSALLERGY: Aspirin (asthma)Anticoagulation: bleeding risk discussed. Avoid contact sports.PREPARED BYDr Olivia Lin, Advanced Trainee, Respiratory MedicineReviewed and approved by: A/Prof Steven Goldstein, Staff Specialist, Respiratory MedicineDate: 09/04/2025 Dr O. Lin (Advanced Trainee)A/Prof S. Goldstein (Staff Specialist)",
+        "PhysicalExam": {
+          "Vitals": null,
+          "Findings": null
+        },
+        "LaboratoryData": null,
+        "Labs": [],
+        "HospitalCourse": [],
+        "Medications": [],
+        "Instructions": []
+      }
+    },
+    {
+      "File": "recognition\\data\\pdf\\synthetic_Adam_Hirthe_1ce276e5_diagnostic_type_1_ver_1_dpi_300_clear_2p_img.pdf",
+      "TextCharacters": 0,
+      "InferredLabType": "unknown",
+      "Labs": [],
+      "Discharge": {
+        "Header": {
+          "Facility": "[PDF PAGE 1] [PDF PAGE 2]",
+          "DocumentTitle": null,
+          "PatientName": null,
+          "Age": "1] [PDF PAGE 2]",
+          "Sex": null,
+          "CivilStatus": null,
+          "HospitalNo": null,
+          "Service": null,
+          "RoomWard": null,
+          "AttendingPhysician": null,
+          "ReferralDoctors": null,
+          "DateAdmitted": null,
+          "TimeAdmitted": null,
+          "DateDischarged": null,
+          "TimeDischarged": null
+        },
+        "ConditionOnDischarge": null,
+        "ChiefComplaint": null,
+        "AdmittingDiagnosis": null,
+        "FinalDiagnosis": null,
+        "HistoryOfPresentIllness": null,
+        "PastMedicalHistory": null,
+        "Allergies": null,
+        "FollowUp": null,
+        "PhysicalExam": {
+          "Vitals": null,
+          "Findings": null
+        },
+        "LaboratoryData": null,
+        "Labs": [],
+        "HospitalCourse": [],
+        "Medications": [],
+        "Instructions": []
+      }
+    },
+    {
+      "File": "recognition\\data\\pdf\\synthetic_Adam_Hirthe_1ce276e5_diagnostic_type_1_ver_1.pdf",
+      "TextCharacters": 3454,
+      "InferredLabType": "unknown",
+      "Labs": [
+        {
+          "TestName": "LEUKOCYTES",
+          "RawValue": "7.605910",
+          "NumericValue": 7.605910,
+          "Unit": null,
+          "ReferenceLow": null,
+          "ReferenceHigh": null,
+          "Flag": null
+        },
+        {
+          "TestName": "HEMOGLOBIN",
+          "RawValue": "14.425",
+          "NumericValue": 14.425,
+          "Unit": null,
+          "ReferenceLow": null,
+          "ReferenceHigh": null,
+          "Flag": null
+        },
+        {
+          "TestName": "HEMATOCRIT",
+          "RawValue": "47.698",
+          "NumericValue": 47.698,
+          "Unit": "%",
+          "ReferenceLow": null,
+          "ReferenceHigh": null,
+          "Flag": null
+        },
+        {
+          "TestName": "MCV",
+          "RawValue": "87.658",
+          "NumericValue": 87.658,
+          "Unit": "fl",
+          "ReferenceLow": null,
+          "ReferenceHigh": null,
+          "Flag": null
+        },
+        {
+          "TestName": "MCH",
+          "RawValue": "29.16",
+          "NumericValue": 29.16,
+          "Unit": "pg",
+          "ReferenceLow": null,
+          "ReferenceHigh": null,
+          "Flag": null
+        },
+        {
+          "TestName": "MCHC",
+          "RawValue": "34.125",
+          "NumericValue": 34.125,
+          "Unit": "g/dl",
+          "ReferenceLow": null,
+          "ReferenceHigh": null,
+          "Flag": null
+        }
+      ],
+      "Discharge": {
+        "Header": {
+          "Facility": "[PDF PAGE 1] morzel.net Synthetic Med Data / diagnostic_type_1_ver_1Document for testing data retrieval and de-identification (record based on Synthea )NORTHSTAR SAMPLE MEDICAL LABORATORYDiagnostic ResultsFINAL RESULTS COPY PRINTED 08/23/2026PATIENT IDENTIFICATIONPATIENTAdam Prince HirtheMEDICAL RECORD NUMBER1ce276e5-6272-eb01-9538-8d6dbe669eabDATE OF BIRTH10/13/2004Allergen-specific antibody measurements11/20/2021 FinalTESTRESULTUNITREFERENCE RANGEFLAGPeanut IgE Ab [Units/volume] in Serum0.025542kU/LNot supplied Walnut IgE Ab [Units/volume] in Serum0.061475kU/LNot supplied Codfish IgE Ab [Units/volume] in Serum0.17658kU/LNot supplied Shrimp IgE Ab [Units/volume] in Serum0.31241kU/LNot supplied Wheat IgE Ab [Units/volume] in Serum0.038749kU/LNot supplied Egg white IgE Ab [Units/volume] in Serum0.2475kU/LNot supplied Soybean IgE Ab [Units/volume] in Serum0.081142kU/LNot supplied Cow milk IgE Ab [Units/volume] in Serum0.058352kU/LNot supplied White oak IgE Ab [Units/volume] in Serum0.18332kU/LNot supplied Common Ragweed IgE Ab [Units/volume] in Serum0.0087939kU/LNot supplied Cat dander IgE Ab [Units/volume] in Serum0.018786kU/LNot supplied American house dust mite IgE Ab [Units/volume] in Serum0.04421kU/LNot supplied Cladosporium herbarum IgE Ab [Units/volume] in Serum0.23223kU/LNot supplied Honey bee IgE Ab [Units/volume] in Serum0.3255kU/LNot supplied Latex IgE Ab [Units/volume] in Serum0.18481kU/LNot supplied CBC panel - Blood by Automated count11/25/2020 Final QUICK CARE CLINICTESTRESULTUNITREFERENCE RANGEFLAGLeukocytes [#/volume] in Blood by Automated count7.605910*3/uLNot supplied Erythrocytes [#/volume] in Blood by Automated count4.258710*6/uLNot supplied Hemoglobin [Mass/volume] in Blood14.425g/dLNot supplied Hematocrit [Volume Fraction] of Blood by Automated count47.698%Not supplied MCV [Entitic mean volume] in Red Blood Cells byAutomated count87.658fLNot supplied MCH [Entitic mass] by Automated count29.16pgNot supplied MCHC [Entitic Mass/volume] in Red Blood Cells byAutomated count34.125g/dLNot supplied Erythrocyte [DistWidth] in Blood by Automated count39.816fLNot supplied Platelets [#/volume] in Blood by Automated count436.3610*3/uLNot supplied Platelet distribution width [Entitic volume] in Blood byAutomated count480.32fLNot supplied [PDF PAGE 2] TESTRESULTUNITREFERENCE RANGEFLAGPlatelet [Entitic mean volume] in Blood by Automated count11.641fLNot supplied Vital signs and body measurements12/13/2023 FinalTESTRESULTUNITREFERENCE RANGEFLAGBody Height166.1cmNot supplied Pain severity - 0-10 verbal numeric rating [Score] -Reported0{score}Not supplied Body Weight61.6kgNot supplied Body mass index (BMI) [Ratio]22.32kg/m2Not supplied Body mass index (BMI) [Percentile] Per age and sex46.252%Not supplied Diastolic Blood Pressure91mm[Hg]Not supplied Systolic Blood Pressure132mm[Hg]Not supplied Heart rate97/minNot supplied Respiratory rate13/minNot supplied Additional quantitative measurements12/13/2023 FinalTESTRESULTUNITREFERENCE RANGEFLAGWhat was your best estimate of the total income of allfamily members from all sources, before taxes, in lastyear [PhenX]147460/aNot supplied How many people are living or staying at this address [#]3{#}Not supplied Alcohol Use Disorder Identification Test - Consumption [AUDIT-C]12/13/2023 FinalTESTRESULTUNITREFERENCE RANGEFLAGTotal score [AUDIT-C]1{score}Not supplied PHQ-9 quick depression assessment panel [Reported.PHQ]12/13/2023 FinalTESTRESULTUNITREFERENCE RANGEFLAGPatient Health Questionnaire 9 item (PHQ-9) total score[Reported]16{score}Not supplied Reference intervals and result interpretations appear only when supplied by the source FHIR record. This synthetic document is not for clinical use.morzel.net Synthetic Med Data / diagnostic_type_1_ver_1Document for testing data retrieval and de-identification (record based on Synthea )",
+          "DocumentTitle": null,
+          "PatientName": "IDENTIFICATIONPATIENTAdam Prince HirtheMEDICAL RECORD NUMBER1ce276e5-6272-eb01-9538-8d6dbe669eabDATE OF BIRTH10/13/2004Allergen-specific antibody measurements11/20/2021 FinalTESTRESULTUNITREFERENCE RANGEFLAGPeanut IgE Ab [Units/volume] in Serum0.025542kU/LNot supplied Walnut IgE Ab [Units/volume] in Serum0.061475kU/LNot supplied Codfish IgE Ab [Units/volume] in Serum0.17658kU/LNot supplied Shrimp IgE Ab [Units/volume] in Serum0.31241kU/LNot supplied Wheat IgE Ab [Units/volume] in Serum0.038749kU/LNot supplied Egg white IgE Ab [Units/volume] in Serum0.2475kU/LNot supplied Soybean IgE Ab [Units/volume] in Serum0.081142kU/LNot supplied Cow milk IgE Ab [Units/volume] in Serum0.058352kU/LNot supplied White oak IgE Ab [Units/volume] in Serum0.18332kU/LNot supplied Common Ragweed IgE Ab [Units/volume] in Serum0.0087939kU/LNot supplied Cat dander IgE Ab [Units/volume] in Serum0.018786kU/LNot supplied American house dust mite IgE Ab [Units/volume] in Serum0.04421kU/LNot supplied Cladosporium herbarum IgE Ab [Units/volume] in Serum0.23223kU/LNot supplied Honey bee IgE Ab [Units/volume] in Serum0.3255kU/LNot supplied Latex IgE Ab [Units/volume] in Serum0.18481kU/LNot supplied CBC panel - Blood by Automated count11/25/2020 Final QUICK CARE CLINICTESTRESULTUNITREFERENCE RANGEFLAGLeukocytes [#/volume] in Blood by Automated count7.605910*3/uLNot supplied Erythrocytes [#/volume] in Blood by Automated count4.258710*6/uLNot supplied Hemoglobin [Mass/volume] in Blood14.425g/dLNot supplied Hematocrit [Volume Fraction] of Blood by Automated count47.698%Not supplied MCV [Entitic mean volume] in Red Blood Cells byAutomated count87.658fLNot supplied MCH [Entitic mass] by Automated count29.16pgNot supplied MCHC [Entitic Mass/volume] in Red Blood Cells byAutomated count34.125g/dLNot supplied Erythrocyte [DistWidth] in Blood by Automated count39.816fLNot supplied Platelets [#/volume] in Blood by Automated count436.3610*3/uLNot supplied Platelet distribution width [Entitic volume] in Blood byAutomated count480.32fLNot supplied [PDF PAGE 2] TESTRESULTUNITREFERENCE RANGEFLAGPlatelet [Entitic mean volume] in Blood by Automated count11.641fLNot supplied Vital signs and body measurements12/13/2023 FinalTESTRESULTUNITREFERENCE RANGEFLAGBody Height166.1cmNot supplied Pain severity - 0-10 verbal numeric rating [Score] -Reported0{score}Not supplied Body Weight61.6kgNot supplied Body mass index (BMI) [Ratio]22.32kg/m2Not supplied Body mass index (BMI) [Percentile] Per",
+          "Age": "1] morzel.net Synthetic Med Data / diagnostic_type_1_ver_1Document for testing data retrieval and de-identification (record based on Synthea )NORTHSTAR SAMPLE MEDICAL LABORATORYDiagnostic ResultsFINAL RESULTS COPY PRINTED 08/23/2026PATIENT IDENTIFICATIONPATIENTAdam Prince HirtheMEDICAL RECORD NUMBER1ce276e5-6272-eb01-9538-8d6dbe669eabDATE OF BIRTH10/13/2004Allergen-specific antibody measurements11/20/2021 FinalTESTRESULTUNITREFERENCE RANGEFLAGPeanut IgE Ab [Units/volume] in Serum0.025542kU/LNot supplied Walnut IgE Ab [Units/volume] in Serum0.061475kU/LNot supplied Codfish IgE Ab [Units/volume] in Serum0.17658kU/LNot supplied Shrimp IgE Ab [Units/volume] in Serum0.31241kU/LNot supplied Wheat IgE Ab [Units/volume] in Serum0.038749kU/LNot supplied Egg white IgE Ab [Units/volume] in Serum0.2475kU/LNot supplied Soybean IgE Ab [Units/volume] in Serum0.081142kU/LNot supplied Cow milk IgE Ab [Units/volume] in Serum0.058352kU/LNot supplied White oak IgE Ab [Units/volume] in Serum0.18332kU/LNot supplied Common Ragweed IgE Ab [Units/volume] in Serum0.0087939kU/LNot supplied Cat dander IgE Ab [Units/volume] in Serum0.018786kU/LNot supplied American house dust mite IgE Ab [Units/volume] in Serum0.04421kU/LNot supplied Cladosporium herbarum IgE Ab [Units/volume] in Serum0.23223kU/LNot supplied Honey bee IgE Ab [Units/volume] in Serum0.3255kU/LNot supplied Latex IgE Ab [Units/volume] in Serum0.18481kU/LNot supplied CBC panel - Blood by Automated count11/25/2020 Final QUICK CARE CLINICTESTRESULTUNITREFERENCE RANGEFLAGLeukocytes [#/volume] in Blood by Automated count7.605910*3/uLNot supplied Erythrocytes [#/volume] in Blood by Automated count4.258710*6/uLNot supplied Hemoglobin [Mass/volume] in Blood14.425g/dLNot supplied Hematocrit [Volume Fraction] of Blood by Automated count47.698%Not supplied MCV [Entitic mean volume] in Red Blood Cells byAutomated count87.658fLNot supplied MCH [Entitic mass] by Automated count29.16pgNot supplied MCHC [Entitic Mass/volume] in Red Blood Cells byAutomated count34.125g/dLNot supplied Erythrocyte [DistWidth] in Blood by Automated count39.816fLNot supplied Platelets [#/volume] in Blood by Automated count436.3610*3/uLNot supplied Platelet distribution width [Entitic volume] in Blood byAutomated count480.32fLNot supplied [PDF PAGE 2] TESTRESULTUNITREFERENCE RANGEFLAGPlatelet [Entitic mean volume] in Blood by Automated count11.641fLNot supplied Vital signs and body measurements12/13/2023 FinalTESTRESULTUNITREFERENCE RANGEFLAGBody Height166.1cmNot supplied Pain severity - 0-10 verbal numeric rating [Score] -Reported0{score}Not supplied Body Weight61.6kgNot supplied Body mass index (BMI) [Ratio]22.32kg/m2Not supplied Body mass index (BMI) [Percentile] Per",
+          "Sex": "46.252%Not supplied Diastolic Blood Pressure91mm[Hg]Not supplied Systolic Blood Pressure132mm[Hg]Not supplied Heart rate97/minNot supplied Respiratory rate13/minNot supplied Additional quantitative measurements12/13/2023 FinalTESTRESULTUNITREFERENCE RANGEFLAGWhat was your best estimate of the total income of allfamily members from all sources, before taxes, in lastyear [PhenX]147460/aNot supplied How many people are living or staying at this address [#]3{#}Not supplied Alcohol Use Disorder Identification Test - Consumption [AUDIT-C]12/13/2023 FinalTESTRESULTUNITREFERENCE RANGEFLAGTotal score [AUDIT-C]1{score}Not supplied PHQ-9 quick depression assessment panel [Reported.PHQ]12/13/2023 FinalTESTRESULTUNITREFERENCE RANGEFLAGPatient Health Questionnaire 9 item (PHQ-9) total score[Reported]16{score}Not supplied Reference intervals and result interpretations appear only when supplied by the source FHIR record. This synthetic document is not for clinical use.morzel.net Synthetic Med Data / diagnostic_type_1_ver_1Document for testing data retrieval and de-identification (record based on Synthea )",
+          "CivilStatus": null,
+          "HospitalNo": null,
+          "Service": null,
+          "RoomWard": null,
+          "AttendingPhysician": null,
+          "ReferralDoctors": null,
+          "DateAdmitted": null,
+          "TimeAdmitted": null,
+          "DateDischarged": null,
+          "TimeDischarged": null
+        },
+        "ConditionOnDischarge": null,
+        "ChiefComplaint": null,
+        "AdmittingDiagnosis": null,
+        "FinalDiagnosis": null,
+        "HistoryOfPresentIllness": null,
+        "PastMedicalHistory": null,
+        "Allergies": null,
+        "FollowUp": null,
+        "PhysicalExam": {
+          "Vitals": null,
+          "Findings": null
+        },
+        "LaboratoryData": null,
+        "Labs": [],
+        "HospitalCourse": [],
+        "Medications": [],
+        "Instructions": []
+      }
+    },
+    {
+      "File": "recognition\\data\\pdf\\synthetic_Adam_Hirthe_1ce276e5_notes_type_1_ver_1.pdf",
+      "TextCharacters": 1783,
+      "InferredLabType": "unknown",
+      "Labs": [],
+      "Discharge": {
+        "Header": {
+          "Facility": "[PDF PAGE 1] morzel.net Synthetic Med Data / notes_type_1_ver_1Document for testing data retrieval and de-identification (record based on Synthea )PATIENT NAMEAdam Prince HirtheMEDICAL RECORD IDENTIFIER1ce276e5-6272-eb01-9538-8d6dbe669eabDATE OF BIRTH10/13/2004Recent Procedure NarrativeClinical summary prepared from selected recent procedure recordsProcedure summaryCLINICIAN NAMED IN RECENT RECORDDr. Domenic BlickINSTITUTION NAMED IN RECENT RECORDSALEM HOSPITALmorzel.net Synthetic Med Data / notes_type_1_ver_1Document for testing data retrieval and de-identification (record based on Synthea )ENCOUNTER DATE 12/27/2023The recent documented service history for Adam Prince Hirthe was reviewed. On 12/27/2023, the record describes oral health education,postoperative care for dental procedure, gingivectomy or gingivoplasty, per tooth, dental application of desensitizing medicament, and 6additional documented services. The associated entry identifies Dr. Domenic Blick as the clinician and SALEM HOSPITAL as the facility. Thesource entries are recorded as completed.ENCOUNTER DATE 12/13/2023An earlier entry documents additional services for Adam. On 12/13/2023, the record describes patient referral for dental care, assessment usingAlcohol Use Disorders Identification Test - Consumption, assessment of substance use, depression screening using Patient HealthQuestionnaire Nine Item score, and 4 additional documented services. The associated entry identifies Dr. Danuta Little as the clinician andQUICK CARE CLINIC as the facility. The source entries are recorded as completed.ENCOUNTER DATE 12/07/2022Hirthe\u0027s chart contains another entry documenting additional services. On 12/07/2022, the record describes assessment using Alcohol UseDisorders Identification Test - Consumption, assessment of substance use, assessment of anxiety, and assessment of health and social careneeds. The associated entry identifies Dr. Danuta Little as the clinician and QUICK CARE CLINIC as the facility. The source entries arerecorded as completed.",
+          "DocumentTitle": null,
+          "PatientName": "Adam Prince HirtheMEDICAL RECORD IDENTIFIER1ce276e5-6272-eb01-9538-8d6dbe669eabDATE OF BIRTH10/13/2004Recent Procedure NarrativeClinical summary prepared from selected recent procedure recordsProcedure summaryCLINICIAN NAMED IN RECENT RECORDDr. Domenic BlickINSTITUTION NAMED IN RECENT RECORDSALEM HOSPITALmorzel.net Synthetic Med Data / notes_type_1_ver_1Document for testing data retrieval and de-identification (record based on Synthea )ENCOUNTER DATE 12/27/2023The recent documented service history for Adam Prince Hirthe was reviewed. On 12/27/2023, the record describes oral health education,postoperative care for dental procedure, gingivectomy or gingivoplasty, per tooth, dental application of desensitizing medicament, and 6additional documented services. The associated entry identifies Dr. Domenic Blick as the clinician and SALEM HOSPITAL as the facility. Thesource entries are recorded as completed.ENCOUNTER DATE 12/13/2023An earlier entry documents additional services for Adam. On 12/13/2023, the record describes",
+          "Age": "1] morzel.net Synthetic Med Data / notes_type_1_ver_1Document for testing data retrieval and de-identification (record based on Synthea )PATIENT NAMEAdam Prince HirtheMEDICAL RECORD IDENTIFIER1ce276e5-6272-eb01-9538-8d6dbe669eabDATE OF BIRTH10/13/2004Recent Procedure NarrativeClinical summary prepared from selected recent procedure recordsProcedure summaryCLINICIAN NAMED IN RECENT RECORDDr. Domenic BlickINSTITUTION NAMED IN RECENT RECORDSALEM HOSPITALmorzel.net Synthetic Med Data / notes_type_1_ver_1Document for testing data retrieval and de-identification (record based on Synthea )ENCOUNTER DATE 12/27/2023The recent documented service history for Adam Prince Hirthe was reviewed. On 12/27/2023, the record describes oral health education,postoperative care for dental procedure, gingivectomy or gingivoplasty, per tooth, dental application of desensitizing medicament, and 6additional documented services. The associated entry identifies Dr. Domenic Blick as the clinician and SALEM HOSPITAL as the facility. Thesource entries are recorded as completed.ENCOUNTER DATE 12/13/2023An earlier entry documents additional services for Adam. On 12/13/2023, the record describes",
+          "Sex": null,
+          "CivilStatus": null,
+          "HospitalNo": null,
+          "Service": null,
+          "RoomWard": null,
+          "AttendingPhysician": null,
+          "ReferralDoctors": null,
+          "DateAdmitted": null,
+          "TimeAdmitted": null,
+          "DateDischarged": null,
+          "TimeDischarged": null
+        },
+        "ConditionOnDischarge": null,
+        "ChiefComplaint": null,
+        "AdmittingDiagnosis": null,
+        "FinalDiagnosis": null,
+        "HistoryOfPresentIllness": null,
+        "PastMedicalHistory": null,
+        "Allergies": null,
+        "FollowUp": null,
+        "PhysicalExam": {
+          "Vitals": null,
+          "Findings": null
+        },
+        "LaboratoryData": null,
+        "Labs": [],
+        "HospitalCourse": [],
+        "Medications": [],
+        "Instructions": []
+      }
+    },
+    {
+      "File": "recognition\\data\\pdf\\synthetic_Adam_Hirthe_1ce276e5_report_type_1_ver_1.pdf",
+      "TextCharacters": 5048,
+      "InferredLabType": "unknown",
+      "Labs": [
+        {
+          "TestName": "SODIUM",
+          "RawValue": "220",
+          "NumericValue": 220,
+          "Unit": null,
+          "ReferenceLow": null,
+          "ReferenceHigh": null,
+          "Flag": null
+        }
+      ],
+      "Discharge": {
+        "Header": {
+          "Facility": "[PDF PAGE 1] morzel.net Synthetic Med Data / report_type_1_ver_1Document for testing data retrieval and de-identification (record based on Synthea )Key Patient ReportConcise demographic and clinical summaryPrepared08/23/2026Adam Prince HirtheDATE OF BIRTH10/13/2004PATIENT ID1ce276e5-6272-eb01-9538-8d6dbe669eabAGE21SEXMalePHONE555-428-6464EMAILadam.hirthe@mail.example.comADDRESS1085 McDermott Parade Suite 96, Salem OR 97302,USAllergies and sensitivitiesDateDescriptionDetailsStatus07/11/2005Allergic disposition (finding)environmentActive07/11/2005Latex (substance)environmentActive07/11/2005Bee venom (substance)environmentActive07/11/2005Mold (organism)environmentActive07/11/2005House dust mite (organism)environmentActive07/11/2005Animal dander (substance)environmentActiveConditionsDateDescriptionDetailsStatus02/10/2024Viral sinusitis (disorder)Resolved 02/23/2024Resolved12/27/2023Gingival disease (disorder)Resolved 12/27/2023Resolved12/13/2023Limited social contact (finding) Active12/13/2023Stress (finding) Active12/07/2022Received higher education (finding) Active12/07/2022Full-time employment (finding) ActiveMedicationsDateDescriptionDetailsStatus12/15/2021Unspecified medication Completed07/08/2021Naproxen sodium 220 MG Oral TabletTake as needed.Completed11/28/2018Unspecified medication Completed11/22/2017Unspecified medication Completed [PDF PAGE 2] DateDescriptionDetailsStatus04/12/2017Acetaminophen 325 MG Oral TabletTake as needed.Completed11/04/2016Amoxicillin 250 MG / Clavulanate 125 MG OralTablet CompletedRecent encountersDateDescriptionDetailsStatus02/10/2024Encounter for symptom (procedure)SALEM HOSPITAL Dr. Domenic BlickFinished12/27/2023Encounter for check up (procedure)SALEM HOSPITAL Dr. Domenic BlickFinished12/13/2023General examination of patient (procedure)QUICK CARE CLINIC Dr. Danuta LittleFinished12/07/2022General examination of patient (procedure)QUICK CARE CLINIC Dr. Danuta LittleFinished12/15/2021Encounter for check up (procedure)SALEM HOSPITAL Dr. Domenic BlickFinishedRecent procedures and interventionsDateDescriptionDetailsStatus12/27/2023Oral health education (procedure)SALEM HOSPITALCompleted12/27/2023Postoperative care for dental procedure(regime/therapy)SALEM HOSPITALCompleted12/27/2023Gingivectomy or gingivoplasty, per tooth(procedure)SALEM HOSPITALCompleted12/27/2023Dental application of desensitizing medicament(procedure)SALEM HOSPITALCompleted12/27/2023Dental surgical procedure (procedure)SALEM HOSPITALCompleted12/27/2023Examination of gingivae (procedure)SALEM HOSPITALCompleted12/27/2023Removal of subgingival plaque and calculus fromall teeth using dental instrument (procedure)SALEM HOSPITALCompleted12/27/2023Removal of supragingival plaque and calculusfrom all teeth using dental instrument (procedure)SALEM HOSPITALCompletedRecent vaccinationsDateDescriptionDetailsStatus12/13/2023Influenza, split virus, trivalent, PFQUICK CARE CLINICCompleted12/07/2022Influenza, split virus, trivalent, PFQUICK CARE CLINICCompleted12/01/2021Influenza, split virus, trivalent, PFQUICK CARE CLINICCompleted05/12/2021COVID-19, mRNA, LNP-S, PF, 100 mcg/0.5mL doseor 50 mcg/0.25mL doseSALEM HOSPITALCompleted04/14/2021COVID-19, mRNA, LNP-S, PF, 100 mcg/0.5mL doseor 50 mcg/0.25mL doseSALEM HOSPITALCompleted [PDF PAGE 3] Latest observationsDateDescriptionDetailsStatus12/13/2023Total score [AUDIT-C]1 {score}Final12/13/2023Patient Health Questionnaire 9 item (PHQ-9) totalscore [Reported]16 {score}Final12/13/2023Patient Health Questionnaire 2 item (PHQ-2) totalscore [Reported]5 {score}Final12/13/2023Generalized anxiety disorder 7 item (GAD-7) totalscore [Reported.PHQ]2 {score}Final12/13/2023Protocol for Responding to and AssessingPatients\u0027 Assets, Risks, and Experiences[PRAPARE]Within the last year, have you been afraid of yourpartner or ex-partner: No; Do you feel physically andemotionally safe where you currently live [PRAPARE]:Yes; Are you a refugee: No; Have you spent more than2 nights in a row in a jail, prison, detention center, orjuvenile correctional facility in past 1 year [PRAPARE]:No; Stress level: A little bit; How often do you see or talkto people that you care about and feel close to[PRAPARE]: 1 or 2 times a week; Has lack oftransportation kept you from medical appointments,meetings, work, or from getting things needed for dailyliving: No; Have you or any family members you livewith been unable to get any of the following when it wasreally needed in past 1 year [PRAPARE]: I choose notto answer this question; What was your best estimateof the total income of all family members from allsources, before taxes, in last year [PhenX]: 147460 /a;Primary insurance: Private insurance; Employmentstatus - current: Full-time work; Highest level ofeducation: More than high school; Address: 1085McDermott Parade Suite 96; Are you worried aboutlosing your housing [PRAPARE]: No; Housing status: Ihave housing; How many people are living or staying atthis address [#]: 3 {#}; Preferred language: English;Discharged from the U.S. Armed Forces: No; Hasseason or migrant farm work been your or your family\u0027smain source of income at any point in past 2 years[PRAPARE]: No; Race: White; Hispanic or Latino: NoFinal12/13/2023Body Height166.1 cmFinal12/13/2023Pain severity - 0-10 verbal numeric rating [Score] -Reported0 {score}Final12/13/2023Body Weight61.6 kgFinalThis snapshot highlights selected current and recent information. It is not a replacement for the complete longitudinal medical record.morzel.net Synthetic Med Data / report_type_1_ver_1Document for testing data retrieval and de-identification (record based on Synthea )",
+          "DocumentTitle": null,
+          "PatientName": "ReportConcise demographic and clinical summaryPrepared08/23/2026Adam Prince HirtheDATE OF BIRTH10/13/2004PATIENT ID1ce276e5-6272-eb01-9538-8d6dbe669eabAGE21SEXMalePHONE555-428-6464EMAILadam.hirthe@mail.example.comADDRESS1085 McDermott Parade Suite 96, Salem OR 97302,USAllergies and sensitivitiesDateDescriptionDetailsStatus07/11/2005Allergic disposition (finding)environmentActive07/11/2005Latex (substance)environmentActive07/11/2005Bee venom (substance)environmentActive07/11/2005Mold (organism)environmentActive07/11/2005House dust mite (organism)environmentActive07/11/2005Animal dander (substance)environmentActiveConditionsDateDescriptionDetailsStatus02/10/2024Viral sinusitis (disorder)Resolved 02/23/2024Resolved12/27/2023Gingival disease (disorder)Resolved 12/27/2023Resolved12/13/2023Limited social contact (finding) Active12/13/2023Stress (finding) Active12/07/2022Received higher education (finding) Active12/07/2022Full-time employment (finding) ActiveMedicationsDateDescriptionDetailsStatus12/15/2021Unspecified medication Completed07/08/2021Naproxen sodium 220 MG Oral TabletTake as needed.Completed11/28/2018Unspecified medication Completed11/22/2017Unspecified medication Completed [PDF PAGE 2] DateDescriptionDetailsStatus04/12/2017Acetaminophen 325 MG Oral TabletTake as needed.Completed11/04/2016Amoxicillin 250 MG / Clavulanate 125 MG OralTablet CompletedRecent encountersDateDescriptionDetailsStatus02/10/2024Encounter for symptom (procedure)SALEM HOSPITAL Dr. Domenic BlickFinished12/27/2023Encounter for check up (procedure)SALEM HOSPITAL Dr. Domenic BlickFinished12/13/2023General examination of",
+          "Age": "1] morzel.net Synthetic Med Data / report_type_1_ver_1Document for testing data retrieval and de-identification (record based on Synthea )Key",
+          "Sex": "MalePHONE555-428-6464EMAILadam.hirthe@mail.example.comADDRESS1085 McDermott Parade Suite 96, Salem OR 97302,USAllergies and sensitivitiesDateDescriptionDetailsStatus07/11/2005Allergic disposition (finding)environmentActive07/11/2005Latex (substance)environmentActive07/11/2005Bee venom (substance)environmentActive07/11/2005Mold (organism)environmentActive07/11/2005House dust mite (organism)environmentActive07/11/2005Animal dander (substance)environmentActiveConditionsDateDescriptionDetailsStatus02/10/2024Viral sinusitis (disorder)Resolved 02/23/2024Resolved12/27/2023Gingival disease (disorder)Resolved 12/27/2023Resolved12/13/2023Limited social contact (finding) Active12/13/2023Stress (finding) Active12/07/2022Received higher education (finding) Active12/07/2022Full-time employment (finding) ActiveMedicationsDateDescriptionDetailsStatus12/15/2021Unspecified medication Completed07/08/2021Naproxen sodium 220 MG Oral TabletTake as needed.Completed11/28/2018Unspecified medication Completed11/22/2017Unspecified medication Completed [PDF PAGE 2] DateDescriptionDetailsStatus04/12/2017Acetaminophen 325 MG Oral TabletTake as needed.Completed11/04/2016Amoxicillin 250 MG / Clavulanate 125 MG OralTablet CompletedRecent encountersDateDescriptionDetailsStatus02/10/2024Encounter for symptom (procedure)SALEM HOSPITAL Dr. Domenic BlickFinished12/27/2023Encounter for check up (procedure)SALEM HOSPITAL Dr. Domenic BlickFinished12/13/2023General examination of",
+          "CivilStatus": "07/11/2005Allergic disposition (finding)environmentActive07/11/2005Latex (substance)environmentActive07/11/2005Bee venom (substance)environmentActive07/11/2005Mold (organism)environmentActive07/11/2005House dust mite (organism)environmentActive07/11/2005Animal dander (substance)environmentActiveConditionsDateDescriptionDetailsStatus02/10/2024Viral sinusitis (disorder)Resolved 02/23/2024Resolved12/27/2023Gingival disease (disorder)Resolved 12/27/2023Resolved12/13/2023Limited social contact (finding) Active12/13/2023Stress (finding) Active12/07/2022Received higher education (finding) Active12/07/2022Full-time employment (finding) ActiveMedicationsDateDescriptionDetailsStatus12/15/2021Unspecified medication Completed07/08/2021Naproxen sodium 220 MG Oral TabletTake as needed.Completed11/28/2018Unspecified medication Completed11/22/2017Unspecified medication Completed [PDF PAGE 2] DateDescriptionDetailsStatus04/12/2017Acetaminophen 325 MG Oral TabletTake as needed.Completed11/04/2016Amoxicillin 250 MG / Clavulanate 125 MG OralTablet CompletedRecent encountersDateDescriptionDetailsStatus02/10/2024Encounter for symptom (procedure)SALEM HOSPITAL Dr. Domenic BlickFinished12/27/2023Encounter for check up (procedure)SALEM HOSPITAL Dr. Domenic BlickFinished12/13/2023General examination of",
+          "HospitalNo": null,
+          "Service": null,
+          "RoomWard": null,
+          "AttendingPhysician": null,
+          "ReferralDoctors": null,
+          "DateAdmitted": null,
+          "TimeAdmitted": null,
+          "DateDischarged": null,
+          "TimeDischarged": null
+        },
+        "ConditionOnDischarge": null,
+        "ChiefComplaint": null,
+        "AdmittingDiagnosis": null,
+        "FinalDiagnosis": null,
+        "HistoryOfPresentIllness": null,
+        "PastMedicalHistory": null,
+        "Allergies": "and sensitivitiesDateDescriptionDetailsStatus07/11/2005Allergic disposition (fin",
+        "FollowUp": null,
+        "PhysicalExam": {
+          "Vitals": null,
+          "Findings": null
+        },
+        "LaboratoryData": null,
+        "Labs": [],
+        "HospitalCourse": [],
+        "Medications": [],
+        "Instructions": []
+      }
+    }
+  ]
+}

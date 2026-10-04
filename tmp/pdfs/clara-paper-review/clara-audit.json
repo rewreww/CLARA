@@ -1,0 +1,2294 @@
+{
+  "csv_sha256": "1cd77f7b8932fb248cb7390cf0c01bbb42863cd67fd11a93ef211315d6d9242c",
+  "shape": [
+    2008,
+    167
+  ],
+  "feature_count": 147,
+  "target_count": 8,
+  "missing_any_target": 1,
+  "target_counts": {
+    "heart_failure_type": {
+      "Both": 1480,
+      "Left": 477,
+      "Right": 51
+    },
+    "myocardial_infarction": {
+      "0": 1865,
+      "1": 143
+    },
+    "congestive_heart_failure": {
+      "1": 1872,
+      "0": 136
+    },
+    "death_28d": {
+      "0": 1971,
+      "1": 37
+    },
+    "readmission_28d": {
+      "0": 1868,
+      "1": 140
+    },
+    "death_6mo": {
+      "0": 1951,
+      "1": 57
+    },
+    "readmission_6mo": {
+      "0": 1235,
+      "1": 773
+    },
+    "ed_return_6mo": {
+      "0.0": 1232,
+      "1.0": 775,
+      "nan": 1
+    }
+  },
+  "duplicate_full_rows": 0,
+  "duplicate_features": 0,
+  "unused_columns": [
+    "Unnamed: 0",
+    "inpatient.number",
+    "DestinationDischarge",
+    "discharge.department",
+    "outcome.during.hospitalization",
+    "death.within.3.months",
+    "re.admission.within.3.months",
+    "time.of.death..days.from.admission.",
+    "re.admission.time..days.from.admission.",
+    "time.to.emergency.department.within.6.months",
+    "cholinesterase",
+    "dischargeDay"
+  ],
+  "id_columns": {},
+  "missing_feature_cells_percent": 19.54190042550885,
+  "features_over_50pct_missing": 40,
+  "features_over_80pct_missing": 9,
+  "constant_nonmissing_features": [
+    {
+      "feature": "leukemia",
+      "csv_column": "leukemia",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 1,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "oxygen_inhalation",
+      "csv_column": "oxygen.inhalation",
+      "missing_count": 110,
+      "missing_percent": 5.478,
+      "unique_nonmissing": 1,
+      "median": 1.0,
+      "min": 1.0,
+      "max": 1.0,
+      "coercion_losses": 110
+    },
+    {
+      "feature": "body_temperature_blood_gas",
+      "csv_column": "body.temperature.blood.gas",
+      "missing_count": 1015,
+      "missing_percent": 50.548,
+      "unique_nonmissing": 1,
+      "median": 37.0,
+      "min": 37.0,
+      "max": 37.0,
+      "coercion_losses": 0
+    }
+  ],
+  "feature_audit": [
+    {
+      "feature": "admission_ward",
+      "csv_column": "admission.ward",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 4,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 3.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "admission_way",
+      "csv_column": "admission.way",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 2,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 1.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "occupation",
+      "csv_column": "occupation",
+      "missing_count": 27,
+      "missing_percent": 1.345,
+      "unique_nonmissing": 5,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 4.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "visit_times",
+      "csv_column": "visit.times",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 5,
+      "median": 1.0,
+      "min": 1.0,
+      "max": 5.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "gender",
+      "csv_column": "gender",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 2,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 1.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "body_temperature",
+      "csv_column": "body.temperature",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 33,
+      "median": 36.3,
+      "min": 35.0,
+      "max": 42.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "pulse",
+      "csv_column": "pulse",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 123,
+      "median": 82.0,
+      "min": 0.0,
+      "max": 198.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "respiration",
+      "csv_column": "respiration",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 19,
+      "median": 19.0,
+      "min": 0.0,
+      "max": 36.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "systolic_blood_pressure",
+      "csv_column": "systolic.blood.pressure",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 122,
+      "median": 130.0,
+      "min": 0.0,
+      "max": 252.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "diastolic_blood_pressure",
+      "csv_column": "diastolic.blood.pressure",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 80,
+      "median": 76.0,
+      "min": 0.0,
+      "max": 146.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "map",
+      "csv_column": "map",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 219,
+      "median": 93.33333333,
+      "min": 0.0,
+      "max": 181.3333333,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "weight",
+      "csv_column": "weight",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 86,
+      "median": 50.0,
+      "min": 0.0,
+      "max": 115.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "height",
+      "csv_column": "height",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 51,
+      "median": 1.56,
+      "min": 0.35,
+      "max": 1.83,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "bmi",
+      "csv_column": "BMI",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 661,
+      "median": 20.76124567,
+      "min": 0.0,
+      "max": 404.0816327,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "nyha_class",
+      "csv_column": "NYHA.cardiac.function.classification",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 3,
+      "median": 3.0,
+      "min": 2.0,
+      "max": 4.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "killip_grade",
+      "csv_column": "Killip.grade",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 4,
+      "median": 2.0,
+      "min": 1.0,
+      "max": 4.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "peripheral_vascular_disease",
+      "csv_column": "peripheral.vascular.disease",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 2,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 1.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "cerebrovascular_disease",
+      "csv_column": "cerebrovascular.disease",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 2,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 1.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "dementia",
+      "csv_column": "dementia",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 2,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 1.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "copd",
+      "csv_column": "Chronic.obstructive.pulmonary.disease",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 2,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 1.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "connective_tissue_disease",
+      "csv_column": "connective.tissue.disease",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 2,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 1.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "peptic_ulcer_disease",
+      "csv_column": "peptic.ulcer.disease",
+      "missing_count": 2,
+      "missing_percent": 0.1,
+      "unique_nonmissing": 2,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 1.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "diabetes",
+      "csv_column": "diabetes",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 2,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 1.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "moderate_to_severe_chronic_kidney_disease",
+      "csv_column": "moderate.to.severe.chronic.kidney.disease",
+      "missing_count": 2,
+      "missing_percent": 0.1,
+      "unique_nonmissing": 2,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 1.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "hemiplegia",
+      "csv_column": "hemiplegia",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 2,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 1.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "leukemia",
+      "csv_column": "leukemia",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 1,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "malignant_lymphoma",
+      "csv_column": "malignant.lymphoma",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 2,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 1.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "solid_tumor",
+      "csv_column": "solid.tumor",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 2,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 1.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "liver_disease",
+      "csv_column": "liver.disease",
+      "missing_count": 1,
+      "missing_percent": 0.05,
+      "unique_nonmissing": 2,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 1.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "aids",
+      "csv_column": "AIDS",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 2,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 1.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "cci_score",
+      "csv_column": "CCI.score",
+      "missing_count": 5,
+      "missing_percent": 0.249,
+      "unique_nonmissing": 7,
+      "median": 2.0,
+      "min": 0.0,
+      "max": 6.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "type_ii_respiratory_failure",
+      "csv_column": "type.II.respiratory.failure",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 2,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 1.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "consciousness",
+      "csv_column": "consciousness",
+      "missing_count": 11,
+      "missing_percent": 0.548,
+      "unique_nonmissing": 3,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 2.0,
+      "coercion_losses": 11
+    },
+    {
+      "feature": "eye_opening",
+      "csv_column": "eye.opening",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 4,
+      "median": 4.0,
+      "min": 1.0,
+      "max": 4.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "verbal_response",
+      "csv_column": "verbal.response",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 5,
+      "median": 5.0,
+      "min": 1.0,
+      "max": 5.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "movement",
+      "csv_column": "movement",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 6,
+      "median": 6.0,
+      "min": 1.0,
+      "max": 6.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "respiratory_support",
+      "csv_column": "respiratory.support.",
+      "missing_count": 1966,
+      "missing_percent": 97.908,
+      "unique_nonmissing": 2,
+      "median": 1.0,
+      "min": 0.0,
+      "max": 1.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "oxygen_inhalation",
+      "csv_column": "oxygen.inhalation",
+      "missing_count": 110,
+      "missing_percent": 5.478,
+      "unique_nonmissing": 1,
+      "median": 1.0,
+      "min": 1.0,
+      "max": 1.0,
+      "coercion_losses": 110
+    },
+    {
+      "feature": "fio2",
+      "csv_column": "fio2",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 15,
+      "median": 33.0,
+      "min": 21.0,
+      "max": 100.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "acute_renal_failure",
+      "csv_column": "acute.renal.failure",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 2,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 1.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "lvef",
+      "csv_column": "LVEF",
+      "missing_count": 1373,
+      "missing_percent": 68.376,
+      "unique_nonmissing": 66,
+      "median": 51.0,
+      "min": 5.0,
+      "max": 82.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "lv_end_diastolic_diameter",
+      "csv_column": "left.ventricular.end.diastolic.diameter.LV",
+      "missing_count": 697,
+      "missing_percent": 34.711,
+      "unique_nonmissing": 63,
+      "median": 53.0,
+      "min": 0.3,
+      "max": 88.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "mitral_valve_ems",
+      "csv_column": "mitral.valve.EMS",
+      "missing_count": 1028,
+      "missing_percent": 51.195,
+      "unique_nonmissing": 199,
+      "median": 1.01,
+      "min": 0.03,
+      "max": 409.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "mitral_valve_ams",
+      "csv_column": "mitral.valve.AMS",
+      "missing_count": 1458,
+      "missing_percent": 72.61,
+      "unique_nonmissing": 133,
+      "median": 0.83,
+      "min": 0.06,
+      "max": 408.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "ea",
+      "csv_column": "EA",
+      "missing_count": 1615,
+      "missing_percent": 80.428,
+      "unique_nonmissing": 309,
+      "median": 0.98,
+      "min": 0.0616,
+      "max": 21.3,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "tricuspid_valve_return_velocity",
+      "csv_column": "tricuspid.valve.return.velocity",
+      "missing_count": 1218,
+      "missing_percent": 60.657,
+      "unique_nonmissing": 102,
+      "median": 2.9,
+      "min": 0.9,
+      "max": 5.76,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "tricuspid_valve_return_pressure",
+      "csv_column": "tricuspid.valve.return.pressure",
+      "missing_count": 1826,
+      "missing_percent": 90.936,
+      "unique_nonmissing": 58,
+      "median": 34.0,
+      "min": 1.7,
+      "max": 87.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "creatinine",
+      "csv_column": "creatinine.enzymatic.method",
+      "missing_count": 23,
+      "missing_percent": 1.145,
+      "unique_nonmissing": 1117,
+      "median": 87.1,
+      "min": 27.6,
+      "max": 963.4,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "urea",
+      "csv_column": "urea",
+      "missing_count": 23,
+      "missing_percent": 1.145,
+      "unique_nonmissing": 1098,
+      "median": 8.03,
+      "min": 1.58,
+      "max": 45.63,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "uric_acid",
+      "csv_column": "uric.acid",
+      "missing_count": 23,
+      "missing_percent": 1.145,
+      "unique_nonmissing": 626,
+      "median": 458.0,
+      "min": 62.0,
+      "max": 1409.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "gfr",
+      "csv_column": "glomerular.filtration.rate",
+      "missing_count": 63,
+      "missing_percent": 3.137,
+      "unique_nonmissing": 1754,
+      "median": 64.79,
+      "min": 3.13,
+      "max": 281.01,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "cystatin",
+      "csv_column": "cystatin",
+      "missing_count": 41,
+      "missing_percent": 2.042,
+      "unique_nonmissing": 372,
+      "median": 1.55,
+      "min": 0.23,
+      "max": 10.37,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "white_blood_cell",
+      "csv_column": "white.blood.cell",
+      "missing_count": 27,
+      "missing_percent": 1.345,
+      "unique_nonmissing": 878,
+      "median": 6.5,
+      "min": 1.66,
+      "max": 32.79,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "monocyte_ratio",
+      "csv_column": "monocyte.ratio",
+      "missing_count": 27,
+      "missing_percent": 1.345,
+      "unique_nonmissing": 151,
+      "median": 0.066,
+      "min": 0.002,
+      "max": 0.27,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "monocyte_count",
+      "csv_column": "monocyte.count",
+      "missing_count": 27,
+      "missing_percent": 1.345,
+      "unique_nonmissing": 143,
+      "median": 0.42,
+      "min": 0.01,
+      "max": 2.33,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "red_blood_cell",
+      "csv_column": "red.blood.cell",
+      "missing_count": 27,
+      "missing_percent": 1.345,
+      "unique_nonmissing": 374,
+      "median": 3.89,
+      "min": 0.89,
+      "max": 7.02,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "rdw_cv",
+      "csv_column": "coefficient.of.variation.of.red.blood.cell.distribution.width",
+      "missing_count": 30,
+      "missing_percent": 1.494,
+      "unique_nonmissing": 116,
+      "median": 14.4,
+      "min": 11.8,
+      "max": 29.9,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "rdw_sd",
+      "csv_column": "standard.deviation.of.red.blood.cell.distribution.width",
+      "missing_count": 30,
+      "missing_percent": 1.494,
+      "unique_nonmissing": 306,
+      "median": 47.8,
+      "min": 32.3,
+      "max": 98.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "mean_corpuscular_volume",
+      "csv_column": "mean.corpuscular.volume",
+      "missing_count": 28,
+      "missing_percent": 1.394,
+      "unique_nonmissing": 410,
+      "median": 93.3,
+      "min": 57.8,
+      "max": 135.8,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "hematocrit",
+      "csv_column": "hematocrit",
+      "missing_count": 28,
+      "missing_percent": 1.394,
+      "unique_nonmissing": 341,
+      "median": 0.359,
+      "min": 0.094,
+      "max": 0.605,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "lymphocyte_count",
+      "csv_column": "lymphocyte.count",
+      "missing_count": 27,
+      "missing_percent": 1.345,
+      "unique_nonmissing": 261,
+      "median": 0.93,
+      "min": 0.08,
+      "max": 6.69,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "mean_hemoglobin_volume",
+      "csv_column": "mean.hemoglobin.volume",
+      "missing_count": 28,
+      "missing_percent": 1.394,
+      "unique_nonmissing": 193,
+      "median": 30.6,
+      "min": 15.6,
+      "max": 45.3,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "mean_hemoglobin_concentration",
+      "csv_column": "mean.hemoglobin.concentration",
+      "missing_count": 27,
+      "missing_percent": 1.345,
+      "unique_nonmissing": 95,
+      "median": 326.0,
+      "min": 252.0,
+      "max": 363.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "mean_platelet_volume",
+      "csv_column": "mean.platelet.volume",
+      "missing_count": 103,
+      "missing_percent": 5.129,
+      "unique_nonmissing": 92,
+      "median": 12.1,
+      "min": 7.7,
+      "max": 17.6,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "basophil_ratio",
+      "csv_column": "basophil.ratio",
+      "missing_count": 27,
+      "missing_percent": 1.345,
+      "unique_nonmissing": 28,
+      "median": 0.004,
+      "min": 0.0,
+      "max": 0.063,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "basophil_count",
+      "csv_column": "basophil.count",
+      "missing_count": 27,
+      "missing_percent": 1.345,
+      "unique_nonmissing": 27,
+      "median": 0.03,
+      "min": 0.0,
+      "max": 0.73,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "eosinophil_ratio",
+      "csv_column": "eosinophil.ratio",
+      "missing_count": 27,
+      "missing_percent": 1.345,
+      "unique_nonmissing": 128,
+      "median": 0.009,
+      "min": 0.0,
+      "max": 0.62,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "eosinophil_count",
+      "csv_column": "eosinophil.count",
+      "missing_count": 27,
+      "missing_percent": 1.345,
+      "unique_nonmissing": 97,
+      "median": 0.06,
+      "min": 0.0,
+      "max": 6.58,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "hemoglobin",
+      "csv_column": "hemoglobin",
+      "missing_count": 28,
+      "missing_percent": 1.394,
+      "unique_nonmissing": 143,
+      "median": 117.0,
+      "min": 29.0,
+      "max": 200.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "platelet",
+      "csv_column": "platelet",
+      "missing_count": 27,
+      "missing_percent": 1.345,
+      "unique_nonmissing": 299,
+      "median": 135.0,
+      "min": 5.0,
+      "max": 646.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "platelet_distribution_width",
+      "csv_column": "platelet.distribution.width",
+      "missing_count": 103,
+      "missing_percent": 5.129,
+      "unique_nonmissing": 126,
+      "median": 16.3,
+      "min": 9.5,
+      "max": 25.1,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "platelet_hematocrit",
+      "csv_column": "platelet.hematocrit",
+      "missing_count": 103,
+      "missing_percent": 5.129,
+      "unique_nonmissing": 297,
+      "median": 0.165,
+      "min": 0.009,
+      "max": 0.702,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "neutrophil_ratio",
+      "csv_column": "neutrophil.ratio",
+      "missing_count": 27,
+      "missing_percent": 1.345,
+      "unique_nonmissing": 437,
+      "median": 0.759,
+      "min": 0.207,
+      "max": 0.976,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "neutrophil_count",
+      "csv_column": "neutrophil.count",
+      "missing_count": 27,
+      "missing_percent": 1.345,
+      "unique_nonmissing": 831,
+      "median": 4.83,
+      "min": 0.74,
+      "max": 29.94,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "d_dimer",
+      "csv_column": "D.dimer",
+      "missing_count": 168,
+      "missing_percent": 8.367,
+      "unique_nonmissing": 502,
+      "median": 1.21,
+      "min": 0.0,
+      "max": 100.1,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "inr",
+      "csv_column": "international.normalized.ratio",
+      "missing_count": 35,
+      "missing_percent": 1.743,
+      "unique_nonmissing": 190,
+      "median": 1.21,
+      "min": 0.83,
+      "max": 16.59,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "aptt",
+      "csv_column": "activated.partial.thromboplastin.time",
+      "missing_count": 34,
+      "missing_percent": 1.693,
+      "unique_nonmissing": 318,
+      "median": 34.1,
+      "min": 20.0,
+      "max": 181.9,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "thrombin_time",
+      "csv_column": "thrombin.time",
+      "missing_count": 34,
+      "missing_percent": 1.693,
+      "unique_nonmissing": 128,
+      "median": 17.2,
+      "min": 9.7,
+      "max": 209.3,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "prothrombin_activity",
+      "csv_column": "prothrombin.activity",
+      "missing_count": 46,
+      "missing_percent": 2.291,
+      "unique_nonmissing": 456,
+      "median": 68.5,
+      "min": 3.8,
+      "max": 141.51,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "prothrombin_time_ratio",
+      "csv_column": "prothrombin.time.ratio",
+      "missing_count": 35,
+      "missing_percent": 1.743,
+      "unique_nonmissing": 193,
+      "median": 1.22,
+      "min": 0.85,
+      "max": 14.89,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "fibrinogen",
+      "csv_column": "fibrinogen",
+      "missing_count": 34,
+      "missing_percent": 1.693,
+      "unique_nonmissing": 317,
+      "median": 3.04,
+      "min": 0.51,
+      "max": 8.32,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "high_sensitivity_troponin",
+      "csv_column": "high.sensitivity.troponin",
+      "missing_count": 79,
+      "missing_percent": 3.934,
+      "unique_nonmissing": 424,
+      "median": 0.055,
+      "min": 0.0,
+      "max": 45.675,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "myoglobin",
+      "csv_column": "myoglobin",
+      "missing_count": 1610,
+      "missing_percent": 80.179,
+      "unique_nonmissing": 392,
+      "median": 78.43,
+      "min": 17.58,
+      "max": 994.82,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "carbon_dioxide_binding_capacity",
+      "csv_column": "carbon.dioxide.binding.capacity",
+      "missing_count": 11,
+      "missing_percent": 0.548,
+      "unique_nonmissing": 266,
+      "median": 23.9,
+      "min": 2.1,
+      "max": 47.2,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "calcium",
+      "csv_column": "calcium",
+      "missing_count": 11,
+      "missing_percent": 0.548,
+      "unique_nonmissing": 116,
+      "median": 2.29,
+      "min": 1.39,
+      "max": 3.37,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "potassium",
+      "csv_column": "potassium",
+      "missing_count": 11,
+      "missing_percent": 0.548,
+      "unique_nonmissing": 330,
+      "median": 3.88,
+      "min": 1.67,
+      "max": 11.1,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "chloride",
+      "csv_column": "chloride",
+      "missing_count": 11,
+      "missing_percent": 0.548,
+      "unique_nonmissing": 290,
+      "median": 102.6,
+      "min": 70.9,
+      "max": 125.1,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "sodium",
+      "csv_column": "sodium",
+      "missing_count": 11,
+      "missing_percent": 0.548,
+      "unique_nonmissing": 236,
+      "median": 139.0,
+      "min": 107.5,
+      "max": 159.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "inorganic_phosphorus",
+      "csv_column": "Inorganic.Phosphorus",
+      "missing_count": 1601,
+      "missing_percent": 79.731,
+      "unique_nonmissing": 122,
+      "median": 1.04,
+      "min": 0.54,
+      "max": 4.26,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "serum_magnesium",
+      "csv_column": "serum.magnesium",
+      "missing_count": 1601,
+      "missing_percent": 79.731,
+      "unique_nonmissing": 67,
+      "median": 0.87,
+      "min": 0.52,
+      "max": 1.49,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "ck_mb_to_ck",
+      "csv_column": "creatine.kinase.isoenzyme.to.creatine.kinase",
+      "missing_count": 241,
+      "missing_percent": 12.002,
+      "unique_nonmissing": 173,
+      "median": 0.17,
+      "min": 0.013043478,
+      "max": 1.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "hbdh_to_ldh",
+      "csv_column": "hydroxybutyrate.dehydrogenase.to.lactate.dehydrogenase",
+      "missing_count": 241,
+      "missing_percent": 12.002,
+      "unique_nonmissing": 62,
+      "median": 0.82,
+      "min": 0.36,
+      "max": 1.15,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "hbdh",
+      "csv_column": "hydroxybutyrate.dehydrogenase",
+      "missing_count": 241,
+      "missing_percent": 12.002,
+      "unique_nonmissing": 316,
+      "median": 187.0,
+      "min": 78.0,
+      "max": 2666.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "ast",
+      "csv_column": "glutamic.oxaloacetic.transaminase",
+      "missing_count": 253,
+      "missing_percent": 12.6,
+      "unique_nonmissing": 186,
+      "median": 26.0,
+      "min": 5.0,
+      "max": 6640.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "creatine_kinase",
+      "csv_column": "creatine.kinase",
+      "missing_count": 241,
+      "missing_percent": 12.002,
+      "unique_nonmissing": 330,
+      "median": 91.0,
+      "min": 17.0,
+      "max": 5920.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "ck_mb",
+      "csv_column": "creatine.kinase.isoenzyme",
+      "missing_count": 241,
+      "missing_percent": 12.002,
+      "unique_nonmissing": 406,
+      "median": 16.1,
+      "min": 0.9,
+      "max": 424.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "ldh",
+      "csv_column": "lactate.dehydrogenase",
+      "missing_count": 241,
+      "missing_percent": 12.002,
+      "unique_nonmissing": 377,
+      "median": 229.0,
+      "min": 107.0,
+      "max": 6279.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "bnp",
+      "csv_column": "brain.natriuretic.peptide",
+      "missing_count": 35,
+      "missing_percent": 1.743,
+      "unique_nonmissing": 1861,
+      "median": 753.03,
+      "min": 2.69,
+      "max": 5000.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "high_sensitivity_protein",
+      "csv_column": "high.sensitivity.protein",
+      "missing_count": 1067,
+      "missing_percent": 53.137,
+      "unique_nonmissing": 430,
+      "median": 9.4,
+      "min": 0.1,
+      "max": 188.1,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "nucleotidase",
+      "csv_column": "nucleotidase",
+      "missing_count": 529,
+      "missing_percent": 26.345,
+      "unique_nonmissing": 164,
+      "median": 3.0,
+      "min": 0.3,
+      "max": 31.4,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "fucosidase",
+      "csv_column": "fucosidase",
+      "missing_count": 529,
+      "missing_percent": 26.345,
+      "unique_nonmissing": 281,
+      "median": 18.7,
+      "min": 3.8,
+      "max": 59.2,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "albumin",
+      "csv_column": "albumin",
+      "missing_count": 102,
+      "missing_percent": 5.08,
+      "unique_nonmissing": 255,
+      "median": 36.8,
+      "min": 12.6,
+      "max": 52.7,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "white_globulin_ratio",
+      "csv_column": "white.globulin.ratio",
+      "missing_count": 102,
+      "missing_percent": 5.08,
+      "unique_nonmissing": 25,
+      "median": 1.3,
+      "min": 0.1,
+      "max": 2.6,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "ggt",
+      "csv_column": "glutamyltranspeptidase",
+      "missing_count": 102,
+      "missing_percent": 5.08,
+      "unique_nonmissing": 250,
+      "median": 39.0,
+      "min": 5.0,
+      "max": 721.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "alt",
+      "csv_column": "glutamic.pyruvic.transaminase",
+      "missing_count": 102,
+      "missing_percent": 5.08,
+      "unique_nonmissing": 197,
+      "median": 21.0,
+      "min": 3.0,
+      "max": 4928.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "glutamic_oxaliplatin",
+      "csv_column": "glutamic.oxaliplatin",
+      "missing_count": 1416,
+      "missing_percent": 70.518,
+      "unique_nonmissing": 193,
+      "median": 1.2,
+      "min": 0.01,
+      "max": 11.14,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "indirect_bilirubin",
+      "csv_column": "indirect.bilirubin",
+      "missing_count": 102,
+      "missing_percent": 5.08,
+      "unique_nonmissing": 351,
+      "median": 11.6,
+      "min": 1.0,
+      "max": 128.6,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "alkaline_phosphatase",
+      "csv_column": "alkaline.phosphatase",
+      "missing_count": 102,
+      "missing_percent": 5.08,
+      "unique_nonmissing": 194,
+      "median": 80.0,
+      "min": 19.0,
+      "max": 1085.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "globulin",
+      "csv_column": "globulin",
+      "missing_count": 102,
+      "missing_percent": 5.08,
+      "unique_nonmissing": 278,
+      "median": 27.9,
+      "min": 13.7,
+      "max": 88.3,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "direct_bilirubin",
+      "csv_column": "direct.bilirubin",
+      "missing_count": 102,
+      "missing_percent": 5.08,
+      "unique_nonmissing": 298,
+      "median": 6.5,
+      "min": 0.3,
+      "max": 179.8,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "total_bilirubin",
+      "csv_column": "total.bilirubin",
+      "missing_count": 102,
+      "missing_percent": 5.08,
+      "unique_nonmissing": 507,
+      "median": 18.3,
+      "min": 1.6,
+      "max": 256.6,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "total_bile_acid",
+      "csv_column": "total.bile.acid",
+      "missing_count": 510,
+      "missing_percent": 25.398,
+      "unique_nonmissing": 279,
+      "median": 4.7,
+      "min": 0.0,
+      "max": 170.2,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "total_protein",
+      "csv_column": "total.protein",
+      "missing_count": 102,
+      "missing_percent": 5.08,
+      "unique_nonmissing": 349,
+      "median": 64.7,
+      "min": 41.7,
+      "max": 100.9,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "esr",
+      "csv_column": "erythrocyte.sedimentation.rate",
+      "missing_count": 1701,
+      "missing_percent": 84.711,
+      "unique_nonmissing": 89,
+      "median": 28.0,
+      "min": 2.0,
+      "max": 120.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "cholesterol",
+      "csv_column": "cholesterol",
+      "missing_count": 198,
+      "missing_percent": 9.861,
+      "unique_nonmissing": 451,
+      "median": 3.6,
+      "min": 1.2,
+      "max": 10.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "ldl_cholesterol",
+      "csv_column": "low.density.lipoprotein.cholesterol",
+      "missing_count": 198,
+      "missing_percent": 9.861,
+      "unique_nonmissing": 327,
+      "median": 1.76,
+      "min": 0.35,
+      "max": 6.41,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "triglyceride",
+      "csv_column": "triglyceride",
+      "missing_count": 198,
+      "missing_percent": 9.861,
+      "unique_nonmissing": 274,
+      "median": 0.96,
+      "min": 0.22,
+      "max": 24.45,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "hdl_cholesterol",
+      "csv_column": "high.density.lipoprotein.cholesterol",
+      "missing_count": 198,
+      "missing_percent": 9.861,
+      "unique_nonmissing": 188,
+      "median": 1.07,
+      "min": 0.02,
+      "max": 2.74,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "homocysteine",
+      "csv_column": "homocysteine",
+      "missing_count": 1862,
+      "missing_percent": 92.729,
+      "unique_nonmissing": 140,
+      "median": 18.490000000000002,
+      "min": 7.55,
+      "max": 120.19,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "apolipoprotein_a",
+      "csv_column": "apolipoprotein.A",
+      "missing_count": 1832,
+      "missing_percent": 91.235,
+      "unique_nonmissing": 96,
+      "median": 1.31,
+      "min": 0.53,
+      "max": 2.2,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "apolipoprotein_b",
+      "csv_column": "apolipoprotein.B",
+      "missing_count": 1832,
+      "missing_percent": 91.235,
+      "unique_nonmissing": 75,
+      "median": 0.72,
+      "min": 0.3,
+      "max": 2.07,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "lipoprotein",
+      "csv_column": "lipoprotein",
+      "missing_count": 1832,
+      "missing_percent": 91.235,
+      "unique_nonmissing": 148,
+      "median": 153.0,
+      "min": 5.0,
+      "max": 1160.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "ph",
+      "csv_column": "pH",
+      "missing_count": 1015,
+      "missing_percent": 50.548,
+      "unique_nonmissing": 53,
+      "median": 7.42,
+      "min": 6.77,
+      "max": 7.6,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "standard_residual_base",
+      "csv_column": "standard.residual.base",
+      "missing_count": 1015,
+      "missing_percent": 50.548,
+      "unique_nonmissing": 229,
+      "median": -2.2,
+      "min": -32.7,
+      "max": 24.9,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "standard_bicarbonate",
+      "csv_column": "standard.bicarbonate",
+      "missing_count": 1015,
+      "missing_percent": 50.548,
+      "unique_nonmissing": 178,
+      "median": 23.0,
+      "min": 2.6,
+      "max": 42.7,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "pco2",
+      "csv_column": "partial.pressure.of.carbon.dioxide",
+      "missing_count": 1015,
+      "missing_percent": 50.548,
+      "unique_nonmissing": 59,
+      "median": 34.0,
+      "min": 12.0,
+      "max": 143.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "total_carbon_dioxide",
+      "csv_column": "total.carbon.dioxide",
+      "missing_count": 1015,
+      "missing_percent": 50.548,
+      "unique_nonmissing": 232,
+      "median": 23.2,
+      "min": 2.1,
+      "max": 57.5,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "methemoglobin",
+      "csv_column": "methemoglobin",
+      "missing_count": 1016,
+      "missing_percent": 50.598,
+      "unique_nonmissing": 16,
+      "median": 0.2,
+      "min": 0.0,
+      "max": 2.3,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "hematocrit_blood_gas",
+      "csv_column": "hematocrit.blood.gas",
+      "missing_count": 1016,
+      "missing_percent": 50.598,
+      "unique_nonmissing": 48,
+      "median": 37.0,
+      "min": 10.0,
+      "max": 111.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "reduced_hemoglobin",
+      "csv_column": "reduced.hemoglobin",
+      "missing_count": 1016,
+      "missing_percent": 50.598,
+      "unique_nonmissing": 148,
+      "median": 2.5,
+      "min": 0.3,
+      "max": 74.7,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "potassium_ion",
+      "csv_column": "potassium.ion",
+      "missing_count": 1015,
+      "missing_percent": 50.548,
+      "unique_nonmissing": 266,
+      "median": 3.81,
+      "min": 1.5,
+      "max": 7.13,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "chloride_ion",
+      "csv_column": "chloride.ion",
+      "missing_count": 1015,
+      "missing_percent": 50.548,
+      "unique_nonmissing": 45,
+      "median": 105.0,
+      "min": 73.0,
+      "max": 121.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "sodium_ion",
+      "csv_column": "sodium.ion",
+      "missing_count": 1015,
+      "missing_percent": 50.548,
+      "unique_nonmissing": 213,
+      "median": 137.1,
+      "min": 109.3,
+      "max": 148.8,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "glucose_blood_gas",
+      "csv_column": "glucose.blood.gas",
+      "missing_count": 1015,
+      "missing_percent": 50.548,
+      "unique_nonmissing": 159,
+      "median": 6.7,
+      "min": 0.2,
+      "max": 41.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "lactate",
+      "csv_column": "lactate",
+      "missing_count": 1015,
+      "missing_percent": 50.548,
+      "unique_nonmissing": 77,
+      "median": 1.8,
+      "min": 0.6,
+      "max": 19.9,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "measured_residual_base",
+      "csv_column": "measured.residual.base",
+      "missing_count": 1015,
+      "missing_percent": 50.548,
+      "unique_nonmissing": 218,
+      "median": -1.7,
+      "min": -31.6,
+      "max": 18.4,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "measured_bicarbonate",
+      "csv_column": "measured.bicarbonate",
+      "missing_count": 1015,
+      "missing_percent": 50.548,
+      "unique_nonmissing": 209,
+      "median": 22.2,
+      "min": 1.8,
+      "max": 53.1,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "carboxyhemoglobin",
+      "csv_column": "carboxyhemoglobin",
+      "missing_count": 1016,
+      "missing_percent": 50.598,
+      "unique_nonmissing": 35,
+      "median": 0.4,
+      "min": 0.0,
+      "max": 5.3,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "body_temperature_blood_gas",
+      "csv_column": "body.temperature.blood.gas",
+      "missing_count": 1015,
+      "missing_percent": 50.548,
+      "unique_nonmissing": 1,
+      "median": 37.0,
+      "min": 37.0,
+      "max": 37.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "oxygen_saturation",
+      "csv_column": "oxygen.saturation",
+      "missing_count": 1015,
+      "missing_percent": 50.548,
+      "unique_nonmissing": 38,
+      "median": 98.0,
+      "min": 25.0,
+      "max": 100.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "po2",
+      "csv_column": "partial.oxygen.pressure",
+      "missing_count": 1015,
+      "missing_percent": 50.548,
+      "unique_nonmissing": 171,
+      "median": 102.0,
+      "min": 20.0,
+      "max": 255.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "oxyhemoglobin",
+      "csv_column": "oxyhemoglobin",
+      "missing_count": 1016,
+      "missing_percent": 50.598,
+      "unique_nonmissing": 155,
+      "median": 96.6,
+      "min": 24.3,
+      "max": 99.1,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "anion_gap",
+      "csv_column": "anion.gap",
+      "missing_count": 1015,
+      "missing_percent": 50.548,
+      "unique_nonmissing": 187,
+      "median": 13.8,
+      "min": -1.2,
+      "max": 43.7,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "free_calcium",
+      "csv_column": "free.calcium",
+      "missing_count": 1015,
+      "missing_percent": 50.548,
+      "unique_nonmissing": 38,
+      "median": 1.11,
+      "min": 0.89,
+      "max": 1.39,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "total_hemoglobin",
+      "csv_column": "total.hemoglobin",
+      "missing_count": 1016,
+      "missing_percent": 50.598,
+      "unique_nonmissing": 131,
+      "median": 127.0,
+      "min": 35.0,
+      "max": 203.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "gcs",
+      "csv_column": "GCS",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 10,
+      "median": 15.0,
+      "min": 3.0,
+      "max": 15.0,
+      "coercion_losses": 0
+    },
+    {
+      "feature": "age_category",
+      "csv_column": "ageCat",
+      "missing_count": 0,
+      "missing_percent": 0.0,
+      "unique_nonmissing": 8,
+      "median": 74.0,
+      "min": 25.0,
+      "max": 95.0,
+      "coercion_losses": 0
+    }
+  ],
+  "chat_max_supplied_feature_count": 33,
+  "chat_max_supplied_features": [
+    "acute_renal_failure",
+    "age_category",
+    "body_temperature",
+    "cerebrovascular_disease",
+    "chloride",
+    "cholesterol",
+    "copd",
+    "creatinine",
+    "diabetes",
+    "diastolic_blood_pressure",
+    "esr",
+    "gender",
+    "hdl_cholesterol",
+    "hematocrit",
+    "hemoglobin",
+    "ldl_cholesterol",
+    "liver_disease",
+    "lvef",
+    "mean_corpuscular_volume",
+    "mean_hemoglobin_concentration",
+    "mean_hemoglobin_volume",
+    "moderate_to_severe_chronic_kidney_disease",
+    "peripheral_vascular_disease",
+    "platelet",
+    "potassium",
+    "pulse",
+    "red_blood_cell",
+    "respiration",
+    "sodium",
+    "systolic_blood_pressure",
+    "triglyceride",
+    "uric_acid",
+    "white_blood_cell"
+  ],
+  "chat_unmapped_features": [
+    "admission_ward",
+    "admission_way",
+    "aids",
+    "albumin",
+    "alkaline_phosphatase",
+    "alt",
+    "anion_gap",
+    "apolipoprotein_a",
+    "apolipoprotein_b",
+    "aptt",
+    "ast",
+    "basophil_count",
+    "basophil_ratio",
+    "bmi",
+    "bnp",
+    "body_temperature_blood_gas",
+    "calcium",
+    "carbon_dioxide_binding_capacity",
+    "carboxyhemoglobin",
+    "cci_score",
+    "chloride_ion",
+    "ck_mb",
+    "ck_mb_to_ck",
+    "connective_tissue_disease",
+    "consciousness",
+    "creatine_kinase",
+    "cystatin",
+    "d_dimer",
+    "dementia",
+    "direct_bilirubin",
+    "ea",
+    "eosinophil_count",
+    "eosinophil_ratio",
+    "eye_opening",
+    "fibrinogen",
+    "fio2",
+    "free_calcium",
+    "fucosidase",
+    "gcs",
+    "gfr",
+    "ggt",
+    "globulin",
+    "glucose_blood_gas",
+    "glutamic_oxaliplatin",
+    "hbdh",
+    "hbdh_to_ldh",
+    "height",
+    "hematocrit_blood_gas",
+    "hemiplegia",
+    "high_sensitivity_protein",
+    "high_sensitivity_troponin",
+    "homocysteine",
+    "indirect_bilirubin",
+    "inorganic_phosphorus",
+    "inr",
+    "killip_grade",
+    "lactate",
+    "ldh",
+    "leukemia",
+    "lipoprotein",
+    "lv_end_diastolic_diameter",
+    "lymphocyte_count",
+    "malignant_lymphoma",
+    "map",
+    "mean_platelet_volume",
+    "measured_bicarbonate",
+    "measured_residual_base",
+    "methemoglobin",
+    "mitral_valve_ams",
+    "mitral_valve_ems",
+    "monocyte_count",
+    "monocyte_ratio",
+    "movement",
+    "myoglobin",
+    "neutrophil_count",
+    "neutrophil_ratio",
+    "nucleotidase",
+    "nyha_class",
+    "occupation",
+    "oxygen_inhalation",
+    "oxygen_saturation",
+    "oxyhemoglobin",
+    "pco2",
+    "peptic_ulcer_disease",
+    "ph",
+    "platelet_distribution_width",
+    "platelet_hematocrit",
+    "po2",
+    "potassium_ion",
+    "prothrombin_activity",
+    "prothrombin_time_ratio",
+    "rdw_cv",
+    "rdw_sd",
+    "reduced_hemoglobin",
+    "respiratory_support",
+    "serum_magnesium",
+    "sodium_ion",
+    "solid_tumor",
+    "standard_bicarbonate",
+    "standard_residual_base",
+    "thrombin_time",
+    "total_bile_acid",
+    "total_bilirubin",
+    "total_carbon_dioxide",
+    "total_hemoglobin",
+    "total_protein",
+    "tricuspid_valve_return_pressure",
+    "tricuspid_valve_return_velocity",
+    "type_ii_respiratory_failure",
+    "urea",
+    "verbal_response",
+    "visit_times",
+    "weight",
+    "white_globulin_ratio"
+  ],
+  "saved_metrics": [
+    {
+      "target": "heart_failure_type",
+      "label": "Heart Failure Type",
+      "n_test": 401,
+      "accuracy": 0.7032418952618454,
+      "majority_accuracy": 0.7057356608478803,
+      "macro_f1": 0.2928470440383306,
+      "weighted_f1": 0.5964484113588887,
+      "auroc": 0.6241160473138068,
+      "classes": [
+        0,
+        1,
+        2
+      ],
+      "support": [
+        105,
+        13,
+        283
+      ],
+      "per_class_precision": [
+        0.375,
+        0.0,
+        0.7099236641221374
+      ],
+      "per_class_recall": [
+        0.02857142857142857,
+        0.0,
+        0.9858657243816255
+      ],
+      "per_class_f1": [
+        0.05309734513274336,
+        0.0,
+        0.8254437869822485
+      ],
+      "confusion_matrix": [
+        [
+          3,
+          0,
+          102
+        ],
+        [
+          1,
+          0,
+          12
+        ],
+        [
+          4,
+          0,
+          279
+        ]
+      ]
+    },
+    {
+      "target": "myocardial_infarction",
+      "label": "Myocardial Infarction",
+      "n_test": 401,
+      "accuracy": 0.9376558603491272,
+      "majority_accuracy": 0.9276807980049875,
+      "macro_f1": 0.6265598807971688,
+      "weighted_f1": 0.9181061130002336,
+      "auroc": 0.8841305153874676,
+      "classes": [
+        0,
+        1
+      ],
+      "support": [
+        372,
+        29
+      ],
+      "per_class_precision": [
+        0.9392405063291139,
+        0.8333333333333334
+      ],
+      "per_class_recall": [
+        0.9973118279569892,
+        0.1724137931034483
+      ],
+      "per_class_f1": [
+        0.9674054758800521,
+        0.2857142857142857
+      ],
+      "confusion_matrix": [
+        [
+          371,
+          1
+        ],
+        [
+          24,
+          5
+        ]
+      ],
+      "precision": 0.8333333333333334,
+      "recall": 0.1724137931034483,
+      "f1": 0.2857142857142857,
+      "specificity": 0.9973118279569892,
+      "balanced_accuracy": 0.5848628105302187,
+      "true_positive": 5,
+      "false_negative": 24,
+      "positive_support": 29
+    },
+    {
+      "target": "congestive_heart_failure",
+      "label": "Congestive Heart Failure",
+      "n_test": 401,
+      "accuracy": 0.9800498753117207,
+      "majority_accuracy": 0.9326683291770573,
+      "macro_f1": 0.9077524729698643,
+      "weighted_f1": 0.9784206380758479,
+      "auroc": 0.941968706674589,
+      "classes": [
+        0,
+        1
+      ],
+      "support": [
+        27,
+        374
+      ],
+      "per_class_precision": [
+        1.0,
+        0.9790575916230366
+      ],
+      "per_class_recall": [
+        0.7037037037037037,
+        1.0
+      ],
+      "per_class_f1": [
+        0.8260869565217391,
+        0.9894179894179894
+      ],
+      "confusion_matrix": [
+        [
+          19,
+          8
+        ],
+        [
+          0,
+          374
+        ]
+      ],
+      "precision": 0.9790575916230366,
+      "recall": 1.0,
+      "f1": 0.9894179894179894,
+      "specificity": 0.7037037037037037,
+      "balanced_accuracy": 0.8518518518518519,
+      "true_positive": 374,
+      "false_negative": 0,
+      "positive_support": 374
+    },
+    {
+      "target": "death_28d",
+      "label": "28-Day Mortality",
+      "n_test": 401,
+      "accuracy": 0.9825436408977556,
+      "majority_accuracy": 0.9850374064837906,
+      "macro_f1": 0.49559748427672956,
+      "weighted_f1": 0.9763641211436817,
+      "auroc": 0.7687763713080169,
+      "classes": [
+        0,
+        1
+      ],
+      "support": [
+        395,
+        6
+      ],
+      "per_class_precision": [
+        0.985,
+        0.0
+      ],
+      "per_class_recall": [
+        0.9974683544303797,
+        0.0
+      ],
+      "per_class_f1": [
+        0.9911949685534591,
+        0.0
+      ],
+      "confusion_matrix": [
+        [
+          394,
+          1
+        ],
+        [
+          6,
+          0
+        ]
+      ],
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "specificity": 0.9974683544303797,
+      "balanced_accuracy": 0.49873417721518987,
+      "true_positive": 0,
+      "false_negative": 6,
+      "positive_support": 6
+    },
+    {
+      "target": "readmission_28d",
+      "label": "28-Day Readmission",
+      "n_test": 401,
+      "accuracy": 0.9077306733167082,
+      "majority_accuracy": 0.9102244389027432,
+      "macro_f1": 0.47581699346405226,
+      "weighted_f1": 0.8662005117924143,
+      "auroc": 0.6312024353120244,
+      "classes": [
+        0,
+        1
+      ],
+      "support": [
+        365,
+        36
+      ],
+      "per_class_precision": [
+        0.91,
+        0.0
+      ],
+      "per_class_recall": [
+        0.9972602739726028,
+        0.0
+      ],
+      "per_class_f1": [
+        0.9516339869281045,
+        0.0
+      ],
+      "confusion_matrix": [
+        [
+          364,
+          1
+        ],
+        [
+          36,
+          0
+        ]
+      ],
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "specificity": 0.9972602739726028,
+      "balanced_accuracy": 0.4986301369863014,
+      "true_positive": 0,
+      "false_negative": 36,
+      "positive_support": 36
+    },
+    {
+      "target": "death_6mo",
+      "label": "6-Month Mortality",
+      "n_test": 401,
+      "accuracy": 0.9750623441396509,
+      "majority_accuracy": 0.972568578553616,
+      "macro_f1": 0.5770042194092827,
+      "weighted_f1": 0.9648294874627776,
+      "auroc": 0.7468531468531467,
+      "classes": [
+        0,
+        1
+      ],
+      "support": [
+        390,
+        11
+      ],
+      "per_class_precision": [
+        0.975,
+        1.0
+      ],
+      "per_class_recall": [
+        1.0,
+        0.09090909090909091
+      ],
+      "per_class_f1": [
+        0.9873417721518988,
+        0.16666666666666666
+      ],
+      "confusion_matrix": [
+        [
+          390,
+          0
+        ],
+        [
+          10,
+          1
+        ]
+      ],
+      "precision": 1.0,
+      "recall": 0.09090909090909091,
+      "f1": 0.16666666666666666,
+      "specificity": 1.0,
+      "balanced_accuracy": 0.5454545454545454,
+      "true_positive": 1,
+      "false_negative": 10,
+      "positive_support": 11
+    },
+    {
+      "target": "readmission_6mo",
+      "label": "6-Month Readmission",
+      "n_test": 401,
+      "accuracy": 0.628428927680798,
+      "majority_accuracy": 0.6059850374064838,
+      "macro_f1": 0.5734194838110878,
+      "weighted_f1": 0.6058903360952917,
+      "auroc": 0.6267906443715163,
+      "classes": [
+        0,
+        1
+      ],
+      "support": [
+        243,
+        158
+      ],
+      "per_class_precision": [
+        0.6556291390728477,
+        0.5454545454545454
+      ],
+      "per_class_recall": [
+        0.8148148148148148,
+        0.34177215189873417
+      ],
+      "per_class_f1": [
+        0.726605504587156,
+        0.42023346303501946
+      ],
+      "confusion_matrix": [
+        [
+          198,
+          45
+        ],
+        [
+          104,
+          54
+        ]
+      ],
+      "precision": 0.5454545454545454,
+      "recall": 0.34177215189873417,
+      "f1": 0.42023346303501946,
+      "specificity": 0.8148148148148148,
+      "balanced_accuracy": 0.5782934833567744,
+      "true_positive": 54,
+      "false_negative": 104,
+      "positive_support": 158
+    },
+    {
+      "target": "ed_return_6mo",
+      "label": "6-Month Emergency Department Return",
+      "n_test": 401,
+      "accuracy": 0.6109725685785536,
+      "majority_accuracy": 0.6109725685785536,
+      "macro_f1": 0.5644945697577276,
+      "weighted_f1": 0.596071225445159,
+      "auroc": 0.6150444793301937,
+      "classes": [
+        0,
+        1
+      ],
+      "support": [
+        245,
+        156
+      ],
+      "per_class_precision": [
+        0.6550522648083623,
+        0.5
+      ],
+      "per_class_recall": [
+        0.7673469387755102,
+        0.36538461538461536
+      ],
+      "per_class_f1": [
+        0.706766917293233,
+        0.4222222222222222
+      ],
+      "confusion_matrix": [
+        [
+          188,
+          57
+        ],
+        [
+          99,
+          57
+        ]
+      ],
+      "precision": 0.5,
+      "recall": 0.36538461538461536,
+      "f1": 0.4222222222222222,
+      "specificity": 0.7673469387755102,
+      "balanced_accuracy": 0.5663657770800627,
+      "true_positive": 57,
+      "false_negative": 99,
+      "positive_support": 156
+    }
+  ],
+  "selected_value_counts": {
+    "diabetes": {
+      "0": 1542,
+      "1": 466
+    },
+    "liver.disease": {
+      "0.0": 1923,
+      "1.0": 84,
+      "nan": 1
+    },
+    "oxygen.inhalation": {
+      "OxygenTherapy": 1898,
+      "AmbientAir": 110
+    },
+    "respiratory.support.": {
+      "nan": 1966,
+      "IMV": 25,
+      "NIMV": 17
+    },
+    "ageCat": {
+      "(69,79]": 715,
+      "(79,89]": 646,
+      "(59,69]": 368,
+      "(49,59]": 106,
+      "(89,110]": 101,
+      "(39,49]": 56,
+      "(29,39]": 12,
+      "(21,29]": 4
+    }
+  },
+  "saved_n_train": 1606,
+  "saved_n_test": 401
+}

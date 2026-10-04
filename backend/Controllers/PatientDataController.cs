@@ -25,6 +25,14 @@ public sealed class PatientDataController(ClaraDbContext db) : ControllerBase
         "ABO TYPE", "RH TYPE", "REMARKS"
     };
 
+    private static readonly HashSet<string> DocumentQueryStopWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "pdf", "document", "documents", "file", "files", "page", "pages", "source", "sources",
+        "content", "contents", "text", "extracted", "raw", "read", "summarize", "summary",
+        "what", "does", "say", "says", "based", "from", "about", "according", "patient",
+        "this", "that", "please", "tell", "show", "opened"
+    };
+
     private static readonly HashSet<string> MicroscopyTests = new(StringComparer.OrdinalIgnoreCase)
     {
         "COLOR", "TRANSPARENCY", "PUS CELLS", "LEUKOCYTES", "PH", "SP. GRAVITY",
@@ -460,7 +468,8 @@ public sealed class PatientDataController(ClaraDbContext db) : ControllerBase
         }
 
         var terms = QueryTerms(query);
-        var snippets = documents
+        var documentReferenceTerms = DocumentReferenceTerms(query);
+        var scoredSnippets = documents
             .SelectMany(document => PageSnippets(document)
                 .Select(page => new DocumentSnippet(
                     document.RelativePath,
@@ -469,6 +478,27 @@ public sealed class PatientDataController(ClaraDbContext db) : ControllerBase
                     page.Page,
                     page.Text,
                     ScoreDocumentPage(document, page.Text, terms))))
+            .ToList();
+
+        if (documentReferenceTerms.Count > 0)
+        {
+            scoredSnippets = scoredSnippets
+                .Where(snippet => MatchesAnyTerm(snippet, documentReferenceTerms))
+                .ToList();
+        }
+
+        if (documentReferenceTerms.Count > 0 && scoredSnippets.Count == 0)
+        {
+            return new DocumentContextResponse(patientId, "No matching extracted patient PDF text found.", []);
+        }
+
+        if (terms.Count > 0 && scoredSnippets.All(snippet => snippet.Score <= 0))
+        {
+            return new DocumentContextResponse(patientId, "No matching extracted patient PDF text found.", []);
+        }
+
+        var snippets = scoredSnippets
+            .Where(snippet => terms.Count == 0 || snippet.Score > 0)
             .OrderByDescending(snippet => snippet.Score)
             .ThenBy(snippet => snippet.Source)
             .ThenBy(snippet => snippet.Page ?? int.MaxValue)
@@ -536,9 +566,31 @@ public sealed class PatientDataController(ClaraDbContext db) : ControllerBase
 
         return Regex.Matches(query.ToLowerInvariant(), @"[a-z0-9]{3,}")
             .Select(match => match.Value)
+            .Where(term => !DocumentQueryStopWords.Contains(term))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Take(12)
             .ToList();
+    }
+
+    private static IReadOnlyList<string> DocumentReferenceTerms(string? query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return [];
+        }
+
+        return Regex.Matches(query, @"\b[A-Z]{2,10}[-_ ]?\d{2}[-_ ]?\d{3,}\b|[\w.-]+\.pdf\b", RegexOptions.IgnoreCase)
+            .SelectMany(match => Regex.Matches(match.Value.ToLowerInvariant(), @"[a-z0-9]{3,}").Select(token => token.Value))
+            .Where(term => !DocumentQueryStopWords.Contains(term))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(8)
+            .ToList();
+    }
+
+    private static bool MatchesAnyTerm(DocumentSnippet snippet, IReadOnlyList<string> terms)
+    {
+        var haystack = $"{snippet.Source} {snippet.Title} {snippet.Text}".ToLowerInvariant();
+        return terms.Any(term => haystack.Contains(term, StringComparison.OrdinalIgnoreCase));
     }
 
     private static IReadOnlyList<PageText> PageSnippets(PatientDocument document)
@@ -611,7 +663,7 @@ public sealed class PatientDataController(ClaraDbContext db) : ControllerBase
             return text;
         }
 
-        var cut = text.LastIndexOfAny(['.', '\n', ';'], Math.Min(maxLength, text.Length - 1));
+        var cut = text.LastIndexOfAny(new[] { '.', '\n', ';' }, Math.Min(maxLength, text.Length - 1));
         if (cut < maxLength / 2)
         {
             cut = maxLength;
