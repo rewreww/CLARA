@@ -22,7 +22,7 @@ function Section({ title, content, icon, defaultOpen = true, alwaysShow = false 
         </div>
 
         <span
-          className="text-[10px] text-muted transition-transform"
+          className="text-[11px] text-muted transition-transform"
           style={{ transform: open ? 'rotate(90deg)' : 'none' }}
         >
           &gt;
@@ -30,7 +30,7 @@ function Section({ title, content, icon, defaultOpen = true, alwaysShow = false 
       </div>
 
       {open && (
-        <div className="px-4 py-3 text-[13px] leading-[1.75] text-[#d7e2f0] bg-bg border-t border-border">
+        <div className="px-4 py-3 text-[13px] leading-[1.75] text-[#d7dde1] bg-bg border-t border-border">
           {body}
         </div>
       )}
@@ -52,7 +52,7 @@ function DischargeLabs({ labs }) {
         </div>
 
         {flagged.length > 0 && (
-          <span className="text-[10px] px-2 py-1 rounded bg-danger/15 text-danger">
+          <span className="text-[11px] px-2 py-1 rounded bg-danger/15 text-danger">
             {flagged.length} abnormal
           </span>
         )}
@@ -63,7 +63,7 @@ function DischargeLabs({ labs }) {
           <thead>
             <tr className="text-muted">
               {['Test', 'Value', 'Unit', 'Date', 'Flag'].map(h => (
-                <th key={h} className="text-left px-4 py-2 text-[10px] uppercase">
+                <th key={h} className="text-left px-4 py-2 text-[11px] uppercase">
                   {h}
                 </th>
               ))}
@@ -128,16 +128,16 @@ function HospitalCourse({ course }) {
             className="px-4 py-3 border-t border-border first:border-t-0"
           >
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-[11px] uppercase tracking-wider text-accent2">
+              <span className="text-[12px] uppercase tracking-wider text-accent2">
                 {entry.label || 'Hospital Day'}
               </span>
               {entry.date && (
-                <span className="text-[11px] text-muted">
+                <span className="text-[12px] text-muted">
                   {entry.date}
                 </span>
               )}
             </div>
-            <div className="text-[13px] leading-[1.75] text-[#d7e2f0]">
+            <div className="text-[13px] leading-[1.75] text-[#d7dde1]">
               {entry.content || EMPTY_SECTION_TEXT}
             </div>
           </div>
@@ -167,10 +167,10 @@ function HeaderMeta({ label, value }) {
 
   return (
     <div className="min-w-0">
-      <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted mb-[3px]">
+      <div className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted mb-[3px]">
         {label}
       </div>
-      <div className="text-[12px] text-[#d7e2f0] truncate">
+      <div className="text-[12px] text-[#d7dde1] truncate">
         {value}
       </div>
     </div>
@@ -219,16 +219,16 @@ function DischargeContent({ data, patient }) {
       <div className="mb-4 border border-border bg-card rounded-[8px] overflow-hidden">
         <div className="px-4 py-3 border-b border-border flex items-start justify-between gap-3">
           <div>
-            <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-accent2">
+            <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-accent2">
               {documentTitle}
             </div>
             {header.facility && (
-              <div className="text-[11px] text-muted mt-1">
+              <div className="text-[12px] text-muted mt-1">
                 {header.facility}
               </div>
             )}
           </div>
-          <div className="font-mono text-[10px] text-muted shrink-0">
+          <div className="font-mono text-[11px] text-muted shrink-0">
             {patient?.id}
           </div>
         </div>
@@ -334,12 +334,12 @@ export default function DischargePanel({ data: initialData, patient, refreshKey 
             ‹
           </button>
 
-          <div className="font-mono text-[11px] text-muted text-center min-w-[160px]">
+          <div className="font-mono text-[12px] text-muted text-center min-w-[160px]">
             {navLoading ? (
               <span className="animate-pulse">Loading…</span>
             ) : pos !== null ? (
               <>
-                <span className="text-[#dde4f0] font-semibold">
+                <span className="text-[#edf0f2] font-semibold">
                   Visit {pos} of {total}
                 </span>
                 {fileList[currentIndex]?.date_label && (

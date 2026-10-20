@@ -1,14 +1,11 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { LLM_URL } from '../constants'
+import { conversationContext, restoreMessages } from '../lib/conversations'
 
 const WORD_DELAY_MS = 45
 
-export function useChat(sessionId) {
-  const [messages,    setMessages]    = useState([{
-    role: 'clara',
-    text: 'Hello, Doctor. Select a patient and ask me anything about their lab results, trends, or cardiovascular guidelines.',
-    tools: [], guidelines: false,
-  }])
+export function useChat(sessionId, initialMessages = []) {
+  const [messages, setMessages] = useState(() => restoreMessages(initialMessages))
   const [loading,     setLoading]     = useState(false)
 
   const abortRef      = useRef(null)
@@ -16,6 +13,13 @@ export function useChat(sessionId) {
   const wordBufferRef = useRef('')
   const wordTimerRef  = useRef(null)
   const streamDoneRef = useRef(false)
+  const requestVersion = useRef(0)
+
+  useEffect(() => () => {
+    requestVersion.current += 1
+    abortRef.current?.abort()
+    clearTimeout(wordTimerRef.current)
+  }, [])
 
   const updateLastMessage = useCallback((updater) => {
     setMessages(m => {
@@ -43,7 +47,7 @@ export function useChat(sessionId) {
   }, [stopWordTimer])
 
   const completeStreaming = useCallback(() => {
-    updateLastMessage(last => { last.streaming = false })
+    updateLastMessage(last => { last.streaming = false; last.status = null })
     setLoading(false)
   }, [updateLastMessage])
 
@@ -106,6 +110,7 @@ export function useChat(sessionId) {
 
     resetWordStream()
 
+    const version = ++requestVersion.current
     setMessages(m => [...m, {
       role: 'doctor', text: message,
       tools: [], guidelines: false,
@@ -114,7 +119,8 @@ export function useChat(sessionId) {
     setMessages(m => [...m, {
       role: 'clara', text: '',
       tools: [], guidelines: false,
-      sources: [], status: 'Preparing a response', durationMs: null,
+      sources: [], status: 'Connecting to CLARA', durationMs: null,
+      startedAt: Date.now(), actions: [],
       streaming: true,
     }])
 
@@ -133,10 +139,12 @@ export function useChat(sessionId) {
           message,
           session_id:     sessionId,
           active_section: activeSection,   // ← added
+          history: conversationContext(messages),
         }),
         signal: controller.signal,
       })
 
+      if (version !== requestVersion.current) return
       if (!res.ok)   throw new Error(`LLM service returned ${res.status}`)
       if (!res.body) throw new Error('LLM service did not return a stream')
 
@@ -146,6 +154,7 @@ export function useChat(sessionId) {
 
       while (true) {
         const { value, done } = await reader.read()
+        if (version !== requestVersion.current) return
         if (done) break
 
         buffer += decoder.decode(value, { stream: true })
@@ -169,9 +178,16 @@ export function useChat(sessionId) {
             })
           }
 
+          if (event.type === 'sources') {
+            updateLastMessage(last => { last.sources = event.sources || [] })
+          }
+
           if (event.type === 'status') {
             updateLastMessage(last => {
               last.status = event.label || 'Working on the request'
+              if (last.actions?.at(-1)?.label !== last.status) {
+                last.actions = [...(last.actions || []), { label: last.status, at: Date.now() }]
+              }
             })
           }
 
@@ -190,20 +206,36 @@ export function useChat(sessionId) {
             updateLastMessage(last => {
               last.text      = `Error: ${event.message}`
               last.streaming = false
+              last.error = true
+              last.status = null
+              last.durationMs = Date.now() - last.startedAt
             })
             setLoading(false)
+            return
           }
         }
       }
 
-      if (!streamDoneRef.current) finishTextStream()
+      if (!streamDoneRef.current) {
+        updateLastMessage(last => {
+          last.interrupted = true
+          last.status = null
+          last.durationMs = Date.now() - last.startedAt
+          if (!last.text && !wordQueueRef.current.length) last.text = 'Connection closed before the response completed.'
+        })
+        finishTextStream()
+      }
 
     } catch (e) {
+      if (version !== requestVersion.current) return
       resetWordStream()
       if (e.name === 'AbortError') { setLoading(false); return }
       updateLastMessage(last => {
         last.text      = `Connection error: ${e.message}`
         last.streaming = false
+        last.error = true
+        last.status = null
+        last.durationMs = Date.now() - last.startedAt
       })
       setLoading(false)
     }
@@ -211,12 +243,14 @@ export function useChat(sessionId) {
     enqueueText,
     finishTextStream,
     loading,
+    messages,
     resetWordStream,
     sessionId,
     updateLastMessage,
   ])
 
   const clear = useCallback(async () => {
+    requestVersion.current += 1
     if (abortRef.current) abortRef.current.abort()
     resetWordStream()
     setLoading(false)
@@ -233,5 +267,19 @@ export function useChat(sessionId) {
     } catch (_) {}
   }, [resetWordStream, sessionId])
 
-  return { messages, loading, send, clear }
+  const stop = useCallback(() => {
+    requestVersion.current += 1
+    abortRef.current?.abort()
+    resetWordStream()
+    setLoading(false)
+    updateLastMessage(last => {
+      last.streaming = false
+      last.status = null
+      last.interrupted = true
+      last.durationMs = Date.now() - last.startedAt
+      if (!last.text) last.text = 'Response stopped.'
+    })
+  }, [resetWordStream, updateLastMessage])
+
+  return { messages, loading, send, clear, stop }
 }

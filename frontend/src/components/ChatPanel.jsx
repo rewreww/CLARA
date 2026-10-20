@@ -1,200 +1,192 @@
-import { useRef, useEffect, useState } from 'react'
-import { QUICK_PROMPTS } from '../constants'
+import { useRef, useEffect, useState, useCallback } from 'react'
+import { Activity, ArrowUp, ArrowUpRight, BookOpen, Check, ChevronDown, Copy, FileText, FlaskConical, HeartPulse, ShieldCheck, Square, SquarePen, UserRound } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import ActivityTimeline from './ActivityTimeline'
+import EvidencePanel from './EvidencePanel'
 
-function sourcePanelTitle(sources = []) {
-  const hasPatientPdf = sources.some(source => source.type === 'patient_pdf')
-  const hasGuidelines = sources.some(source => source.type === 'guideline')
-  if (hasPatientPdf && !hasGuidelines) return 'PDF sources'
-  if (hasGuidelines && !hasPatientPdf) return 'Guideline sources'
-  return 'Sources'
-}
+const PROMPTS = [
+  { icon: FlaskConical, label: 'Review lab results', message: 'Summarize this patient\'s abnormal laboratory results.' },
+  { icon: HeartPulse, label: 'Review patient history', message: 'Summarize this patient\'s clinical history.' },
+  { icon: BookOpen, label: 'Explore guidelines', message: 'What cardiovascular guidelines apply to this patient?' },
+]
 
-function sourceBadge(source) {
-  return source.type === 'patient_pdf' ? 'PDF' : 'CPG'
-}
-
-function MessageBubble({ msg }) {
+function Message({ msg, onSource, onActivity }) {
+  const [copied, setCopied] = useState(false)
+  const [copyFailed, setCopyFailed] = useState(false)
+  const copyTimer = useRef(null)
+  useEffect(() => () => clearTimeout(copyTimer.current), [])
   const isDoctor = msg.role === 'doctor'
-  const workedFor = msg.durationMs == null ? null : `${(msg.durationMs / 1000).toFixed(1)}s`
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(msg.text)
+      setCopyFailed(false)
+      setCopied(true)
+      clearTimeout(copyTimer.current)
+      copyTimer.current = setTimeout(() => setCopied(false), 1800)
+    } catch { setCopyFailed(true) }
+  }
+
   return (
-    <div className={`flex flex-col gap-1 animate-fade-up ${isDoctor ? 'items-end' : 'items-start'}`}>
-      <div className="font-mono text-[9px] tracking-[0.1em] uppercase text-muted px-1">
-        {isDoctor ? 'DOCTOR' : 'CLARA'}
-      </div>
-      <div className="max-w-[92%] px-[13px] py-[10px] text-[12.5px] leading-[1.6]"
-        style={{
-          borderRadius: isDoctor ? '10px 10px 4px 10px' : '10px 10px 10px 4px',
-          background:   isDoctor ? 'rgba(37,99,235,0.15)' : '#0d1526',
-          border:       isDoctor ? '1px solid rgba(37,99,235,0.25)' : '1px solid #1a2d4e',
-          color: '#dde4f0',
-        }}>
-        {!msg.text && msg.streaming ? (
-          <div className="flex items-center gap-2 font-mono text-[10px]">
-            <span className="status-shimmer">{msg.status || 'Preparing a response'}</span>
-            <span className="flex gap-[3px]" aria-hidden="true">
-              <span className="w-[3px] h-[3px] rounded-full bg-accent2 dot-1" />
-              <span className="w-[3px] h-[3px] rounded-full bg-accent2 dot-2" />
-              <span className="w-[3px] h-[3px] rounded-full bg-accent2 dot-3" />
-            </span>
+    <article className={`chat-message ${isDoctor ? 'from-doctor' : 'from-clara'}`} aria-label={isDoctor ? 'Your message' : 'CLARA response'}>
+      {!isDoctor && <span className="message-avatar"><Activity size={18} /></span>}
+      <div className="message-content">
+        {!isDoctor && <div className="message-author">CLARA</div>}
+        {!isDoctor && (msg.streaming || msg.actions?.length > 0 || msg.error || msg.interrupted) && <ActivityTimeline message={msg} />}
+        {msg.text && (
+          <div className="message-body"><ReactMarkdown>{msg.text}</ReactMarkdown>{msg.streaming && <span className="stream-cursor" aria-hidden="true" />}</div>
+        )}
+        {!isDoctor && msg.sources?.length > 0 && (
+          <details className="message-sources">
+            <summary><FileText size={14} />{msg.sources.length} source{msg.sources.length === 1 ? '' : 's'}<ChevronDown size={14} /></summary>
+            <ul>{msg.sources.map((source, index) => (
+              <li key={`${source.source}-${source.page}-${index}`}>
+                <span className="source-kind">{source.type === 'patient_pdf' ? 'Patient PDF' : 'Guideline'}</span>
+                <button className="citation-link" onClick={() => onSource(source)}><span>{source.title || source.source}{source.page ? ` / p. ${source.page}` : ''}</span><ArrowUpRight size={14} /></button>
+              </li>
+            ))}</ul>
+          </details>
+        )}
+        {!isDoctor && !msg.streaming && msg.text && (
+          <div className="message-actions">
+            <button className="icon-button" title={copied ? 'Copied' : 'Copy response'} aria-label={copied ? 'Response copied' : 'Copy response'} onClick={copy}>
+              {copied ? <Check size={15} /> : <Copy size={15} />}
+            </button>
+            {copyFailed && <span role="status">Copy unavailable</span>}
+            {msg.guidelines && <span><ShieldCheck size={13} />Guidelines referenced</span>}
+            {msg.mlUsed && <span>ML assessment</span>}
+            {msg.durationMs != null && <span>{(msg.durationMs / 1000).toFixed(1)}s</span>}
+            {!!msg.actions?.length && <button className="activity-detail-link" onClick={onActivity}>View activity</button>}
           </div>
-        ) : (
-          <>
-            {msg.text}
-            {msg.streaming && (
-              <span className="inline-block w-[2px] h-[14px] bg-accent2 ml-[2px]
-                align-middle animate-pulse-dot" />
-            )}
-          </>
         )}
       </div>
-
-      {!isDoctor && (msg.tools?.length > 0 || msg.guidelines || msg.mlUsed || workedFor) && (
-        <div className="flex gap-[5px] flex-wrap px-1">
-          {msg.tools?.map(t => (
-            <span key={t} className="text-[9px] px-[7px] py-[2px] rounded-[3px]
-              bg-accent2/15 text-accent2 font-mono">{t}</span>
-          ))}
-          {msg.guidelines && (
-            <span className="text-[9px] px-[7px] py-[2px] rounded-[3px]
-              bg-success/15 text-success font-mono">guidelines</span>
-          )}
-          {msg.mlUsed && (
-            <span className="text-[9px] px-[7px] py-[2px] rounded-[3px]
-              bg-[#8b5cf6]/15 text-[#c4b5fd] font-mono">ML assessment</span>
-          )}
-          {workedFor && (
-            <span className="text-[9px] px-[3px] py-[2px] text-muted font-mono">
-              Worked for {workedFor}
-            </span>
-          )}
-        </div>
-      )}
-
-      {!isDoctor && msg.sources?.length > 0 && (
-        <div className="w-full max-w-[92%] px-[10px] py-[8px] rounded-[6px]"
-          style={{ background: '#091426', border: '1px solid #183254' }}>
-          <div className="font-mono text-[8px] uppercase tracking-[0.1em] mb-[5px]" style={{ color: '#5d8fbd' }}>
-            {sourcePanelTitle(msg.sources)}
-          </div>
-          <div className="flex flex-col gap-[4px]">
-            {msg.sources.slice(0, 4).map((source, index) => (
-              <div key={`${source.source}_${source.page}_${index}`} className="flex items-center gap-[6px] min-w-0">
-                <span className="font-mono text-[9px] text-accent2 shrink-0">[{sourceBadge(source)}]</span>
-                <span className="font-mono text-[9px] text-[#b9cce3] truncate">{source.title}</span>
-                {source.page && <span className="font-mono text-[9px] text-[#6b8eae] shrink-0">p.{source.page}</span>}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+    </article>
   )
 }
 
-function TypingIndicator() {
-  return (
-    <div className="flex flex-col items-start gap-1">
-      <div className="font-mono text-[9px] tracking-[0.1em] uppercase text-muted px-1">CLARA</div>
-      <div className="px-[14px] py-[10px] bg-card border border-border
-        rounded-[10px_10px_10px_4px] flex items-center gap-[5px]">
-        {[0, 1, 2].map(n => (
-          <div key={n} className={`w-[5px] h-[5px] rounded-full bg-accent2 dot-${n + 1}`} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ↓ activeSection added to props
-export default function ChatPanel({ patient, activeSection, messages, loading, onSend, onClear }) {
+export default function ChatPanel({ patient, patients, patientsLoading, patientsError, onSelectPatient,
+  activeSection, isActive, messages, loading, onSend, onClear, onStop, onOpenRecord }) {
   const [input, setInput] = useState('')
-  const bottomRef = useRef(null)
+  const scrollRef = useRef(null)
   const taRef = useRef(null)
+  const followResponse = useRef(true)
+  const latestResponse = messages.findLast(message => message.role === 'clara')
+  const [evidenceOpen, setEvidenceOpen] = useState(false)
+  const [evidenceTab, setEvidenceTab] = useState('sources')
+  const [selectedSource, setSelectedSource] = useState(null)
+  const [evidenceIndex, setEvidenceIndex] = useState(null)
+  const evidenceMessage = evidenceIndex == null ? latestResponse : messages[evidenceIndex]
+  const evidenceSources = evidenceMessage?.sources || []
+  const closeEvidence = useCallback(() => setEvidenceOpen(false), [])
+  useEffect(() => {
+    if (latestResponse?.sources?.length) {
+      setSelectedSource(source => source || latestResponse.sources[0])
+    }
+  }, [latestResponse?.sources])
+  const hasConversation = messages.some(message => message.role === 'doctor')
+  const visibleMessages = hasConversation ? messages : []
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, loading])
+    if (isActive && followResponse.current && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [messages, isActive])
 
-  const handleSend = () => {
-    if (!input.trim() || loading) return
-    onSend(input.trim(), activeSection)   // ← pass activeSection here
+  useEffect(() => {
+    if (!taRef.current) return
+    taRef.current.style.height = 'auto'
+    taRef.current.style.height = Math.min(taRef.current.scrollHeight, 180) + 'px'
+  }, [input, isActive])
+
+  const handleSend = event => {
+    event?.preventDefault()
+    if (!input.trim() || loading || !patient) return
+    followResponse.current = true
+    setEvidenceIndex(null)
+    setSelectedSource(null)
+    onSend(input.trim(), activeSection)
     setInput('')
-    if (taRef.current) taRef.current.style.height = 'auto'
   }
 
-  const handleKey = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
+  const newChat = () => {
+    onClear()
+    setInput('')
+    followResponse.current = true
+    taRef.current?.focus()
   }
 
-  const autoResize = (e) => {
-    e.target.style.height = 'auto'
-    e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px'
-  }
+  const composer = (
+    <div className="composer-area">
+      <form className="chat-composer" onSubmit={handleSend}>
+        <textarea ref={taRef} value={input} onChange={event => setInput(event.target.value)}
+          onKeyDown={event => {
+            if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) handleSend(event)
+          }}
+          placeholder={patient ? 'Ask about this patient...' : 'Ask CLARA...'} aria-label="Message CLARA" rows={2} />
+        <div className="composer-controls">
+          <div className="patient-picker">
+            <UserRound size={15} />
+            <label className="sr-only" htmlFor="chat-patient">Patient for this conversation</label>
+            <select id="chat-patient" value={patient?.id || ''} disabled={patientsLoading || !!patientsError}
+              onChange={event => onSelectPatient(patients.find(item => item.id === event.target.value) || null)}>
+              <option value="">{patientsLoading ? 'Loading patients...' : patientsError ? 'Patients unavailable' : 'Select a patient'}</option>
+              {patients.map(item => <option key={item.id} value={item.id}>{item.name} / {item.id}</option>)}
+            </select>
+            <ChevronDown size={13} />
+          </div>
+          {loading ? <button className="send-button stop-button" type="button" onClick={onStop} aria-label="Stop response" title="Stop response"><Square size={16} fill="currentColor" /></button>
+            : <button className="send-button" type="submit" disabled={!input.trim() || !patient}
+                aria-label="Send message" title={!patient ? 'Select a patient to send a message' : 'Send message'}><ArrowUp size={20} /></button>}
+        </div>
+      </form>
+      {patient && <div className="composer-context">
+        <span>Record {patient.id}<span className="context-separator">/</span>{activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}</span>
+        <button onClick={onOpenRecord}>View record<ArrowUpRight size={13} /></button>
+      </div>}
+      {patientsError && <p className="composer-error" role="alert">Patient records are currently unavailable.</p>}
+    </div>
+  )
 
   return (
-    <div className="flex flex-col h-full bg-panel border-l border-border">
-
-      <div className="px-4 py-[13px] border-b border-border shrink-0">
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-2 text-[13px] font-semibold">
-            <span className="w-2 h-2 rounded-full bg-accent2 animate-pulse-dot
-              shadow-[0_0_8px_#0ea5e9]" />
-            CLARA Assistant
+    <div className="chat-workspace evidence-is-open">
+    <div className={`chat-page ${hasConversation ? 'has-conversation' : 'is-new-chat'}`}>
+      <div className="chat-page-toolbar">
+        <span className="chat-context-label">{patient ? `Patient ${patient.id}` : 'New conversation'}</span>
+        <div className="chat-toolbar-actions"><button className="text-button" onClick={newChat} title="New chat"><SquarePen size={16} />New chat</button>
+          <button className="source-preview-tile" aria-label="Open source preview" aria-expanded={evidenceOpen} onClick={() => setEvidenceOpen(true)} title="Source preview"><FileText size={18} /><span>Sources<small>{evidenceSources.length} document{evidenceSources.length === 1 ? '' : 's'}</small></span><ArrowUpRight size={14} /></button></div>
+      </div>
+      {hasConversation ? (
+        <>
+          <div ref={scrollRef} className="conversation-scroll" onScroll={event => {
+            const { scrollHeight, scrollTop, clientHeight } = event.currentTarget
+            followResponse.current = scrollHeight - scrollTop - clientHeight < 100
+          }}>
+            <div className="conversation-content" role="log" aria-label="Conversation" aria-busy={loading}>
+              {visibleMessages.map((message, index) => <Message key={index} msg={message}
+                onSource={source => { setEvidenceIndex(index); setSelectedSource(source); setEvidenceTab('sources'); setEvidenceOpen(true) }}
+                onActivity={() => { setEvidenceIndex(index); setEvidenceTab('activity'); setEvidenceOpen(true) }} />)}
+            </div>
           </div>
-          <button onClick={onClear}
-            className="font-mono text-[10px] text-muted px-2 py-[3px] rounded
-              bg-card border border-border cursor-pointer transition-all
-              hover:text-danger hover:border-danger">
-            CLEAR
-          </button>
+          <div className="conversation-composer">{composer}</div>
+        </>
+      ) : (
+        <div className="chat-welcome-scroll">
+          <div className="chat-welcome">
+            <div className="welcome-brand"><Activity size={30} strokeWidth={1.8} /><span>CLARA</span></div>
+            <h1>How can I help, Doctor?</h1>
+            {composer}
+            <div className="suggested-prompts">
+              {PROMPTS.map(({ icon: Icon, label, message }) => (
+                <button key={label} onClick={() => { setInput(message); taRef.current?.focus() }}>
+                  <Icon size={18} /><span>{label}</span><ArrowUpRight size={14} />
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-        <div className="font-mono text-[10px] text-muted">
-          {patient
-            ? `patient: ${patient.id} · ${activeSection ?? 'overview'} · session active`
-            : 'no patient selected'}
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-[10px]">
-        {messages.map((m, i) => <MessageBubble key={i} msg={m} />)}
-        {loading && !messages.some(m => m.streaming) && <TypingIndicator />}
-        <div ref={bottomRef} />
-      </div>
-
-      <div className="px-3 pt-2 flex gap-[6px] flex-wrap shrink-0">
-        {QUICK_PROMPTS.map(q => (
-          <button key={q} onClick={() => setInput(q)}
-            className="font-mono text-[10px] px-[9px] py-1 rounded bg-card border border-border
-              text-muted cursor-pointer transition-all whitespace-nowrap
-              hover:border-accent2 hover:text-accent2">
-            {q}
-          </button>
-        ))}
-      </div>
-
-      <div className="p-3 shrink-0">
-        <div className="flex gap-2 items-end">
-          <textarea ref={taRef} value={input}
-            onChange={e => { setInput(e.target.value); autoResize(e) }}
-            onKeyDown={handleKey}
-            placeholder="Ask CLARA about this patient..."
-            rows={1}
-            className="flex-1 bg-card border border-border rounded-[8px] px-3 py-[9px]
-              text-[12.5px] text-[#dde4f0] resize-none outline-none min-h-[38px]
-              max-h-[100px] leading-[1.4] transition-colors placeholder:text-muted
-              focus:border-accent font-sans"
-          />
-          <button onClick={handleSend}
-            disabled={loading || !input.trim()}
-            className={`w-[38px] h-[38px] rounded-[8px] border-none flex items-center
-              justify-center text-[14px] text-white shrink-0 transition-all
-              ${loading || !input.trim()
-                ? 'bg-border cursor-not-allowed'
-                : 'bg-accent cursor-pointer hover:bg-blue-700'}`}>
-            ➤
-          </button>
-        </div>
-      </div>
+      )}
+    </div>
+    {isActive && <EvidencePanel mobileOpen={evidenceOpen} sources={evidenceSources} selectedSource={selectedSource} onSelectSource={setSelectedSource}
+      onClose={closeEvidence} patientId={patient?.id} message={evidenceMessage} tab={evidenceTab} onTab={setEvidenceTab} />}
     </div>
   )
 }

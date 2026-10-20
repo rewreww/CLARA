@@ -25,15 +25,15 @@ function MedItem({ index, med }) {
   return (
     <div className="flex items-center gap-3 px-4 py-[8px]
       border-b border-border/40 last:border-b-0">
-      <span className="font-mono text-[10px] text-muted shrink-0 w-[18px] text-right">
+      <span className="font-mono text-[11px] text-muted shrink-0 w-[18px] text-right">
         {index + 1}.
       </span>
-      <span className="flex-1 text-[12px] leading-[1.5] text-[#d7e2f0] min-w-0">
+      <span className="flex-1 text-[12px] leading-[1.5] text-[#d7dde1] min-w-0">
         {med}
       </span>
       {freq && (
         <span
-          className="font-mono text-[9px] font-semibold px-[6px] py-[2px] rounded-[4px] shrink-0"
+          className="font-mono text-[11px] font-semibold px-[6px] py-[2px] rounded-[4px] shrink-0"
           style={{ color: freq.color, background: `${freq.color}22` }}>
           {freq.label}
         </span>
@@ -52,7 +52,7 @@ function CopyButton({ text }) {
   }
   return (
     <button onClick={copy}
-      className="px-3 py-[5px] rounded-[6px] font-mono text-[10px] border border-border
+      className="px-3 py-[5px] rounded-[6px] font-mono text-[11px] border border-border
         text-muted hover:border-accent hover:text-accent transition-colors">
       {copied ? '✓ Copied' : 'Copy All'}
     </button>
@@ -119,7 +119,7 @@ export default function PrescriptionsPanel({ patient, refreshKey = 0 }) {
     <div className="p-[16px_20px] overflow-y-auto h-full">
 
       {/* Header */}
-      <div className="flex items-center gap-3 font-mono text-[10px] tracking-[0.1em]
+      <div className="flex items-center gap-3 font-mono text-[11px] tracking-[0.1em]
         uppercase text-accent mb-[14px]">
         ● Prescriptions
         {showNav && <>
@@ -153,17 +153,17 @@ export default function PrescriptionsPanel({ patient, refreshKey = 0 }) {
           {/* Final diagnosis */}
           {visitData.final_dx && (
             <div className="mb-3 px-4 py-3 bg-card border border-border rounded-[8px]">
-              <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted mb-1">
+              <div className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted mb-1">
                 Final Diagnosis
               </div>
-              <div className="text-[12px] text-[#d7e2f0] leading-[1.6]">{visitData.final_dx}</div>
+              <div className="text-[12px] text-[#d7dde1] leading-[1.6]">{visitData.final_dx}</div>
             </div>
           )}
 
           {/* Medications */}
           <div className="mb-3">
             <div className="flex items-center justify-between mb-[6px]">
-              <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted">
+              <div className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted">
                 Home Medications
               </div>
               {meds.length > 0 && <CopyButton text={copyText} />}
@@ -185,11 +185,11 @@ export default function PrescriptionsPanel({ patient, refreshKey = 0 }) {
               <div
                 onClick={() => setShowInstr(o => !o)}
                 className="flex items-center justify-between mb-[6px] cursor-pointer group">
-                <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted
+                <div className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted
                   group-hover:text-accent transition-colors">
                   Instructions
                 </div>
-                <span className="text-[9px] text-muted"
+                <span className="text-[11px] text-muted"
                   style={{ display: 'inline-block', transform: showInstr ? 'rotate(90deg)' : 'none' }}>
                   ▶
                 </span>
@@ -199,10 +199,10 @@ export default function PrescriptionsPanel({ patient, refreshKey = 0 }) {
                   {instrs.map((instr, i) => (
                     <div key={i} className="flex items-start gap-3 px-4 py-[8px]
                       border-b border-border/40 last:border-b-0">
-                      <span className="font-mono text-[10px] text-muted shrink-0 w-[18px] text-right mt-[1px]">
+                      <span className="font-mono text-[11px] text-muted shrink-0 w-[18px] text-right mt-[1px]">
                         {i + 1}.
                       </span>
-                      <span className="text-[12px] leading-[1.5] text-[#d7e2f0]">{instr}</span>
+                      <span className="text-[12px] leading-[1.5] text-[#d7dde1]">{instr}</span>
                     </div>
                   ))}
                 </div>
@@ -213,11 +213,11 @@ export default function PrescriptionsPanel({ patient, refreshKey = 0 }) {
           {/* Follow-up */}
           {followup && (
             <div>
-              <div className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted mb-[6px]">
+              <div className="font-mono text-[11px] uppercase tracking-[0.1em] text-muted mb-[6px]">
                 Follow-up
               </div>
               <div className="bg-card border border-accent/20 rounded-[8px] px-4 py-3">
-                <div className="text-[12px] text-[#d7e2f0] leading-[1.6]">{followup}</div>
+                <div className="text-[12px] text-[#d7dde1] leading-[1.6]">{followup}</div>
               </div>
             </div>
           )}

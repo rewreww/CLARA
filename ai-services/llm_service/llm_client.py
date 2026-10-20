@@ -8,7 +8,8 @@ from functools import lru_cache
 from dotenv import load_dotenv
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from typing import Literal
 from typing import Optional, Dict, Any
 from collections import defaultdict
 from fastapi.responses import StreamingResponse
@@ -33,6 +34,8 @@ from rag.embeddings import EMBEDDING_PROVIDER as RAG_EMBEDDING_PROVIDER, EMBED_M
 from rule_engine.rules import rule_engine
 
 app = FastAPI()
+from document_preview import router as document_preview_router
+app.include_router(document_preview_router)
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -137,11 +140,24 @@ Available patient data tools:
 """
 
 
+class HistoryEntry(BaseModel):
+    role: Literal["doctor", "clara"]
+    content: str = Field(max_length=100000)
+
+
 class ChatRequest(BaseModel):
     patient_id: str
     message: str
     session_id: Optional[str] = "default"
     active_section: Optional[str] = None   
+    history: Optional[list[HistoryEntry]] = Field(default=None, max_length=20)
+
+
+def request_history(request: ChatRequest) -> list[dict]:
+    # A reopened browser conversation remains usable after the service restarts.
+    if request.history is not None:
+        return [entry.model_dump() for entry in request.history]
+    return list(conversation_store[request.session_id or "default"])
 
 
 class ChatResponse(BaseModel):
@@ -1130,7 +1146,7 @@ def chat(request: ChatRequest):
     session_id     = request.session_id or "default"
 
     system  = SYSTEM_PROMPT.format(tools_section=build_tools_prompt())
-    history = conversation_store[session_id]
+    history = request_history(request)
 
     # Resolve question type — short follow-ups inherit context from history
     question_type = resolve_question_type(request.message, history)
@@ -1143,8 +1159,10 @@ def chat(request: ChatRequest):
     if direct_answer:
         final_response, direct_tools = direct_answer
         tools_called.extend(t for t in direct_tools if t not in tools_called)
-        conversation_store[session_id].append({"role": "doctor", "content": request.message})
-        conversation_store[session_id].append({"role": "clara", "content": final_response})
+        conversation_store[session_id] = (history + [
+            {"role": "doctor", "content": request.message},
+            {"role": "clara", "content": final_response},
+        ])[-(MAX_HISTORY * 2):]
         return ChatResponse(
             patient_id=request.patient_id,
             session_id=session_id,
@@ -1288,8 +1306,10 @@ def chat(request: ChatRequest):
         final_response = ensure_pdf_source_opening(final_response, patient_sources)
 
     # 9. Save to memory
-    conversation_store[session_id].append({"role": "doctor",  "content": request.message})
-    conversation_store[session_id].append({"role": "clara",   "content": final_response})
+    conversation_store[session_id] = (history + [
+        {"role": "doctor", "content": request.message},
+        {"role": "clara", "content": final_response},
+    ])[-(MAX_HISTORY * 2):]
 
     return ChatResponse(
         patient_id      = request.patient_id,
@@ -1324,7 +1344,7 @@ def chat_stream(request: ChatRequest):
             return event({"type": "status", "label": label})
 
         try:
-            history = conversation_store[session_id]
+            history = request_history(request)
             question_type = resolve_question_type(request.message, history)
             pid = (request.patient_id or "").strip()
             direct_answer = (
@@ -1348,12 +1368,14 @@ def chat_stream(request: ChatRequest):
             if needs_guidelines:
                 yield status("Checking cardiovascular guidelines")
                 guidelines, guideline_sources = build_guideline_bundle(request.message)
+                yield event({"type": "sources", "sources": guideline_sources})
             guidelines_used = bool(guideline_sources)
 
             document_context_block = ""
             if needs_document_context:
                 yield status("Reading patient PDF source")
                 document_context_block, document_tools, document_data, patient_sources = _preload_document_context(pid, request.message)
+                yield event({"type": "sources", "sources": patient_sources + guideline_sources})
                 tools_called.extend(t for t in document_tools if t not in tools_called)
                 collected_data.extend(document_data)
 
@@ -1487,8 +1509,10 @@ def chat_stream(request: ChatRequest):
             return
 
         cleaned = clean_response(full_response)
-        conversation_store[session_id].append({"role": "doctor",  "content": request.message})
-        conversation_store[session_id].append({"role": "clara",   "content": cleaned})
+        conversation_store[session_id] = (history + [
+            {"role": "doctor", "content": request.message},
+            {"role": "clara", "content": cleaned},
+        ])[-(MAX_HISTORY * 2):]
 
         yield event({
             "type": "done",

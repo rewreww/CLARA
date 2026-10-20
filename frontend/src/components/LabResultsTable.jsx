@@ -32,16 +32,16 @@ function normalizeLabResult(result) {
 
 function StatusBadge({ status }) {
   if (status === 'high') return (
-    <span className="px-[5px] py-[1px] rounded-[3px] bg-danger/15 text-danger text-[9px] font-mono">HIGH</span>
+    <span className="px-[5px] py-[1px] rounded-[3px] bg-danger/15 text-danger text-[11px] font-mono">HIGH</span>
   )
   if (status === 'low') return (
-    <span className="px-[5px] py-[1px] rounded-[3px] bg-warning/15 text-warning text-[9px] font-mono">LOW</span>
+    <span className="px-[5px] py-[1px] rounded-[3px] bg-warning/15 text-warning text-[11px] font-mono">LOW</span>
   )
   if (status === 'normal') return (
-    <span className="px-[5px] py-[1px] rounded-[3px] bg-success/15 text-success text-[9px] font-mono">NORMAL</span>
+    <span className="px-[5px] py-[1px] rounded-[3px] bg-success/15 text-success text-[11px] font-mono">NORMAL</span>
   )
   return (
-    <span className="px-[5px] py-[1px] rounded-[3px] bg-border/30 text-muted text-[9px] font-mono">—</span>
+    <span className="px-[5px] py-[1px] rounded-[3px] bg-border/30 text-muted text-[11px] font-mono">—</span>
   )
 }
 
@@ -49,13 +49,13 @@ function DeltaBadge({ first, last }) {
   if (first == null || last == null || typeof first !== 'number') return null
   const delta = last - first
   if (delta === 0) return (
-    <span className="text-[9px] font-mono px-[5px] py-[1px] rounded-[3px] bg-success/10 text-success">
+    <span className="text-[11px] font-mono px-[5px] py-[1px] rounded-[3px] bg-success/10 text-success">
       → stable
     </span>
   )
   const pct = first !== 0 ? Math.abs((delta / Math.abs(first)) * 100).toFixed(1) : '—'
   return (
-    <span className={`text-[9px] font-mono px-[5px] py-[1px] rounded-[3px]
+    <span className={`text-[11px] font-mono px-[5px] py-[1px] rounded-[3px]
       ${delta > 0 ? 'bg-danger/10 text-danger' : 'bg-blue-500/10 text-blue-400'}`}>
       {delta > 0 ? '↑' : '↓'} {pct}%
     </span>
@@ -131,7 +131,7 @@ function TestRow({ testName, points, unit, refLow, refHigh, hasTrend }) {
   const valColor =
     status === 'high'   ? '#ef4444' :
     status === 'low'    ? '#f59e0b' :
-    status === 'normal' ? '#10b981' : '#dde4f0'
+    status === 'normal' ? '#10b981' : '#edf0f2'
 
   const lineColor = hasFlag ? '#ef4444' : '#0ea5e9'
   const canExpand = points.length > 0
@@ -140,8 +140,8 @@ function TestRow({ testName, points, unit, refLow, refHigh, hasTrend }) {
     <div className="border-b border-border last:border-b-0">
 
       {/* Summary row */}
-      <div
-        className={`flex items-center gap-3 px-3 py-[9px] transition-colors
+      <button type="button" aria-expanded={expanded} aria-label={`${testName} history`}
+        className={`lab-summary-row flex items-center gap-3 px-3 py-[9px] transition-colors
           ${canExpand ? 'cursor-pointer hover:bg-accent/5' : ''}`}
         onClick={() => canExpand && setExpanded(e => !e)}
       >
@@ -157,7 +157,7 @@ function TestRow({ testName, points, unit, refLow, refHigh, hasTrend }) {
         </span>
 
         {/* Test name */}
-        <div className="font-mono text-[11px] w-[160px] shrink-0 flex items-center gap-2">
+        <div className="lab-test-name font-mono text-[12px] flex items-center gap-2">
           {testName}
           {hasFlag && (
             <span className="w-[6px] h-[6px] rounded-full bg-danger shadow-[0_0_4px_#ef4444] shrink-0" />
@@ -171,12 +171,12 @@ function TestRow({ testName, points, unit, refLow, refHigh, hasTrend }) {
         </div>
 
         {/* Unit */}
-        <div className="font-mono text-[11px] text-muted w-[60px] shrink-0">
+        <div className="font-mono text-[12px] text-muted w-[60px] shrink-0">
           {unit || '—'}
         </div>
 
         {/* Reference */}
-        <div className="font-mono text-[11px] text-muted w-[100px] shrink-0">
+        <div className="font-mono text-[12px] text-muted w-[100px] shrink-0">
           {formatRef(refLow, refHigh)}
         </div>
 
@@ -187,7 +187,7 @@ function TestRow({ testName, points, unit, refLow, refHigh, hasTrend }) {
 
         {/* Trend — only when multi-visit */}
         {hasTrend && (
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="lab-trend flex items-center gap-3 shrink-0">
             <SparkLine
               points={points}
               refLow={refLow}
@@ -195,26 +195,26 @@ function TestRow({ testName, points, unit, refLow, refHigh, hasTrend }) {
               color={lineColor}
             />
             <DeltaBadge first={first?.value} last={latest?.value} />
-            <div className="font-mono text-[9px] text-muted">
+            <div className="font-mono text-[11px] text-muted">
               {points.length} visit{points.length !== 1 ? 's' : ''}
             </div>
           </div>
         )}
-      </div>
+      </button>
 
       {/* Expanded history */}
       {expanded && (
         <div className="bg-bg/50 border-t border-border px-[14px] py-[10px] animate-fade-up">
           {(refLow != null || refHigh != null) && (
-            <div className="font-mono text-[9px] text-success mb-2">
+            <div className="font-mono text-[11px] text-success mb-2">
               Reference: {formatRef(refLow, refHigh)} {unit}
             </div>
           )}
-          <table className="w-full text-[11px] font-mono">
+          <table className="w-full text-[12px] font-mono">
             <thead>
               <tr>
                 {['Date', 'Result', 'Unit', 'Reference', 'Status'].map(h => (
-                  <th key={h} className="text-left py-[4px] pr-4 text-[9px]
+                  <th key={h} className="text-left py-[4px] pr-4 text-[11px]
                     text-muted uppercase tracking-[0.08em] font-normal">
                     {h}
                   </th>
@@ -224,7 +224,7 @@ function TestRow({ testName, points, unit, refLow, refHigh, hasTrend }) {
             <tbody>
               {[...points].reverse().map((p, i) => {
                 const s  = getStatus(p.value, refLow, refHigh)
-                const vc = s === 'high' ? '#ef4444' : s === 'low' ? '#f59e0b' : '#dde4f0'
+                const vc = s === 'high' ? '#ef4444' : s === 'low' ? '#f59e0b' : '#edf0f2'
                 return (
                   <tr key={i} className="border-t border-border/40">
                     <td className="py-[5px] pr-4 text-accent2">{p.date || '—'}</td>
@@ -340,23 +340,20 @@ export default function LabResultsTable({ results, timeline, labType }) {
     <div className="p-[16px_20px]">
 
       {/* Section header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="font-mono text-[10px] tracking-[0.12em] uppercase text-muted">
+      <div className="mb-4">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="font-mono text-[11px] tracking-[0.12em] uppercase text-muted">
             {labType.charAt(0).toUpperCase() + labType.slice(1)} Results
           </div>
-          <span className="font-mono text-[10px] text-accent2">
+          <span className="font-mono text-[11px] text-accent2">
             {visitCount} visit{visitCount !== 1 ? 's' : ''}
           </span>
           {latestFlagged.length > 0 && (
-            <span className="font-mono text-[10px] text-danger flex items-center gap-1">
+            <span className="font-mono text-[11px] text-danger flex items-center gap-1">
               <span className="w-[5px] h-[5px] rounded-full bg-danger" />
               {latestFlagged.length} abnormal
             </span>
           )}
-        </div>
-        <div className="font-mono text-[9px] text-muted">
-          Click any row to expand history
         </div>
       </div>
 
@@ -364,32 +361,33 @@ export default function LabResultsTable({ results, timeline, labType }) {
       {latestFlagged.length > 0 && (
         <div className="flex items-center gap-[10px] px-[14px] py-[9px]
           bg-warning/10 border border-warning/25 rounded-[8px] mb-4
-          text-[11px] text-warning font-mono">
+          text-[12px] text-warning font-mono">
           ⚠ {latestFlagged.length} value{latestFlagged.length > 1 ? 's' : ''} outside reference range:&nbsp;
           {latestFlagged.join(', ')}
         </div>
       )}
 
       {/* Table */}
-      <div className="bg-card border border-border rounded-[10px] overflow-hidden">
+      <div className="lab-table-scroll bg-card border border-border rounded-[8px]">
+        <div className="lab-table-inner">
 
         {/* Column headers */}
         <div className="flex items-center gap-3 px-3 py-[7px] border-b border-border bg-bg/50">
           <div className="w-[10px] shrink-0" />
           {[
-            ['Test',      'w-[160px]'],
+            ['Test',      'lab-test-name'],
             ['Latest',    'w-[80px]'],
             ['Unit',      'w-[60px]'],
             ['Reference', 'w-[100px]'],
             ['Status',    'w-[70px]'],
           ].map(([label, w]) => (
             <div key={label}
-              className={`font-mono text-[9px] uppercase tracking-[0.08em] text-muted font-normal shrink-0 ${w}`}>
+              className={`font-mono text-[11px] uppercase tracking-[0.08em] text-muted font-normal shrink-0 ${w}`}>
               {label}
             </div>
           ))}
           {hasTrend && (
-            <div className="font-mono text-[9px] uppercase tracking-[0.08em] text-muted font-normal">
+            <div className="lab-trend font-mono text-[11px] uppercase tracking-[0.08em] text-muted font-normal">
               Trend
             </div>
           )}
@@ -407,11 +405,12 @@ export default function LabResultsTable({ results, timeline, labType }) {
             hasTrend={hasTrend}
           />
         ))}
+        </div>
       </div>
 
       {/* Legend */}
       {hasTrend && (
-        <div className="flex items-center gap-4 mt-3 font-mono text-[9px] text-muted">
+        <div className="flex items-center gap-4 mt-3 font-mono text-[11px] text-muted">
           <div className="flex items-center gap-1">
             <div className="w-[16px] h-[2px] bg-accent2" /> Normal trend
           </div>
