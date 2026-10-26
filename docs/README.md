@@ -22,7 +22,8 @@ Ollama (local LLM) → Port 11434
 ## Requirements
 
 - Python 3.10+
-- Node.js 18+
+- Node.js 22.13+
+- .NET 8 SDK or a newer SDK capable of targeting .NET 8
 - PostgreSQL running with the `clara_db` database configured in `backend/appsettings.json`
 - GroqCloud Free plan API key, Hugging Face model downloads enabled for local RAG/LLM models, or Ollama installed and running for local LLM fallback
 - Virtual environment (.venv)
@@ -137,7 +138,93 @@ cd ..\..
 ----
 
 
-## Running the System
+## One-command startup on Windows
+
+After completing first-time setup, start CLARA from the repository root:
+
+```powershell
+.\start-clara.ps1
+```
+
+The backend also needs its database connection string. If it is not already in
+your ignored `backend/appsettings.Development.local.json`, set it in the launching
+terminal (replace the placeholders with your local values):
+
+```powershell
+$env:ConnectionStrings__ClaraDatabase = "Host=localhost;Port=5432;Database=clara_db;Username=<user>;Password=<password>"
+```
+
+Keep database passwords and API keys out of tracked files. The backend's existing
+local JSON override takes precedence when it contains a connection string.
+
+Or double-click **Start CLARA.cmd** in the repository folder. You can create a
+Windows desktop shortcut to that file. The command starts the backend, ML service,
+LLM service, and frontend in the background, checks their readiness and the
+frontend API proxies, then opens `http://localhost:3000`. You can close the startup
+terminal after it reports ready.
+
+```powershell
+.\status-clara.ps1          # Check the managed services
+.\stop-clara.ps1            # Stop this launcher's services and their child processes
+.\start-clara.ps1 -Check    # Check setup and ports without starting services
+.\start-clara.ps1 -NoBrowser
+.\start-clara.ps1 -LegacyParser  # Also start the optional old parser on 8000
+.\start-clara.ps1 -WithOllama    # Also make Ollama available for local fallback
+```
+
+Double-click **Stop CLARA.cmd** to stop without typing. If PowerShell execution
+policy blocks a `.ps1` file, use the `.cmd` entry point; it sets policy only for that
+one PowerShell process and does not change your system policy.
+
+The launcher:
+
+- Uses `.venv\Scripts\python.exe` directly; activation is unnecessary.
+- Checks Node (22.13+), .NET, required Python modules, frontend dependencies,
+  saved model files, the configured PostgreSQL connection's host/port, and provider
+  configuration. It never prints API keys or database passwords.
+- Loads `ai-services/llm_service/.env`, respecting environment variables already
+  set in the launching terminal. It preserves your selected LLM provider.
+- Builds the backend before starting it. Existing restore assets are reused;
+  a first build without them may need NuGet access.
+- Starts Ollama when the selected LLM or embedding provider requires it, or when
+  `-WithOllama` is passed. A healthy existing Ollama server is reused and left
+  running on stop. Startup does not download models or test external LLM generation.
+- Leaves PostgreSQL under your normal Windows service management. A TCP check is
+  followed by the backend's actual database-read readiness check.
+- Refuses occupied application ports instead of killing or adopting manually
+  launched services. Running start again on an already healthy managed instance
+  opens that instance without duplicating it.
+- Keeps timestamped per-service stdout/stderr logs and supervisor state under
+  `.clara/`, which is Git-ignored. Logs may contain application/patient information.
+- Stops the managed process tree on request, partial-start failure, or if one of
+  the main managed services exits. It does not automatically restart a failed run.
+  Check `status-clara.ps1` and the logs, resolve the error, then start again.
+
+For a slow machine, use `-TimeoutSeconds 300` (the readiness/build timeout per
+step defaults to 180 seconds). Switching optional services on an existing run
+requires stop followed by start.
+
+This runs the regular backend: its existing startup migrations and patient-folder
+sync still operate. Stopping terminates the owned processes; it does not wait for
+an in-progress ingestion job to finish. The frontend uses Vite's development
+server; backend/Python source and environment configuration changes require a
+stop/start to take effect. Terminal-only environment variables are not available
+when double-clicking from Explorer; use the ignored local configuration files for
+that workflow.
+
+The launcher provides local startup automation, not CI/CD or production hosting.
+The checked-in Docker setup is not used by it.
+
+### Launcher verification
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s scripts/tests -v
+```
+
+These tests include a Windows process-tree ownership check that confirms stopping
+owned child processes leaves an unrelated process running.
+
+## Running the System Manually
 
 Open a separate PowerShell terminal for each service below.
 

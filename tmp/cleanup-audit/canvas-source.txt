@@ -1,0 +1,78 @@
+import { Callout, Divider, Grid, H1, H2, Stack, Stat, Table, Text } from 'cursor/canvas';
+
+export default function ClaraCleanupAudit() {
+  return (
+    <Stack gap={20}>
+      <H1>CLARA · Cleanup readiness</H1>
+      <Text tone="secondary">20 October 2026 · Baseline 6a72ed9 · Repository inspection and isolated checks</Text>
+      <Callout tone="warning" title="Builds pass. Fix two correctness issues before broad cleanup.">
+        Application source and live data were preserved. A stale patient response can overwrite current lab state, and abandoned document-watcher waits can consume file-change signals.
+      </Callout>
+      <Grid columns={3} gap={16}>
+        <Stat value="11 / 11" label="Frontend and Python unit tests passed" tone="success" />
+        <Stat value="22 / 22" label="Legacy parser assertions passed" tone="success" />
+        <Stat value="78.86 MiB" label="Tracked generated build output" />
+      </Grid>
+      <Text tone="secondary" size="small">Source: commands run against the local checkout during this audit. Build-output size is current tracked file size, not Git-history size.</Text>
+      <Divider />
+      <H2>Verified baseline and its limits</H2>
+      <Table
+        headers={['Check', 'Observed result', 'Limit']}
+        rows={[
+          ['Frontend / backend / notifier builds', 'All passed', 'No browser or notification-delivery test'],
+          ['PostgreSQL read-only checks', '5 patients · 35 documents · 491 labs · 9 summaries', 'Counts and controller execution, not field accuracy'],
+          ['Database migrations / extraction status', '0 pending migrations · 0 failed documents', 'No migrations or ingestion performed'],
+          ['ML synthetic request', 'Saved model loaded; 8 target outputs', 'Execution only; 5 of 147 features supplied'],
+          ['Guideline index catalog', '2,185 records · 384 dimensions', 'Read-only catalog check; retrieval not tested'],
+          ['Application services', 'Stopped when inspected; PostgreSQL reachable', 'No end-to-end LLM acceptance test'],
+          ['Docker Compose configuration', 'Parses successfully', 'Deployment definitions contain confirmed mismatches'],
+        ]}
+      />
+      <Divider />
+      <H2>Highest-priority findings</H2>
+      <Table
+        headers={['Priority', 'Finding', 'Evidence / next action']}
+        rows={[
+          ['High', 'Stale patient response overwrites lab state', 'Reproduced using actual useLabData source and controlled synthetic requests; add request identity/cancellation'],
+          ['High', 'Database passwords in tracked build output', 'Two development-local JSON copies; untrack and address exposure without printing credentials'],
+          ['High for Docker', 'Container startup chain is broken', 'Missing ML Dockerfile, wrong frontend output directory, no API proxy routes, mismatched configuration'],
+          ['Medium', 'Watcher leaves semaphore waits queued', 'Isolated reproduction: old waiter consumed release; current waiter stayed pending'],
+          ['Medium', 'Tested dependencies differ from requirements', 'Installed FastAPI/Uvicorn/Pydantic versions differ from the pins; validate a fresh environment'],
+          ['Medium', 'Guideline rebuild deletes the live collection first', 'Build and validate a replacement before swapping indexes'],
+          ['Medium', 'Active extraction lacks regression coverage', 'Existing detailed parser assertions test Python; ingestion uses C#'],
+        ]}
+      />
+      <H2>What can be cleaned up</H2>
+      <Table
+        headers={['Class', 'Candidates', 'Recommended treatment']}
+        rows={[
+          ['Generated output', '.codex-build/backend · tmp/ui-backend-build · frontend/dist', '209 tracked files; stop tracking and add scoped ignores'],
+          ['Unused code', 'useDischarge · PatientDto · FOLDER_SECTIONS · QUICK_PROMPTS', 'No executable repository consumers found; remove in a small verified change'],
+          ['Unused helpers/imports', 'parse_discharge_to_json · extract_ecg_values · retrieve_guidelines import', 'Check compatibility before removing public helpers'],
+          ['Dependency candidates', 'FluentValidation.AspNetCore · Newtonsoft.Json · direct OpenApi reference', 'No direct use found; restore/build/test after removal'],
+          ['Duplicate/noise', 'Notebook checkpoint · IDE cache · two root Git-log captures', 'Checkpoint is byte-identical; preserve original notebook'],
+          ['Legacy stack', 'Port 8000 parser and its modules/proxy/runbook', 'Retire together only after checking external usage'],
+          ['Incomplete feature', 'Imaging tab', 'Explicit placeholder; hiding is a product choice'],
+        ]}
+      />
+      <Grid columns={2} gap={24}>
+        <Stack gap={10}>
+          <H2>Keep connected features</H2>
+          <Text>PostgreSQL records and migrations; C# ingestion; all current UI components; chat history and PDF previews; safety rules; ML assessment; RAG resources; Windows notifier and registration script.</Text>
+          <Text tone="secondary">Training scripts, datasets, evaluation notebooks, and research samples are offline assets. They are not automatically disposable because the running app does not import them.</Text>
+        </Stack>
+        <Stack gap={10}>
+          <H2>Cleanup order</H2>
+          <Text>1. Preserve Git baseline plus separate database/PDF backups.</Text>
+          <Text>2. Fix and regression-test the two reproduced bugs.</Text>
+          <Text>3. Untrack generated outputs and credential copies.</Text>
+          <Text>4. Remove confirmed unused symbols and duplicate files.</Text>
+          <Text>5. Reconcile dependencies, configuration, and run commands.</Text>
+          <Text>6. Retire legacy paths, then refactor large modules.</Text>
+        </Stack>
+      </Grid>
+      <Divider />
+      <Text tone="secondary" size="small">Full evidence, code locations, commands, limitations, and recommendations: C:\clara-system\docs\CLARA_CLEANUP_AUDIT.md. Audit probes: C:\clara-system\tmp\cleanup-audit. No application cleanup was applied during this analysis pass.</Text>
+    </Stack>
+  );
+}

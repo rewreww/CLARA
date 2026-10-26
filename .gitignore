@@ -54,3 +54,6 @@ Thumbs.db
 .env.test.local
 .env.production.local
 backend/appsettings.Development.local.json
+
+# Local launcher process state and logs (may contain patient data)
+.clara/
