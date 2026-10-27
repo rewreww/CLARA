@@ -3,8 +3,7 @@ import assert from 'node:assert/strict'
 import middleware from '../middleware.js'
 
 const vars = {
-  CLARA_DEMO_ENABLED: 'true', CLARA_DEMO_USERNAME: 'respondent',
-  CLARA_DEMO_PASSWORD: 'test-only-password-123456',
+  CLARA_DEMO_ENABLED: 'true', CLARA_DEMO_USERNAME: '', CLARA_DEMO_PASSWORD: '',
   CLARA_GATEWAY_KEY: 'test-only-gateway-key-12345678901234567890',
   CLARA_GATEWAY_URL: 'https://example.ngrok-free.app',
 }
@@ -21,13 +20,13 @@ test('closed or incomplete demo fails closed before serving HTML', () => {
   assert.equal(run('/',auth, {CLARA_GATEWAY_URL:'https://host.example/other'}).status,503)
   assert.equal(run('/',auth, {CLARA_GATEWAY_URL:'https://REPLACE-WITH-YOUR-NGROK-DOMAIN'}).status,503)
 })
-test('all pages, assets, and APIs require respondent credentials', () => {
+test('respondents can open pages, assets, and APIs without signing in', () => {
   for (const path of ['/', '/assets/app.js', '/api/backend/patientdata/patients']) {
     const result=run(path)
-    assert.equal(result.status,401)
-    assert.match(result.headers.get('www-authenticate'),/Basic/)
+    assert.equal(result.status,200)
+    assert.equal(result.headers.get('www-authenticate'),null)
   }
-  assert.equal(run('/',{authorization:'Basic !!!'}).status,401)
+  assert.equal(run('/',{authorization:'Basic !!!'}).status,200)
   assert.equal(run('/',auth).headers.get('x-middleware-next'),'1')
 })
 test('API rewrite keeps queries but replaces untrusted headers and credentials', () => {

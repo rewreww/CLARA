@@ -1,4 +1,3 @@
-import { createHash, timingSafeEqual } from 'node:crypto'
 import { next, rewrite } from '@vercel/functions'
 
 // This file runs on Vercel, never in the browser or the local Vite server.
@@ -9,11 +8,9 @@ const privateHeaders = {
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer',
 }
-const digest = value => createHash('sha256').update(value).digest()
-const matches = (a, b) => timingSafeEqual(digest(a), digest(b))
 
 export default function middleware(request) {
-  const { CLARA_DEMO_ENABLED, CLARA_DEMO_USERNAME, CLARA_DEMO_PASSWORD,
+  const { CLARA_DEMO_ENABLED,
     CLARA_GATEWAY_URL, CLARA_GATEWAY_KEY } = process.env
   if (CLARA_DEMO_ENABLED !== 'true') {
     return new Response('CLARA demo is closed. Please return during your scheduled evaluation.', { status: 503, headers: privateHeaders })
@@ -23,22 +20,9 @@ export default function middleware(request) {
     gateway = new URL(CLARA_GATEWAY_URL)
     if (gateway.protocol !== 'https:' || gateway.hostname.includes('replace-with') || gateway.username || gateway.password
       || gateway.pathname !== '/' || gateway.search || gateway.hash
-      || !CLARA_DEMO_USERNAME || CLARA_DEMO_USERNAME.includes(':')
-      || !CLARA_DEMO_PASSWORD || CLARA_DEMO_PASSWORD.length < 16
       || !CLARA_GATEWAY_KEY || CLARA_GATEWAY_KEY.length < 32) throw new Error()
   } catch {
     return new Response('CLARA demo setup is incomplete. Please contact the research team.', { status: 503, headers: privateHeaders })
-  }
-  let credentials = ''
-  const auth = request.headers.get('authorization') || ''
-  if (/^Basic /i.test(auth)) {
-    try { credentials = Buffer.from(auth.slice(6), 'base64').toString('utf8') } catch { /* deny */ }
-  }
-  if (!matches(credentials, `${CLARA_DEMO_USERNAME}:${CLARA_DEMO_PASSWORD}`)) {
-    return new Response('Enter the demo credentials supplied by the research team.', {
-      status: 401,
-      headers: { ...privateHeaders, 'WWW-Authenticate': 'Basic realm="CLARA respondent demo", charset="UTF-8"' },
-    })
   }
   const url = new URL(request.url)
   if (url.pathname.startsWith('/api/')) {

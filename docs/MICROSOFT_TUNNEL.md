@@ -1,7 +1,9 @@
 # Current demo setup: Microsoft Dev Tunnels + Vercel
 
 This replaces the ngrok setup in VERCEL_DEMO.md. Do not install ngrok or disable
-antivirus protections. The existing gateway and Vercel demo authentication stay enabled.
+antivirus protections. The gateway key remains enabled; respondent sign-in has been
+removed. Anyone with the Vercel link can access the demo after the agreement modal.
+The agreement is a UI acknowledgment, not API authentication.
 
 ## Current connection
 
@@ -23,16 +25,17 @@ Use the forwarding URL, never the `-inspect` URL.
 2. Import the Git repository into Vercel. Set Root Directory to `frontend`,
    Framework to Vite, Node.js to 22.x, Install Command to `npm ci`, Build Command
    to `npm run build`, Output Directory to `dist`.
-3. Copy all six variables from `.clara/deployment/vercel.env` into Vercel's
+3. Copy the variables from `.clara/deployment/vercel.env` into Vercel's
    Production environment variables. Do not commit the private file.
 4. Deploy. If the project already exists, update the variables and redeploy the
    latest pushed commit. Preview deployments require their own variable scope.
-5. Open the Production URL in a private browser window. It should first ask for
-   the demo username/password, then show the CLARA agreement. If Vercel asks for
-   a team login, check Production Deployment Protection.
+5. Open the Production URL in a private browser window. It should show the CLARA
+   agreement directly. If Vercel asks for a team login, check Production Deployment
+   Protection. `CLARA_DEMO_USERNAME` and `CLARA_DEMO_PASSWORD` are no longer used
+   and can be removed from Vercel. Keep the other four variables.
 6. Verify patients, chat, and PDFs on a phone using mobile data before distributing
-   the Vercel link. Give respondents only the demo username/password, not the
-   gateway key or Microsoft account credentials.
+   the Vercel link. Share only that link, never the gateway key or Microsoft account
+   credentials.
 
 ## Local commands for another session
 
