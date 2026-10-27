@@ -25,7 +25,7 @@ export default function ClinicalAlertsModal({ patient, onClose }) {
   }, [patient.id])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4" role="dialog" aria-modal="true" aria-label="Clinical alerts">
+    <div className="clinical-alerts-dialog fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4" role="dialog" aria-modal="true" aria-label="Clinical alerts">
       <div className="max-h-[80vh] w-full max-w-[560px] overflow-y-auto rounded-[8px] border border-border bg-[#202429] shadow-2xl">
         <div className="sticky top-0 flex items-start justify-between border-b border-border bg-[#202429] px-5 py-4">
           <div>

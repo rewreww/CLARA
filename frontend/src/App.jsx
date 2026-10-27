@@ -5,6 +5,7 @@ import WorkspaceSidebar from './components/WorkspaceSidebar'
 import MainContent from './components/MainContent'
 import ChatPanel from './components/ChatPanel'
 import SyncProgressWatcher from './components/SyncProgressWatcher'
+import TermsAgreementModal from './components/TermsAgreementModal'
 import { useLabData } from './hooks/useLabData'
 import { useChat } from './hooks/useChat'
 import { usePatients } from './hooks/usePatients'
@@ -23,6 +24,13 @@ function PatientChat(props) {
 }
 
 export default function App() {
+  const [agreementAccepted, setAgreementAccepted] = useState(false)
+  return agreementAccepted
+    ? <ClaraWorkspace />
+    : <TermsAgreementModal onAccept={() => setAgreementAccepted(true)} />
+}
+
+function ClaraWorkspace() {
   const [activeApp, setActiveApp] = useState(() => window.location.hash === '#patients' ? 'patients' : 'home')
   const [selectedPatient, setSelectedPatient] = useState(null)
   const [activeSection, setActiveSection] = useState('overview')

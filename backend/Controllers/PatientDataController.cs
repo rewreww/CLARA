@@ -220,7 +220,7 @@ public sealed class PatientDataController(ClaraDbContext db) : ControllerBase
 
             return new PatientSummaryDto(
                 Id: patient.Id,
-                Name: string.IsNullOrWhiteSpace(patient.DisplayName) ? patient.Id : patient.DisplayName,
+                Name: $"Patient {patient.Id}",
                 Age: patient.AgeYears?.ToString(),
                 Sex: patient.Sex,
                 Status: hasAbnormal ? "review" : "stable",
@@ -406,7 +406,7 @@ public sealed class PatientDataController(ClaraDbContext db) : ControllerBase
         var lines = new List<string>
         {
             "[PATIENT CONTEXT]",
-            $"Patient: {patient.DisplayName ?? patient.Id} ({patient.Id})",
+            $"Patient: Patient {patient.Id} ({patient.Id})",
             $"Age: {patient.AgeYears?.ToString() ?? "unknown"}; Sex: {patient.Sex ?? "unknown"}"
         };
 

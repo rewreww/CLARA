@@ -13,6 +13,7 @@ from typing import Literal
 from typing import Optional, Dict, Any
 from collections import defaultdict
 from fastapi.responses import StreamingResponse
+from name_privacy import sanitize_name_text, sanitize_conversations
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
@@ -156,8 +157,10 @@ class ChatRequest(BaseModel):
 def request_history(request: ChatRequest) -> list[dict]:
     # A reopened browser conversation remains usable after the service restarts.
     if request.history is not None:
-        return [entry.model_dump() for entry in request.history]
-    return list(conversation_store[request.session_id or "default"])
+        history = [entry.model_dump() for entry in request.history]
+    else:
+        history = list(conversation_store[request.session_id or "default"])
+    return [{**entry, "content": sanitize_name_text(entry["content"])} for entry in history]
 
 
 class ChatResponse(BaseModel):
@@ -173,6 +176,17 @@ class ChatResponse(BaseModel):
 
 class ClearHistoryRequest(BaseModel):
     session_id: Optional[str] = "default"
+
+
+class SanitizeHistoryRequest(BaseModel):
+    conversations: list[dict] = Field(max_length=1000)
+
+
+@app.post("/privacy/sanitize-history")
+def sanitize_saved_history(request: SanitizeHistoryRequest):
+    # Return the same conversation IDs, patient IDs, sources and clinical content.
+    # Do not persist the submitted history or expose the private name dictionary.
+    return {"conversations": sanitize_conversations(request.conversations)}
 
 
 class ClinicalAlertsRequest(BaseModel):
@@ -549,6 +563,7 @@ def parse_tool_call(text: str) -> Optional[tuple[str, str]]:
 
 
 def clean_response(text: str) -> str:
+    text = sanitize_name_text(text)
     # If the model prefixed its answer with "Answer:", keep only what follows
     answer_match = re.search(r"\bAnswer:\s*", text, re.IGNORECASE)
     if answer_match:
@@ -1141,6 +1156,7 @@ def format_ml_context(predictions: list[dict], coverage: dict) -> str:
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
+    request.message = sanitize_name_text(request.message)
     tools_called   = []
     collected_data = []
     session_id     = request.session_id or "default"
@@ -1327,6 +1343,7 @@ def chat(request: ChatRequest):
 
 @app.post("/chat/stream")
 def chat_stream(request: ChatRequest):
+    request.message = sanitize_name_text(request.message)
     def stream_tokens():
         started = time.perf_counter()
         session_id = request.session_id or "default"

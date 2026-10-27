@@ -321,7 +321,7 @@ export default function DischargePanel({ data: initialData, patient, refreshKey 
     <div className="p-4 space-y-3">
 
       {showNav && (
-        <div className="flex items-center justify-center gap-3 mb-2 px-4 py-2
+        <div className="discharge-visit-nav flex items-center justify-center gap-3 mb-2 px-4 py-2
           border border-border rounded-[8px] bg-card">
           <button
             onClick={() => navigateTo(currentIndex - 1)}

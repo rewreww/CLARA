@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { conversationContext, restoreMessages, readConversations, sourceKey, mergeConversationChanges } from '../src/lib/conversations.js'
+import { conversationContext, restoreMessages, readConversations, sourceKey, mergeConversationChanges, loadPrivateConversations } from '../src/lib/conversations.js'
 import { citationPage, sourceDocumentUrl } from '../src/lib/sources.js'
 
 test('restoring an unfinished response marks it interrupted', () => {
@@ -40,4 +40,36 @@ test('saving one conversation preserves unrelated history from another tab', () 
   const local = [{ id: 'local', updatedAt: 2, title: 'Renamed' }]
   assert.deepEqual(mergeConversationChanges(stored, local, new Set(['local'])), [local[0], stored[0]])
   assert.deepEqual(mergeConversationChanges(stored, [], new Set(['local'])), [stored[0]])
+})
+
+test('saved names are cleaned without deleting chats or source references', async () => {
+  const original = [{ id: 'one', patientId: '00001', title: 'Example labs', messages: [{ role: 'clara', text: 'Example: creatinine 1.16', sources: [{ source: 'report.pdf', page: 1 }] }] }]
+  let raw = JSON.stringify(original)
+  const storage = { getItem: () => raw, setItem: (key, value) => { raw = value } }
+  const cleaned = await loadPrivateConversations(storage, async (url, options) => {
+    assert.equal(url, '/api/llm/privacy/sanitize-history')
+    const data = JSON.parse(options.body)
+    data.conversations[0].title = '[name removed] labs'
+    data.conversations[0].messages[0].text = '[name removed]: creatinine 1.16'
+    return { ok: true, json: async () => data }
+  })
+  assert.equal(cleaned[0].id, 'one')
+  assert.equal(cleaned[0].patientId, '00001')
+  assert.deepEqual(cleaned[0].messages[0].sources, original[0].messages[0].sources)
+  assert.ok(!raw.includes('Example'))
+})
+
+test('unavailable cleanup preserves original storage for a retry', async () => {
+  const raw = JSON.stringify([{ id: 'one', patientId: '00001', title: 'Old chat', messages: [] }])
+  await assert.rejects(loadPrivateConversations({ getItem: () => raw, setItem: () => assert.fail('must not overwrite') }, async () => ({ ok: false })))
+})
+
+test('cleanup retries instead of overwriting concurrent tab changes', async () => {
+  let raw = JSON.stringify([{ id: 'one', patientId: '00001', title: 'Old title', messages: [] }]), calls = 0
+  const result = await loadPrivateConversations({ getItem: () => raw, setItem: (key, value) => { raw = value } }, async (url, options) => {
+    if (++calls === 1) raw = raw.replace('Old title', 'New title')
+    return { ok: true, json: async () => JSON.parse(options.body) }
+  })
+  assert.equal(result[0].title, 'New title')
+  assert.equal(calls, 2)
 })

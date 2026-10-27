@@ -31,6 +31,41 @@ svg { flex-shrink: 0; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #41474f; border-radius: 4px; }
 .app-shell { display: flex; height: 100dvh; min-height: 0; }
+.terms-entry { min-height: 100dvh; display: grid; place-items: center; background: var(--surface); }
+.terms-entry-brand { color: var(--muted); font-size: 24px; font-weight: 650; text-align: center; }
+.terms-entry-brand span { display: block; margin-top: 8px; font-size: 13px; font-weight: 400; }
+.terms-dialog { width: min(760px, calc(100vw - 32px)); max-width: none; max-height: min(90dvh, 860px); margin: auto; padding: 0; color: #edf0f2; background: var(--panel); border: 1px solid #434b52; border-radius: 12px; overflow: hidden; }
+.terms-dialog[open] { display: flex; flex-direction: column; }
+.terms-dialog::backdrop { background: rgb(0 0 0 / 72%); }
+.terms-header { display: flex; gap: 14px; padding: 24px 28px 20px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+.terms-symbol { width: 40px; height: 40px; display: grid; place-items: center; color: var(--accent); background: #243a35; border-radius: 9px; flex-shrink: 0; }
+.terms-eyebrow { margin: 0 0 6px; color: var(--accent); font-size: 11px; font-weight: 600; }
+.terms-header h1 { margin: 0; font-size: 21px; font-weight: 600; line-height: 1.35; }
+.terms-header h1:focus { outline: none; }
+.terms-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 24px 28px; font-size: 13px; line-height: 1.75; color: #bcc5cd; scrollbar-gutter: stable; }
+.terms-body > p { margin: 0; }
+.terms-body section { margin-top: 26px; }
+.terms-body h2 { display: flex; align-items: baseline; gap: 10px; color: #edf0f2; font-size: 15px; font-weight: 600; margin: 0 0 12px; }
+.terms-body h2 > span { color: var(--accent); font-size: 12px; font-variant-numeric: tabular-nums; }
+.terms-body ul { list-style: disc; padding-left: 19px; margin: 0; }
+.terms-body li + li { margin-top: 10px; }
+.terms-body strong { font-weight: 600; color: #e2e8ed; }
+.terms-footer { border-top: 1px solid var(--line); padding: 18px 28px 22px; background: var(--panel); flex-shrink: 0; }
+.terms-acknowledgment { display: flex; align-items: flex-start; gap: 10px; color: #ccd5db; font-size: 12px; line-height: 1.6; cursor: pointer; }
+.terms-acknowledgment input { width: 17px; height: 17px; margin-top: 2px; accent-color: var(--accent); flex-shrink: 0; }
+.terms-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 16px; }
+.terms-actions button { min-height: 42px; }
+.terms-declined p + p { margin-top: 12px; }
+@media (max-width: 520px) {
+  .terms-dialog { width: calc(100vw - 20px); max-height: calc(100dvh - 24px); border-radius: 10px; }
+  .terms-header { padding: 18px; gap: 10px; }
+  .terms-symbol { width: 32px; height: 32px; }
+  .terms-header h1 { font-size: 18px; }
+  .terms-body { padding: 18px; }
+  .terms-footer { padding: 15px 18px; }
+  .terms-actions { flex-direction: column-reverse; gap: 6px; }
+  .terms-actions button { width: 100%; }
+}
 .app-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .app-views, .view-pane { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .icon-button { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; color: var(--muted); flex-shrink: 0; }
@@ -345,6 +380,7 @@ svg { flex-shrink: 0; }
 .rail-button.is-active { background: #263b35; color: #a5e0d5; }
 .rail-tooltip { display: none; position: absolute; left: calc(100% + 12px); top: 8px; padding: 6px 9px; background: #363c40; color: #fff; border-radius: 4px; font-size: 12px; white-space: nowrap; pointer-events: none; z-index: 100; }
 .rail-button:hover .rail-tooltip, .rail-button:focus-visible .rail-tooltip { display: block; }
+.rail-label { display: none; }
 .workspace-sidebar { flex: 0 0 232px; width: 232px; min-height: 0; display: flex; flex-direction: column; background: #1b1e20; border-right: 1px solid #303539; }
 .workspace-sidebar-heading { height: 64px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid #303539; }
 .workspace-sidebar-heading strong { font-size: 14px; font-weight: 500; }
@@ -382,4 +418,96 @@ svg { flex-shrink: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* Phone layout: 4px spacing scale, 16px gutters and 44px touch targets. */
+@media (max-width: 760px) {
+  .app-shell { flex-direction: column; padding-top: env(safe-area-inset-top); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+  .app-main { min-height: 0; }
+  .navigation-rail { order: 2; flex: 0 0 auto; width: 100%; padding: 4px 16px calc(4px + env(safe-area-inset-bottom)); border-right: 0; border-top: 1px solid var(--line); gap: 0; }
+  .navigation-rail > .brand-mark { display: none; }
+  .navigation-rail nav { display: flex; width: 100%; justify-content: space-around; gap: 16px; }
+  .navigation-rail .rail-button { flex: 1; max-width: 200px; width: auto; min-height: 52px; height: auto; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 4px 12px; }
+  .rail-label { display: block; font-size: 12px; line-height: 16px; }
+  .rail-button:hover .rail-tooltip, .rail-button:focus-visible .rail-tooltip { display: none; }
+  .workspace-sidebar { left: 0; width: min(320px, calc(100vw - 32px)); padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+  .workspace-sidebar-heading { height: 56px; padding: 0 16px; }
+  .icon-button, .send-button, .refresh-record, .pdf-toolbar .icon-button { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
+  .text-button, .primary-button, .patient-content button, .record-tabs button, .evidence-tabs button, .source-back, .open-pdf, .return-citation { min-height: 44px; }
+  .topbar { height: 56px; padding: 0 16px; gap: 8px; }
+  .topbar-heading { font-size: 16px; gap: 8px; }
+  .topbar .text-button { min-width: 44px; padding: 8px; }
+  .chat-page-toolbar { padding: 8px 16px; gap: 8px; }
+  .chat-toolbar-actions { flex-wrap: wrap; gap: 8px; }
+  .source-preview-tile { min-height: 44px; padding: 8px 12px; }
+  .source-preview-tile > span { font-size: 12px; }
+  .source-preview-tile small { font-size: 11px; }
+  .chat-welcome { padding: 24px 16px 32px; }
+  .chat-welcome h1 { font-size: 26px; line-height: 1.3; margin-bottom: 24px; }
+  .chat-composer { padding: 12px; border-radius: 12px; }
+  .chat-composer textarea { font-size: 16px; line-height: 1.5; min-height: 64px; max-height: 25dvh; }
+  .composer-controls { gap: 8px; padding-top: 8px; }
+  .patient-picker { min-height: 44px; padding: 8px; gap: 4px; max-width: calc(100% - 52px); }
+  .patient-picker select { font-size: 16px; width: 100%; }
+  .composer-context { flex-wrap: wrap; gap: 8px; font-size: 12px; line-height: 1.5; }
+  .composer-context button { min-height: 44px; }
+  .suggested-prompts { gap: 8px; margin-top: 16px; }
+  .suggested-prompts button { min-height: 48px; padding: 12px; font-size: 14px; line-height: 1.5; }
+  .conversation-content { padding: 16px; }
+  .conversation-composer { padding: 8px 16px 12px; }
+  .chat-message { gap: 8px; margin-bottom: 24px; }
+  .message-avatar { width: 24px; }
+  .message-body { font-size: 16px; line-height: 1.6; }
+  .message-author { font-size: 14px; margin-bottom: 8px; }
+  .from-doctor .message-content { max-width: 92%; padding: 12px; }
+  .message-sources { font-size: 14px; }
+  .message-sources summary { min-height: 44px; }
+  .patient-header { padding: 16px; }
+  .patient-identity h1 { font-size: 18px; }
+  .patient-identity p { font-size: 12px; line-height: 1.5; }
+  .record-tabs { padding: 0 16px; gap: 24px; }
+  .record-tabs button { font-size: 14px; }
+  .patient-content { padding: 0 0 24px; }
+  .patient-content > div { padding-left: 16px; padding-right: 16px; }
+  .patient-content button { min-width: 44px; }
+  .patient-content .text-\[11px\] { font-size: 12px; }
+  .patient-content .text-\[12px\], .patient-content .text-\[13px\] { font-size: 14px; }
+  .discharge-visit-nav { padding-left: 8px; padding-right: 8px; gap: 8px; }
+  .discharge-visit-nav > div { min-width: 0; flex: 1; }
+  .patient-content input, .patient-content select, .patient-search input, .history-edit input { font-size: 16px; min-height: 44px; }
+  .patient-search { margin: 0 16px 12px; padding: 0 8px; }
+  .patient-search .icon-button { width: 44px; height: 44px; }
+  .patient-item { min-height: 64px; padding: 12px 8px; }
+  .patient-item-text strong { font-size: 14px; }
+  .patient-item-text > span { font-size: 12px; }
+  .history-item-actions { position: static; justify-content: flex-end; padding: 0 8px 4px; gap: 4px; }
+  .history-item-actions .icon-button { width: 44px; height: 44px; }
+  .history-edit .icon-button { width: 44px; }
+  .history-open strong { font-size: 14px; }
+  .history-open small { font-size: 12px; }
+  .history-confirm button, .activity-toggle, .activity-detail-link, .citation-link { min-height: 44px; }
+  .clinical-alerts-dialog button { min-width: 44px; min-height: 44px; }
+  .lab-table-scroll, .file-inventory { max-width: 100%; overscroll-behavior-x: contain; }
+  .evidence-panel { width: 100%; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+  .evidence-panel > header { height: 56px; padding: 8px 16px; }
+  .pdf-toolbar { padding: 4px 8px; gap: 0; flex-wrap: wrap; }
+  .pdf-page-count { min-width: 36px; font-size: 12px; }
+  .pdf-document-title { font-size: 14px; overflow-wrap: anywhere; }
+  .source-item { min-height: 64px; }
+  .terms-dialog { width: calc(100vw - 32px); max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+  .terms-header { padding: 16px; gap: 8px; }
+  .terms-header h1 { font-size: 18px; }
+  .terms-body { padding: 16px; font-size: 14px; line-height: 1.6; }
+  .terms-body h2 { font-size: 16px; }
+  .terms-footer { padding: 12px 16px; }
+  .terms-acknowledgment { min-height: 44px; align-items: center; gap: 12px; font-size: 12px; }
+  .terms-acknowledgment input { width: 20px; height: 20px; margin: 0; }
+  .terms-actions { margin-top: 12px; gap: 8px; }
+  .terms-actions button { min-height: 44px; }
+}
+@media (max-width: 760px) and (max-height: 500px) {
+  .terms-dialog[open] { overflow-y: auto; }
+  .terms-body { overflow: visible; flex-shrink: 0; }
+  .chat-page-toolbar { padding-top: 4px; padding-bottom: 4px; }
+  .conversation-composer .composer-context { display: none; }
 }

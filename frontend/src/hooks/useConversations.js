@@ -1,18 +1,15 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { HISTORY_KEY, readConversations, mergeConversationChanges } from '../lib/conversations'
+import { HISTORY_KEY, readConversations, mergeConversationChanges, loadPrivateConversations } from '../lib/conversations'
 
 export function useConversations() {
-  const [initial] = useState(() => {
-    try { return { items: readConversations(localStorage), error: '' } }
-    catch { return { items: [], error: 'Saved history could not be read. Existing storage has not been replaced.' } }
-  })
-  const [conversations, setConversations] = useState(initial.items)
-  const [storageError, setStorageError] = useState(initial.error)
+  const [conversations, setConversations] = useState([])
+  const [storageError, setStorageError] = useState('')
+  const [historyReady, setHistoryReady] = useState(false)
   const changedIds = useRef(new Set())
   const latest = useRef(conversations)
   latest.current = conversations
   const persist = useCallback(() => {
-    if (!changedIds.current.size || initial.error) return
+    if (!changedIds.current.size || !historyReady) return
     try {
       const merged = mergeConversationChanges(readConversations(localStorage), latest.current, changedIds.current)
       localStorage.setItem(HISTORY_KEY, JSON.stringify(merged))
@@ -21,7 +18,7 @@ export function useConversations() {
       setStorageError('')
       changedIds.current.clear()
     } catch { setStorageError('History is not saved. Browser storage is unavailable or full.') }
-  }, [initial.error])
+  }, [historyReady])
 
   useEffect(() => {
     const timer = setTimeout(persist, 300)
@@ -30,13 +27,28 @@ export function useConversations() {
   }, [conversations, persist])
 
   useEffect(() => {
-    const sync = event => {
-      if (event.key !== HISTORY_KEY) return
-      try { setConversations(items => mergeConversationChanges(readConversations(localStorage), items, changedIds.current)) }
-      catch { setStorageError('History changed in another tab but could not be read.') }
+    let cancelled = false, retry, generation = 0
+    const restore = async () => {
+      const current = ++generation
+      clearTimeout(retry)
+      try {
+        const stored = await loadPrivateConversations(localStorage)
+        if (cancelled || current !== generation) return
+        setConversations(items => mergeConversationChanges(stored, items, changedIds.current))
+        setHistoryReady(true)
+        setStorageError('')
+      } catch {
+        if (cancelled || current !== generation) return
+        setHistoryReady(false)
+        setStorageError('Saved chats are waiting for name cleanup. Start CLARA to restore them; existing history is preserved.')
+        retry = setTimeout(restore, 5000)
+      }
     }
+    const sync = event => { if (event.key === HISTORY_KEY) restore() }
+    restore()
     window.addEventListener('storage', sync)
-    return () => window.removeEventListener('storage', sync)
+    window.addEventListener('online', restore)
+    return () => { cancelled = true; clearTimeout(retry); window.removeEventListener('storage', sync); window.removeEventListener('online', restore) }
   }, [])
 
   const save = useCallback(conversation => {

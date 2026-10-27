@@ -122,6 +122,9 @@ public sealed class PatientDocumentSyncService
             _db.Patients.Add(patient);
             result.PatientsCreated++;
         }
+        // The stable folder ID remains the record identity; names are not needed
+        // for clinical extraction, retrieval, citations, or the patient selector.
+        patient.DisplayName = $"Patient {patientId}";
         var pdfFiles = Directory
             .EnumerateFiles(patientDirectory, "*.pdf", SearchOption.AllDirectories)
             .ToList();
@@ -278,10 +281,6 @@ public sealed class PatientDocumentSyncService
 
         var metadata = _clinicalTextExtractor.ExtractPatientMetadata(extractedText);
         _progress.Working("Cleaning extracted clinical data", patient.Id, document.FileName);
-        if (!string.IsNullOrWhiteSpace(metadata.Name))
-        {
-            patient.DisplayName = metadata.Name;
-        }
         patient.AgeYears ??= metadata.AgeYears;
         patient.Sex ??= metadata.Sex;
 
@@ -430,11 +429,6 @@ public sealed class PatientDocumentSyncService
 
     private static void ApplyDischargeMetadata(PatientRecord patient, DischargeExtraction discharge)
     {
-        if (!string.IsNullOrWhiteSpace(discharge.Header.PatientName))
-        {
-            patient.DisplayName = discharge.Header.PatientName;
-        }
-
         patient.AgeYears ??= TryInt(discharge.Header.Age);
         if (string.IsNullOrWhiteSpace(patient.Sex) && !string.IsNullOrWhiteSpace(discharge.Header.Sex))
         {

@@ -1,5 +1,32 @@
 export const HISTORY_KEY = 'clara.conversations.v1'
 
+export async function loadPrivateConversations(storage, fetcher = fetch) {
+  // Clean existing browser history before displaying or reusing it. Retry when
+  // another tab writes while the request is pending, rather than losing its edits.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const before = storage.getItem(HISTORY_KEY)
+    const items = readConversations(storage)
+    if (!items.length) return items
+    const response = await fetcher('/api/llm/privacy/sanitize-history', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversations: items }),
+    })
+    if (!response.ok) throw new Error('Name cleanup is unavailable')
+    const data = await response.json()
+    if (!Array.isArray(data.conversations) || data.conversations.length !== items.length
+      || data.conversations.some((item, i) => item.id !== items[i].id || item.patientId !== items[i].patientId
+        || !Array.isArray(item.messages) || item.messages.length !== items[i].messages.length)) {
+      throw new Error('Invalid name cleanup response')
+    }
+    const serialized = JSON.stringify(data.conversations)
+    const sanitized = readConversations({ getItem: () => serialized })
+    if (storage.getItem(HISTORY_KEY) !== before) continue
+    if (serialized !== before) storage.setItem(HISTORY_KEY, serialized)
+    return sanitized
+  }
+  throw new Error('History changed during name cleanup; retrying')
+}
+
 export function mergeConversationChanges(stored, local, changedIds) {
   const merged = new Map(stored.map(item => [item.id, item]))
   for (const id of changedIds) {

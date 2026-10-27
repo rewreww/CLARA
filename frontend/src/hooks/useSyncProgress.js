@@ -73,6 +73,9 @@ export function useSyncProgress() {
   }, [mergeEvents])
 
   useEffect(() => {
+    // Scheduled respondent sessions use a fixed demo dataset. Avoid continuous
+    // ingestion-status polling through the metered public tunnel.
+    if (import.meta.env.VITE_RESPONDENT_DEMO === 'true') return
     poll()
     const id = window.setInterval(poll, 2000)
     return () => window.clearInterval(id)

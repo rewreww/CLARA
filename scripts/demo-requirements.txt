@@ -1,0 +1,5 @@
+# Small gateway-only dependency set; uses CLARA's existing virtual environment.
+fastapi>=0.104.1,<1
+uvicorn>=0.24,<1
+httpx==0.28.1
+python-dotenv>=1.0.1,<2
