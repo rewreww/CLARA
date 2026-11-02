@@ -201,7 +201,6 @@ svg { flex-shrink: 0; }
 @media (min-width: 1101px) and (max-width: 1450px) {
   .evidence-panel { flex-basis: 340px; width: 340px; }
   .evidence-is-open .chat-page-toolbar { padding-left: 18px; padding-right: 18px; }
-  .evidence-is-open .suggested-prompts { grid-template-columns: 1fr; }
 }
 @media (max-width: 1100px) {
   .evidence-panel { position: fixed; inset: 0 0 0 auto; width: min(440px, 100vw); z-index: 70; box-shadow: -10px 0 40px #0005; }
@@ -235,11 +234,6 @@ svg { flex-shrink: 0; }
 .composer-context button { display: flex; align-items: center; gap: 4px; color: #a6beb8; }
 .context-separator { margin: 0 10px; color: #606c72; }
 .composer-error { font-size: 12px; color: #f39494; margin-top: 10px; }
-.suggested-prompts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 22px; }
-.suggested-prompts button { display: flex; align-items: center; gap: 10px; text-align: left; padding: 15px 12px; border: 1px solid #333a40; border-radius: 6px; color: #b5bfc6; font-size: 12px; min-height: 54px; }
-.suggested-prompts button:hover { background: #242a2e; border-color: #607c73; color: #e1f1eb; }
-.suggested-prompts button > svg:first-child { color: #9ac1b9; }
-.suggested-prompts button > svg:last-child { margin-left: auto; color: #77888a; }
 .conversation-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .conversation-content { max-width: 820px; margin: 0 auto; padding: 24px 24px 36px; }
 .chat-message { display: flex; gap: 14px; margin-bottom: 32px; }
@@ -327,8 +321,6 @@ svg { flex-shrink: 0; }
   .topbar, .chat-page-toolbar { padding-left: 22px; padding-right: 22px; }
   .patient-header { padding-left: 22px; padding-right: 22px; }
   .record-tabs { padding: 0 22px; }
-  .suggested-prompts { grid-template-columns: 1fr; gap: 8px; }
-  .suggested-prompts button { min-height: 42px; padding: 10px 12px; }
 }
 @media (max-width: 760px) {
   .mobile-menu, .mobile-nav-close { display: inline-flex; }
@@ -349,8 +341,6 @@ svg { flex-shrink: 0; }
   .chat-page-toolbar { padding: 10px 16px; }
   .chat-welcome { padding: 28px 18px 48px; }
   .chat-welcome h1 { font-size: 27px; margin-bottom: 24px; }
-  .suggested-prompts { grid-template-columns: 1fr; gap: 8px; margin-top: 16px; }
-  .suggested-prompts button { min-height: 44px; padding: 10px 12px; }
   .chat-composer { padding: 12px; }
   .chat-composer textarea { font-size: 16px; }
   .patient-picker { max-width: calc(100% - 48px); }
@@ -452,8 +442,6 @@ svg { flex-shrink: 0; }
   .patient-picker select { font-size: 16px; width: 100%; }
   .composer-context { flex-wrap: wrap; gap: 8px; font-size: 12px; line-height: 1.5; }
   .composer-context button { min-height: 44px; }
-  .suggested-prompts { gap: 8px; margin-top: 16px; }
-  .suggested-prompts button { min-height: 48px; padding: 12px; font-size: 14px; line-height: 1.5; }
   .conversation-content { padding: 16px; }
   .conversation-composer { padding: 8px 16px 12px; }
   .chat-message { gap: 8px; margin-bottom: 24px; }
@@ -513,14 +501,14 @@ svg { flex-shrink: 0; }
   .conversation-composer .composer-context { display: none; }
 }
 
-/* Keep patient selection prominent below the composer on phones. */
-.mobile-patient-selection { display: none; }
+/* Keep patient selection below the composer on every screen size. */
+.patient-picker-desktop { display: none; }
+.patient-selection { display: grid; gap: 8px; margin-top: 16px; }
+.patient-selection > label { color: #b5c0c4; font-size: 14px; }
+.patient-selection .patient-picker { width: 100%; max-width: 100%; min-height: 44px; padding: 8px 12px; }
+.patient-selection .patient-picker select { flex: 1; min-height: 32px; }
+.patient-selection .patient-picker > svg { flex-shrink: 0; }
 @media (max-width: 760px) {
-  .suggested-prompts, .patient-picker-desktop { display: none; }
   .composer-controls { justify-content: flex-end; }
-  .mobile-patient-selection { display: grid; gap: 8px; margin-top: 16px; }
-  .mobile-patient-selection > label { color: #b5c0c4; font-size: 14px; }
-  .mobile-patient-selection .patient-picker { width: 100%; max-width: 100%; min-height: 48px; padding: 8px 12px; }
-  .mobile-patient-selection .patient-picker select { flex: 1; min-height: 32px; }
-  .mobile-patient-selection .patient-picker > svg { flex-shrink: 0; }
+  .patient-selection .patient-picker { min-height: 48px; }
 }

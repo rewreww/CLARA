@@ -1,14 +1,8 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
-import { Activity, ArrowUp, ArrowUpRight, BookOpen, Check, ChevronDown, Copy, FileText, FlaskConical, HeartPulse, ShieldCheck, Square, SquarePen, UserRound } from 'lucide-react'
+import { Activity, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, FileText, ShieldCheck, Square, SquarePen, UserRound } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import ActivityTimeline from './ActivityTimeline'
 import EvidencePanel from './EvidencePanel'
-
-const PROMPTS = [
-  { icon: FlaskConical, label: 'Review lab results', message: 'Summarize this patient\'s abnormal laboratory results.' },
-  { icon: HeartPulse, label: 'Review patient history', message: 'Summarize this patient\'s clinical history.' },
-  { icon: BookOpen, label: 'Explore guidelines', message: 'What cardiovascular guidelines apply to this patient?' },
-]
 
 function Message({ msg, onSource, onActivity }) {
   const [copied, setCopied] = useState(false)
@@ -138,15 +132,14 @@ export default function ChatPanel({ patient, patients, patientsLoading, patients
           }}
           placeholder={patient ? 'Ask about this patient...' : 'Ask CLARA...'} aria-label="Message CLARA" rows={2} />
         <div className="composer-controls">
-          {patientPicker('desktop')}
           {loading ? <button className="send-button stop-button" type="button" onClick={onStop} aria-label="Stop response" title="Stop response"><Square size={16} fill="currentColor" /></button>
             : <button className="send-button" type="submit" disabled={!input.trim() || !patient}
                 aria-label="Send message" title={!patient ? 'Select a patient to send a message' : 'Send message'}><ArrowUp size={20} /></button>}
         </div>
       </form>
-      <div className="mobile-patient-selection">
-        <label htmlFor="chat-patient-mobile">Patient</label>
-        {patientPicker('mobile')}
+      <div className="patient-selection">
+        <label htmlFor="chat-patient-selection">Patient</label>
+        {patientPicker('selection')}
       </div>
       {patient && <div className="composer-context">
         <span>Record {patient.id}<span className="context-separator">/</span>{activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}</span>
@@ -184,13 +177,6 @@ export default function ChatPanel({ patient, patients, patientsLoading, patients
             <div className="welcome-brand"><Activity size={30} strokeWidth={1.8} /><span>CLARA</span></div>
             <h1>How can I help, Doctor?</h1>
             {composer}
-            <div className="suggested-prompts">
-              {PROMPTS.map(({ icon: Icon, label, message }) => (
-                <button key={label} onClick={() => { setInput(message); taRef.current?.focus() }}>
-                  <Icon size={18} /><span>{label}</span><ArrowUpRight size={14} />
-                </button>
-              ))}
-            </div>
           </div>
         </div>
       )}
