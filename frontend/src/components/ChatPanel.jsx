@@ -114,30 +114,40 @@ export default function ChatPanel({ patient, patients, patientsLoading, patients
     taRef.current?.focus()
   }
 
-  const composer = (
-    <div className="composer-area">
-      <form className="chat-composer" onSubmit={handleSend}>
-        <textarea ref={taRef} value={input} onChange={event => setInput(event.target.value)}
-          onKeyDown={event => {
-            if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) handleSend(event)
-          }}
-          placeholder={patient ? 'Ask about this patient...' : 'Ask CLARA...'} aria-label="Message CLARA" rows={2} />
-        <div className="composer-controls">
-          <div className="patient-picker">
+  const patientPicker = placement => (
+          <div className={`patient-picker patient-picker-${placement}`}>
             <UserRound size={15} />
-            <label className="sr-only" htmlFor="chat-patient">Patient for this conversation</label>
-            <select id="chat-patient" value={patient?.id || ''} disabled={patientsLoading || !!patientsError}
+            <label className="sr-only" htmlFor={`chat-patient-${placement}`}>Patient for this conversation</label>
+            <select id={`chat-patient-${placement}`} value={patient?.id || ''} disabled={patientsLoading || !!patientsError}
               onChange={event => onSelectPatient(patients.find(item => item.id === event.target.value) || null)}>
               <option value="">{patientsLoading ? 'Loading patients...' : patientsError ? 'Patients unavailable' : 'Select a patient'}</option>
               {patients.map(item => <option key={item.id} value={item.id}>{item.name} / {item.id}</option>)}
             </select>
             <ChevronDown size={13} />
           </div>
+  )
+
+  const composer = (
+    <div className="composer-area">
+      <p id="composer-disclaimer" className="composer-disclaimer">CLARA provides information only and makes mistakes. It does not replace a physician’s clinical judgment.</p>
+      <form className="chat-composer" onSubmit={handleSend}>
+        <textarea ref={taRef} value={input} onChange={event => setInput(event.target.value)}
+          aria-describedby="composer-disclaimer"
+          onKeyDown={event => {
+            if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) handleSend(event)
+          }}
+          placeholder={patient ? 'Ask about this patient...' : 'Ask CLARA...'} aria-label="Message CLARA" rows={2} />
+        <div className="composer-controls">
+          {patientPicker('desktop')}
           {loading ? <button className="send-button stop-button" type="button" onClick={onStop} aria-label="Stop response" title="Stop response"><Square size={16} fill="currentColor" /></button>
             : <button className="send-button" type="submit" disabled={!input.trim() || !patient}
                 aria-label="Send message" title={!patient ? 'Select a patient to send a message' : 'Send message'}><ArrowUp size={20} /></button>}
         </div>
       </form>
+      <div className="mobile-patient-selection">
+        <label htmlFor="chat-patient-mobile">Patient</label>
+        {patientPicker('mobile')}
+      </div>
       {patient && <div className="composer-context">
         <span>Record {patient.id}<span className="context-separator">/</span>{activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}</span>
         <button onClick={onOpenRecord}>View record<ArrowUpRight size={13} /></button>

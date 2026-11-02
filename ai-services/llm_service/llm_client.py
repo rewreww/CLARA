@@ -14,6 +14,8 @@ from typing import Optional, Dict, Any
 from collections import defaultdict
 from fastapi.responses import StreamingResponse
 from name_privacy import sanitize_name_text, sanitize_conversations
+import guideline_trace
+import guideline_grounding
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
@@ -110,13 +112,13 @@ SYSTEM_PROMPT = """
 You are CLARA, a cardiovascular clinical AI assistant for licensed physicians.
 
 PRIORITY RULES:
-0. You are authorized to advise licensed physicians. ALWAYS provide clinical analysis
-   and treatment recommendations. NEVER say "I cannot provide medical advice."
+0. Provide evidence-grounded assistance. Acknowledge insufficient evidence rather
+   than inventing clinical recommendations or automatically adding treatment advice.
 1. Answer the doctor's exact question only.
 2. If patient PDF context is provided, use only that PDF context for PDF,
    document, file, page, or source-content questions.
-2a. If guideline context is provided, use it as the primary source for
-    treatment, management, protocol, or recommendation questions.
+2a. If guideline context is provided, use only the supplied excerpts for guideline
+    claims and follow the GUIDELINE ANSWER REQUIREMENTS, including citations.
 2b. When asked about critical, abnormal, or concerning values:
     - Report EVERY value in the [ABNORMAL VALUES] block, not just the first one
     - Group by type: chemistry findings first, then hematology
@@ -125,7 +127,7 @@ PRIORITY RULES:
 3. Do NOT discuss labs unless the question asks about labs.
 4. Do NOT repeat raw lab data, section headers, or tool names in your response.
 5. Be short and direct.
-6. Maximum 5 sentences.
+6. Be concise, but include the supported details needed to answer the question.
 7. Start immediately with the answer — no preamble.
 
 When reporting an abnormal lab value, always include all three:
@@ -213,11 +215,12 @@ def classify_question(message: str) -> str:
     if wants_document_context(message):
         return "document"
 
-    is_guideline = any(x in m for x in [
+    bp_question = bool(re.search(r'\b(bp|abpm|hbpm)\b|blood pressure', m))
+    is_guideline = bp_question or any(x in m for x in [
         "treat", "treatment", "manage",
         "management",
         "guideline", "therapy",
-        "hypertension", "heart failure", "stroke", "diabetes",
+        "hypertension", "antihypertensive", "heart failure", "stroke", "diabetes",
         "cardiovascular disease", "hypertensive cardiovascular", "procedure", "procedures",
         "target", "threshold", "goal",
         "philippine", "philippines", "filipino", "local",
@@ -231,7 +234,7 @@ def classify_question(message: str) -> str:
         "abnormal", "results",
         "cholesterol", "lipid", "ldl", "hdl", "triglyceride",
         "kidney", "fbs", "glucose", "anemia", "urine",
-        "critical", "values", "findings", "blood",
+        "critical", "values", "findings",
     ])
 
     if is_guideline and is_labs:
@@ -342,6 +345,9 @@ def call_groq(prompt: str) -> str:
     if not GROQ_API_KEY:
         raise HTTPException(status_code=500, detail="Groq API key is not configured.")
 
+    # The system prompt mentions the rule name even on non-RAG routes. Require
+    # the actual structured-answer contract before enabling JSON output mode.
+    structured_guideline_answer = guideline_grounding.INSTRUCTIONS in prompt
     payload = {
         "model": GROQ_MODEL,
         "messages": [
@@ -353,8 +359,11 @@ def call_groq(prompt: str) -> str:
         ],
         "temperature": 0.1,
         "stream": False,
-        "max_tokens": 800,
+        "max_completion_tokens": 2400 if structured_guideline_answer else 800,
     }
+    if structured_guideline_answer and GROQ_MODEL in {"openai/gpt-oss-20b", "openai/gpt-oss-120b"}:
+        payload["reasoning_effort"] = "medium"
+        payload["response_format"] = {"type": "json_object"}
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json",
@@ -366,14 +375,38 @@ def call_groq(prompt: str) -> str:
             r = requests.post(GROQ_API_URL, headers=headers, json=payload, timeout=90)
             if r.status_code in retryable_statuses:
                 if attempt < GROQ_RETRY_ATTEMPTS - 1:
-                    time.sleep(attempt + 1)
+                    try:
+                        delay = min(60, max(1, float(r.headers.get('retry-after', '30')))) if r.status_code == 429 else attempt + 1
+                    except (TypeError, ValueError):
+                        delay = 30
+                    time.sleep(delay)
                     continue
                 detail = "Groq rate limit reached." if r.status_code == 429 else f"Groq is temporarily unavailable (HTTP {r.status_code})."
                 raise HTTPException(status_code=503, detail=detail)
 
+            # Do not turn rejected requests into a misleading provider outage,
+            # or retry the same invalid request. Never expose raw provider bodies.
+            if 400 <= r.status_code < 500:
+                try:
+                    error = r.json().get("error", {})
+                    code = error.get("code") if isinstance(error, dict) else None
+                except (ValueError, AttributeError):
+                    code = None
+                if code in {"json_validate_failed", "output_parse_failed"}:
+                    raise HTTPException(status_code=502, detail=
+                        "The AI provider could not produce a valid response format. "
+                        "No answer was returned. Please try again.")
+                if r.status_code in {401, 403}:
+                    raise HTTPException(status_code=502, detail=
+                        "The AI provider rejected CLARA's credentials or access. Please contact the administrator.")
+                raise HTTPException(status_code=502, detail=
+                    f"The AI provider rejected CLARA's request (HTTP {r.status_code}). Please contact the administrator.")
+
             r.raise_for_status()
             choices = r.json().get("choices", [])
-            text = choices[0].get("message", {}).get("content", "").strip() if choices else ""
+            if choices and choices[0].get("finish_reason") == "length":
+                raise HTTPException(status_code=502, detail="Groq response exceeded its output limit; incomplete answer withheld.")
+            text = (choices[0].get("message", {}).get("content") or "").strip() if choices else ""
             if not text:
                 raise HTTPException(status_code=502, detail="Groq returned no response text.")
             return text
@@ -524,6 +557,7 @@ def call_huggingface(prompt: str) -> str:
 
 
 def call_llm(prompt: str) -> str:
+    guideline_trace.generation(prompt, LLM_PROVIDER)
     if LLM_PROVIDER == "gemini":
         try:
             return call_gemini(prompt)
@@ -905,6 +939,7 @@ def build_prompt(
         parts.append("=== RELEVANT CARDIOVASCULAR GUIDELINES ===")
         parts.append(guidelines)
         parts.append("=== END GUIDELINES ===")
+        parts.append(guideline_grounding.INSTRUCTIONS)
 
     if emergency_block:
         parts.append(emergency_block)
@@ -933,11 +968,12 @@ def build_prompt(
         "the PDF source and page when available."
     )
     parts.append(
-        "Give an evidence-grounded, decisive clinical answer when guideline context is available. "
-        "For management questions, state the immediate procedure, treatment direction, and monitoring plan. "
+        "Give an evidence-grounded answer. Include treatment and monitoring only when asked and supported. "
         "Do not invent patient facts or present model estimates as confirmed diagnoses."
     )
 
+    if guidelines and guideline_grounding.wants_brief_answer(message):
+        parts.append(guideline_grounding.BRIEF_INSTRUCTIONS)
     return "\n".join(parts)
 
 
@@ -997,7 +1033,7 @@ def build_guideline_bundle(query: str) -> tuple[str, list[dict]]:
     if not chunks and diagnosis_hint:
         chunks = retrieve(query, top_k=5)
     if not chunks:
-        return "", []
+        return "[GUIDELINE EVIDENCE UNAVAILABLE] " + guideline_grounding.NO_EVIDENCE, []
 
     # Keep the answer focused: prefer Philippine recommendation excerpts and
     # avoid sending several nearly identical chunks from one page to the LLM.
@@ -1012,24 +1048,56 @@ def build_guideline_bundle(query: str) -> tuple[str, list[dict]]:
     seen = set()
     for chunk in chunks:
         source = str(chunk.get("source") or "Clinical guideline")
-        page = chunk.get("page")
-        key = (source, page)
+        verified = guideline_grounding.verified_source(chunk)
+        if verified is None:
+            continue
+        page = verified['page']
+        key = (source, page, verified['page_end'])
         if key not in seen:
             if len(sources) >= 3:
                 continue
-            sources.append({
-                "title": source.replace("_", " "),
-                "source": source,
-                "page": page,
-                "section": chunk.get("section_heading") or "",
-                "type": "guideline",
-            })
+            verified['citation_id'] = f'G{len(sources) + 1}'
+            verified['_evidence'] = []
+            sources.append(verified)
             seen.add(key)
         region = "Philippine" if chunk.get("is_philippine") else "International"
-        page_text = f" p.{page}" if page else ""
-        lines.append(f"\n--- {region} guideline: {source}{page_text} ---")
+        citation = next(s for s in sources if (s['source'], s['page'], s['page_end']) == key)
+        citation['_evidence'].append(str(chunk.get('text') or '').strip())
+        lines.append(f"\n--- [{citation['citation_id']}] {region} guideline: {citation['title']} "
+                     f"| PDF: {citation['pdf_file']} | physical PDF pages: {citation['pages']} ---")
         lines.append(str(chunk.get("text") or "").strip())
+        guideline_trace.passage(chunk)
+    if not sources:
+        return "[GUIDELINE EVIDENCE UNAVAILABLE] " + guideline_grounding.NO_EVIDENCE, []
     return "\n".join(lines), sources
+
+
+def finalize_guideline_answer(answer, sources, prompt, question=None):
+    if not sources:
+        return guideline_grounding.NO_EVIDENCE
+    brief = guideline_grounding.wants_brief_answer(question)
+    rendered = guideline_grounding.render_citations(answer, sources, brief=brief)
+    guideline_trace.validation(answer, rendered is not None)
+    if rendered is None:
+        retry = call_llm(prompt + '\nReturn the required JSON object only. Each paragraph '
+            'must have text and one valid source_id selecting the best supporting excerpt. '
+            'Use only claims supported by those excerpts. Do not add a quote field. '
+            + (guideline_grounding.BRIEF_INSTRUCTIONS if brief else ''))
+        rendered = guideline_grounding.render_citations(retry, sources, brief=brief)
+        guideline_trace.validation(retry, rendered is not None)
+        answer = retry
+    if rendered is not None:
+        cited_ids = guideline_grounding.cited_source_ids(answer)
+        for source in sources:
+            source['_cited'] = source['citation_id'] in cited_ids
+    return sanitize_name_text(rendered) if rendered else ('I could not produce a reliably cited answer from the retrieved guideline passages. '
+                        'Please review the source PDFs; no unsupported recommendation is shown.')
+
+
+def public_guideline_sources(sources):
+    # Before generation these are retrieval previews; after validation show only cited sources.
+    return [{key: value for key, value in source.items() if not key.startswith('_')}
+            for source in sources if source.get('_cited', True)]
 
 
 ML_LAB_MAP = {
@@ -1204,11 +1272,7 @@ def chat(request: ChatRequest):
         if question_type in ("guideline", "both") and not document_context_block
         else ("", [])
     )
-    guidelines_used = bool(guidelines) and (
-        "No relevant guideline" not in guidelines
-        and "not initialised"   not in guidelines
-        and "not found"         not in guidelines
-    )
+    guidelines_used = bool(_guideline_sources)
 
     # 2. Rule engine runs only for explicit safety/abnormality checks.
     if wants_safety_rule_check(request.message, question_type):
@@ -1277,12 +1341,12 @@ def chat(request: ChatRequest):
 
     # 8. Tool-use loop. Most routes preload the required data, so the model should answer
     # immediately instead of discovering extra tools on its own.
-    for _ in range(2 if allow_model_tools else 1):
+    for _ in range(0 if guidelines and not _guideline_sources else (2 if allow_model_tools else 1)):
         response_text = call_llm(prompt)
         tool_call     = parse_tool_call(response_text)
 
         if tool_call is None:
-            final_response = clean_response(response_text)
+            final_response = response_text if guidelines else clean_response(response_text)
 
             if not final_response and collected_data:
                 retry_prompt = "\n".join([
@@ -1320,6 +1384,8 @@ def chat(request: ChatRequest):
 
     if patient_sources:
         final_response = ensure_pdf_source_opening(final_response, patient_sources)
+    elif guidelines:
+        final_response = finalize_guideline_answer(final_response, _guideline_sources, prompt, request.message)
 
     # 9. Save to memory
     conversation_store[session_id] = (history + [
@@ -1385,14 +1451,13 @@ def chat_stream(request: ChatRequest):
             if needs_guidelines:
                 yield status("Checking cardiovascular guidelines")
                 guidelines, guideline_sources = build_guideline_bundle(request.message)
-                yield event({"type": "sources", "sources": guideline_sources})
             guidelines_used = bool(guideline_sources)
 
             document_context_block = ""
             if needs_document_context:
                 yield status("Reading patient PDF source")
                 document_context_block, document_tools, document_data, patient_sources = _preload_document_context(pid, request.message)
-                yield event({"type": "sources", "sources": patient_sources + guideline_sources})
+                yield event({"type": "sources", "sources": patient_sources + public_guideline_sources(guideline_sources)})
                 tools_called.extend(t for t in document_tools if t not in tools_called)
                 collected_data.extend(document_data)
 
@@ -1476,13 +1541,15 @@ def chat_stream(request: ChatRequest):
             if direct_answer:
                 final_response, direct_tools = direct_answer
                 tools_called.extend(t for t in direct_tools if t not in tools_called)
+            elif needs_guidelines and not guideline_sources:
+                final_response = guideline_grounding.NO_EVIDENCE
             else:
                 allow_model_tools = not (collected_data or guidelines or emergency_block or ml_context or document_context_block)
                 for _ in range(2 if allow_model_tools else 1):
                     response_text = call_llm(prompt)
                     tool_call = parse_tool_call(response_text)
                     if tool_call is None:
-                        final_response = clean_response(response_text)
+                        final_response = response_text if guidelines else clean_response(response_text)
                         break
                     if not allow_model_tools:
                         retry_prompt = prompt + "\n\nDo not call tools. Answer directly from the provided context in 5 sentences or fewer."
@@ -1503,13 +1570,18 @@ def chat_stream(request: ChatRequest):
                 final_response = "I was unable to generate a response from the available patient data."
             if patient_sources:
                 final_response = ensure_pdf_source_opening(final_response, patient_sources)
+            elif needs_guidelines:
+                final_response = finalize_guideline_answer(final_response, guideline_sources, prompt, request.message)
+
+            if needs_guidelines:
+                yield event({"type": "sources", "sources": public_guideline_sources(guideline_sources)})
 
             yield event({
                 "type": "meta",
                 "tools_called": tools_called,
                 "guidelines_used": guidelines_used,
-                "guideline_sources": guideline_sources,
-                "sources": patient_sources + guideline_sources,
+                "guideline_sources": public_guideline_sources(guideline_sources),
+                "sources": patient_sources + public_guideline_sources(guideline_sources),
                 "rule_flags": rule_flags,
                 "is_emergency": is_emergency,
                 "ml_used": bool(ml_predictions),

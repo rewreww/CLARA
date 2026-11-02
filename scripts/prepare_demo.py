@@ -13,9 +13,8 @@ if gateway.exists() or vercel.exists():
     print('Existing deployment credentials preserved in .clara/deployment/.')
 else:
     key = secrets.token_urlsafe(48)
-    password = secrets.token_urlsafe(18)
     gateway.write_text(f'CLARA_GATEWAY_KEY={key}\n', encoding='utf-8')
-    vercel.write_text('CLARA_DEMO_ENABLED=true\nVITE_RESPONDENT_DEMO=true\nCLARA_DEMO_USERNAME=respondent\n'
-        f'CLARA_DEMO_PASSWORD={password}\nCLARA_GATEWAY_KEY={key}\n'
-        'CLARA_GATEWAY_URL=https://REPLACE-WITH-YOUR-NGROK-DOMAIN\n', encoding='utf-8')
+    vercel.write_text('CLARA_DEMO_ENABLED=true\nVITE_RESPONDENT_DEMO=true\n'
+        f'CLARA_GATEWAY_KEY={key}\n'
+        'CLARA_GATEWAY_URL=https://REPLACE-WITH-YOUR-TUNNEL-DOMAIN\n', encoding='utf-8')
     print('Created private deployment files in .clara/deployment/. Do not commit or share these files.')

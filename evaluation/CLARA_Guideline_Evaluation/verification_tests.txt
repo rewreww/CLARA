@@ -1,0 +1,22 @@
+test_actual_input_confirmation (test_evaluation.EvaluationTests.test_actual_input_confirmation) ... ok
+test_complete_run_writes_auditable_outputs_without_secrets (test_evaluation.EvaluationTests.test_complete_run_writes_auditable_outputs_without_secrets) ... ok
+test_context_rank_order (test_evaluation.EvaluationTests.test_context_rank_order) ... ok
+test_context_source (test_evaluation.EvaluationTests.test_context_source) ... ok
+test_duplicates (test_evaluation.EvaluationTests.test_duplicates) ... ok
+test_empty_context_study_convention (test_evaluation.EvaluationTests.test_empty_context_study_convention) ... ok
+test_errors_not_zero_or_secret (test_evaluation.EvaluationTests.test_errors_not_zero_or_secret) ... ok
+test_holdout_overlap (test_evaluation.EvaluationTests.test_holdout_overlap) ... ok
+test_html_escapes_untrusted_text (test_evaluation.EvaluationTests.test_html_escapes_untrusted_text) ... ok
+test_missing_outputs_are_not_zero (test_evaluation.EvaluationTests.test_missing_outputs_are_not_zero) ... ok
+test_missing_response_recall_still_assessable (test_evaluation.EvaluationTests.test_missing_response_recall_still_assessable) ... ok
+test_nan_never_perfect (test_evaluation.EvaluationTests.test_nan_never_perfect) ... ok
+test_reference_must_be_checked (test_evaluation.EvaluationTests.test_reference_must_be_checked) ... ok
+test_unanswerable_recall_excluded (test_evaluation.EvaluationTests.test_unanswerable_recall_excluded) ... ok
+test_valid (test_evaluation.EvaluationTests.test_valid) ... ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 1.610s
+
+OK
+Validated 1 questions, 1 outputs; 0 missing outputs.
+Results saved to /tmp/tmpk138v83u/results/20261101T153319477139Z_baseline. Open review.html; inspect errors and denominators before reporting means.

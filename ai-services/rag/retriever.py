@@ -5,6 +5,7 @@ Backward-compatible: retrieve_guidelines() still works for llm_client.py.
 """
 
 import os
+import re
 import chromadb
 
 try:
@@ -55,7 +56,9 @@ def infer_diagnosis_hint(query: str) -> str | None:
         for category, terms in _DIAGNOSIS_HINTS.items()
     }
     best = max(scores, key=scores.get)
-    return best if scores[best] else None
+    if scores[best]:
+        return best
+    return 'hypertension' if re.search(r'\b(bp|abpm|hbpm)\b', text) else None
 
 
 def is_management_query(query: str) -> bool:
@@ -119,13 +122,16 @@ def retrieve(
     docs  = results.get("documents", [[]])[0]
     metas = results.get("metadatas", [[]])[0]
     dists = results.get("distances", [[]])[0]
+    ids = results.get("ids", [[]])[0]
 
     matched = []
-    for doc, meta, dist in zip(docs, metas, dists):
+    for index, (doc, meta, dist) in enumerate(zip(docs, metas, dists)):
         relevance = round((1 - dist) * 100, 1)
         if relevance >= MIN_RELEVANCE:
             matched.append({
                 "source":             meta.get("source", "unknown"),
+                "pdf_file":           meta.get("pdf_file"),
+                "chunk_id":           ids[index] if index < len(ids) else None,
                 "page":               meta.get("page"),
                 "section_heading":    meta.get("section_heading", ""),
                 "diagnosis_category": meta.get("diagnosis_category", "general"),

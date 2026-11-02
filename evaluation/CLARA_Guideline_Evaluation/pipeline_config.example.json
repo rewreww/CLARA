@@ -1,0 +1,9 @@
+{
+  "clara_version": "FILL_ME",
+  "generator_model": "FILL_ME",
+  "retrieval_embedding_model": "FILL_ME",
+  "chunk_size": "FILL_ME",
+  "chunk_overlap": "FILL_ME",
+  "top_k": "FILL_ME",
+  "prompt_sha256": "FILL_ME"
+}
