@@ -3,6 +3,7 @@ import { Activity, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, FileText, Sh
 import ReactMarkdown from 'react-markdown'
 import ActivityTimeline from './ActivityTimeline'
 import EvidencePanel from './EvidencePanel'
+import { sourceKey } from '../lib/conversations'
 
 function Message({ msg, onSource, onActivity }) {
   const [copied, setCopied] = useState(false)
@@ -72,10 +73,11 @@ export default function ChatPanel({ patient, patients, patientsLoading, patients
   const evidenceSources = evidenceMessage?.sources || []
   const closeEvidence = useCallback(() => setEvidenceOpen(false), [])
   useEffect(() => {
-    if (latestResponse?.sources?.length) {
-      setSelectedSource(source => source || latestResponse.sources[0])
-    }
-  }, [latestResponse?.sources])
+    if (evidenceIndex != null) return
+    const sources = latestResponse?.sources || []
+    setSelectedSource(source => source && sources.some(item => sourceKey(item) === sourceKey(source))
+      ? source : sources[0] || null)
+  }, [latestResponse?.sources, evidenceIndex])
   const hasConversation = messages.some(message => message.role === 'doctor')
   const visibleMessages = hasConversation ? messages : []
 
@@ -93,7 +95,7 @@ export default function ChatPanel({ patient, patients, patientsLoading, patients
 
   const handleSend = event => {
     event?.preventDefault()
-    if (!input.trim() || loading || !patient) return
+    if (!input.trim() || loading) return
     followResponse.current = true
     setEvidenceIndex(null)
     setSelectedSource(null)
@@ -114,7 +116,7 @@ export default function ChatPanel({ patient, patients, patientsLoading, patients
             <label className="sr-only" htmlFor={`chat-patient-${placement}`}>Patient for this conversation</label>
             <select id={`chat-patient-${placement}`} value={patient?.id || ''} disabled={patientsLoading || !!patientsError}
               onChange={event => onSelectPatient(patients.find(item => item.id === event.target.value) || null)}>
-              <option value="">{patientsLoading ? 'Loading patients...' : patientsError ? 'Patients unavailable' : 'Select a patient'}</option>
+              <option value="">{patientsLoading ? 'Loading patients...' : 'No patient — General chat'}</option>
               {patients.map(item => <option key={item.id} value={item.id}>{item.name} / {item.id}</option>)}
             </select>
             <ChevronDown size={13} />
@@ -133,8 +135,8 @@ export default function ChatPanel({ patient, patients, patientsLoading, patients
           placeholder={patient ? 'Ask about this patient...' : 'Ask CLARA...'} aria-label="Message CLARA" rows={2} />
         <div className="composer-controls">
           {loading ? <button className="send-button stop-button" type="button" onClick={onStop} aria-label="Stop response" title="Stop response"><Square size={16} fill="currentColor" /></button>
-            : <button className="send-button" type="submit" disabled={!input.trim() || !patient}
-                aria-label="Send message" title={!patient ? 'Select a patient to send a message' : 'Send message'}><ArrowUp size={20} /></button>}
+            : <button className="send-button" type="submit" disabled={!input.trim()}
+                aria-label="Send message" title="Send message"><ArrowUp size={20} /></button>}
         </div>
       </form>
       <div className="patient-selection">
@@ -153,7 +155,7 @@ export default function ChatPanel({ patient, patients, patientsLoading, patients
     <div className="chat-workspace evidence-is-open">
     <div className={`chat-page ${hasConversation ? 'has-conversation' : 'is-new-chat'}`}>
       <div className="chat-page-toolbar">
-        <span className="chat-context-label">{patient ? `Patient ${patient.id}` : 'New conversation'}</span>
+        <span className="chat-context-label">{patient ? `Patient ${patient.id}` : 'General chat · No patient selected'}</span>
         <div className="chat-toolbar-actions"><button className="text-button" onClick={newChat} title="New chat"><SquarePen size={16} />New chat</button>
           <button className="source-preview-tile" aria-label="Open source preview" aria-expanded={evidenceOpen} onClick={() => setEvidenceOpen(true)} title="Source preview"><FileText size={18} /><span>Sources<small>{evidenceSources.length} document{evidenceSources.length === 1 ? '' : 's'}</small></span><ArrowUpRight size={14} /></button></div>
       </div>

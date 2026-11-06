@@ -22,7 +22,7 @@ export default function ConversationHistory({ conversations, activeId, onOpen, o
           <button className="icon-button" type="button" aria-label="Cancel rename" onClick={() => setEditing(null)}><X size={14} /></button>
         </form> : <>
           <button className="history-open" onClick={() => onOpen(item)} aria-current={item.id === activeId ? 'page' : undefined} title={item.title}>
-            <MessageSquare size={14} /><span><strong>{item.title}</strong><small>Patient {item.patientId} <span>/ {new Date(item.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span></small></span>
+            <MessageSquare size={14} /><span><strong>{item.title}</strong><small>{item.patientId ? `Patient ${item.patientId}` : 'General chat'} <span>/ {new Date(item.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span></small></span>
           </button>
           <div className="history-item-actions">
             <button className="icon-button" title="Rename conversation" aria-label={`Rename ${item.title}`} onClick={() => { setEditing(item.id); setTitle(item.title) }}><Pencil size={13} /></button>

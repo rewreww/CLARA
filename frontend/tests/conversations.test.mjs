@@ -23,6 +23,18 @@ test('invalid saved data is rejected rather than silently overwritten', () => {
   assert.throws(() => readConversations({ getItem: () => '{bad' }))
   assert.deepEqual(readConversations({ getItem: () => null }), [])
 })
+
+test('general conversations retain history and guideline previews without a patient', () => {
+  const source = { type: 'guideline', source: 'Hypertension guideline', page: 3 }
+  const conversation = { id: 'general', patientId: '', title: 'General question',
+    messages: [{ role: 'doctor', text: 'Explain hypertension' },
+      { role: 'clara', text: 'Cited answer', sources: [source] }] }
+  const [restored] = readConversations({ getItem: () => JSON.stringify([conversation]) })
+  assert.equal(restored.patientId, '')
+  assert.equal(conversationContext(restored.messages).length, 2)
+  assert.equal(sourceDocumentUrl(restored.messages[1].sources[0]),
+    '/api/llm/documents/guideline?source=Hypertension+guideline')
+})
 test('PDF URLs stay on the matching local service and patient', () => {
   const url = sourceDocumentUrl({ type: 'patient_pdf', source: '2026-01-01/report #1.pdf' }, '00001')
   assert.equal(url, '/api/backend/patientdata/00001/document?source=2026-01-01%2Freport+%231.pdf')

@@ -17,7 +17,7 @@ function PatientChat(props) {
   const { messages, loading, send, stop } = useChat(props.conversationId, props.initialMessages)
   const { onSave, conversationId, patient, activeSection, admission } = props
   useEffect(() => {
-    if (patient) onSave({ id: conversationId, patientId: patient.id, activeSection, admissionId: admission, messages })
+    onSave({ id: conversationId, patientId: patient?.id || '', activeSection, admissionId: admission, messages })
   }, [messages, conversationId, patient?.id, activeSection, admission, onSave])
   return <ChatPanel {...props} messages={messages} loading={loading}
     onSend={(message, section) => send(message, props.patient?.id, section, admission)} onClear={props.onNew} onStop={stop} />
@@ -71,12 +71,12 @@ function ClaraWorkspace() {
   const newChat = useCallback(() => { setConversationId(newConversationId()); setHistoryNotice(''); navigate('home') }, [navigate])
   const openConversation = useCallback(conversation => {
     const patient = patients.find(item => item.id === conversation.patientId)
-    if (!patient) { setHistoryNotice('This conversation\'s patient record is currently unavailable.'); return }
+    if (conversation.patientId && !patient) { setHistoryNotice('This conversation\'s patient record is currently unavailable.'); return }
     reset()
-    setSelectedPatient(patient)
+    setSelectedPatient(patient || null)
     setAdmission(conversation.admissionId || '')
     setActiveSection(conversation.activeSection || 'overview')
-    if (conversation.activeSection && !patient.id.startsWith('Patient_')) load(conversation.activeSection, patient.id)
+    if (conversation.activeSection && patient && !patient.id.startsWith('Patient_')) load(conversation.activeSection, patient.id)
     setConversationId(conversation.id)
     setHistoryNotice('')
     navigate('home')

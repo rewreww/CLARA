@@ -104,14 +104,6 @@ export function useChat(sessionId, initialMessages = []) {
       return
     }
 
-    if (!patientId) {
-      setMessages(m => [...m, {
-        role: 'clara', text: 'Please select a patient first.',
-        tools: [], guidelines: false,
-      }])
-      return
-    }
-
     resetWordStream()
 
     const version = ++requestVersion.current
@@ -139,7 +131,7 @@ export function useChat(sessionId, initialMessages = []) {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          patient_id:     patientId,
+          patient_id:     patientId || null,
           message,
           session_id:     sessionId,
           active_section: activeSection,   // ← added
