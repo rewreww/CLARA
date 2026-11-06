@@ -59,7 +59,7 @@ export function readConversations(storage) {
   return parsed.filter(item => item && typeof item.id === 'string' && typeof item.patientId === 'string'
     && typeof item.title === 'string' && Array.isArray(item.messages))
     .map(item => ({ ...item, messages: restoreMessages(item.messages),
-      activeSection: ['overview', 'discharge', 'chemistry', 'hematology', 'microscopy', 'prescriptions', 'imaging'].includes(item.activeSection) ? item.activeSection : 'overview',
+      activeSection: ['overview', 'discharge', 'chemistry', 'hematology', 'microscopy', 'prescriptions', 'imaging', 'blood_gas', 'diagnoses', 'medication_administration', 'microbiology', 'measurements', 'icu_records', 'procedures', 'orders', 'care_movements', 'administrative'].includes(item.activeSection) ? item.activeSection : 'overview',
       updatedAt: Number.isFinite(item.updatedAt) ? item.updatedAt : 0,
     }))
 }

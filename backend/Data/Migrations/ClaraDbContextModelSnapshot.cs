@@ -269,6 +269,124 @@ namespace CLARA.Backend.Data.Migrations
                     b.ToTable("medications", (string)null);
                 });
 
+            modelBuilder.Entity("CLARA.Backend.Data.MimicDocumentInfo", b =>
+                {
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AdmissionId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Fluid")
+                        .HasColumnType("text");
+
+                    b.Property<string>("MetadataJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<int>("Pages")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ParserVersion")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("RecordType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("DocumentId");
+
+                    b.HasIndex("AdmissionId", "Category");
+
+                    b.ToTable("mimic_documents", (string)null);
+                });
+
+            modelBuilder.Entity("CLARA.Backend.Data.MimicPdfRow", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AdmissionId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CellsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Flag")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal?>("NumericValue")
+                        .HasColumnType("numeric");
+
+                    b.Property<DateTime?>("ObservedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int>("Page")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PatientId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("RawValue")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("RecordType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal?>("ReferenceHigh")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("ReferenceLow")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("RowNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SearchText")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceFlag")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentId", "RowNumber")
+                        .IsUnique();
+
+                    b.HasIndex("PatientId", "AdmissionId", "Category", "ObservedAt");
+
+                    b.ToTable("mimic_pdf_rows", (string)null);
+                });
+
             modelBuilder.Entity("CLARA.Backend.Data.PatientDocument", b =>
                 {
                     b.Property<Guid>("Id")
@@ -436,6 +554,28 @@ namespace CLARA.Backend.Data.Migrations
                     b.Navigation("Patient");
 
                     b.Navigation("SourceDocument");
+                });
+
+            modelBuilder.Entity("CLARA.Backend.Data.MimicDocumentInfo", b =>
+                {
+                    b.HasOne("CLARA.Backend.Data.PatientDocument", "Document")
+                        .WithOne()
+                        .HasForeignKey("CLARA.Backend.Data.MimicDocumentInfo", "DocumentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Document");
+                });
+
+            modelBuilder.Entity("CLARA.Backend.Data.MimicPdfRow", b =>
+                {
+                    b.HasOne("CLARA.Backend.Data.PatientDocument", "Document")
+                        .WithMany()
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Document");
                 });
 
             modelBuilder.Entity("CLARA.Backend.Data.PatientDocument", b =>

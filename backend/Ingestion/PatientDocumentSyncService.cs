@@ -5,11 +5,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CLARA.Backend.Ingestion;
 
-public sealed class PatientDocumentSyncService
+public sealed partial class PatientDocumentSyncService
 {
     private static readonly SemaphoreSlim SyncLock = new(1, 1);
     private readonly ClaraDbContext _db;
     private readonly PdfParser _pdfParser;
+    private readonly MimicPdfParser _mimicParser;
     private readonly ClinicalTextExtractor _clinicalTextExtractor;
     private readonly PatientDocumentSyncProgress _progress;
     private readonly string _patientsFolderPath;
@@ -18,6 +19,7 @@ public sealed class PatientDocumentSyncService
     public PatientDocumentSyncService(
         ClaraDbContext db,
         PdfParser pdfParser,
+        MimicPdfParser mimicParser,
         ClinicalTextExtractor clinicalTextExtractor,
         PatientDocumentSyncProgress progress,
         IConfiguration configuration,
@@ -25,6 +27,7 @@ public sealed class PatientDocumentSyncService
     {
         _db = db;
         _pdfParser = pdfParser;
+        _mimicParser = mimicParser;
         _clinicalTextExtractor = clinicalTextExtractor;
         _progress = progress;
         _logger = logger;
@@ -46,7 +49,7 @@ public sealed class PatientDocumentSyncService
 
         return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
-            "Patients");
+            "MIMIC_100_Patients");
     }
 
     public async Task<PatientDocumentSyncResult> SyncAsync(
@@ -82,6 +85,8 @@ public sealed class PatientDocumentSyncService
                 }
 
                 await SyncPatientDirectoryAsync(patientDirectory, result, cancellationToken);
+                await _db.SaveChangesAsync(cancellationToken);
+                _db.ChangeTracker.Clear();
             }
 
             _progress.Working("Saving synchronized patient data");
@@ -143,6 +148,11 @@ public sealed class PatientDocumentSyncService
 
             try
             {
+                if (patientId.StartsWith("Patient_", StringComparison.Ordinal))
+                {
+                    await SyncMimicFileAsync(patient, filePath, relativePath, result, cancellationToken);
+                    continue;
+                }
                 var fileInfo = new FileInfo(filePath);
                 var contentHash = await ComputeSha256Async(filePath, cancellationToken);
                 var recordDate = _clinicalTextExtractor.ExtractDateFromPath(relativePath);
@@ -216,8 +226,26 @@ public sealed class PatientDocumentSyncService
                 await _db.SaveChangesAsync(cancellationToken);
                 _progress.Success("New data successfully saved", patientId, fileInfo.Name);
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
+                if (patientId.StartsWith("Patient_", StringComparison.Ordinal))
+                {
+                    // A rolled-back parse must not leave pending entities or stale
+                    // completed rows visible to retrieval on the next file.
+                    _db.ChangeTracker.Clear();
+                    patient = await _db.Patients.FindAsync([patientId], cancellationToken) ?? patient;
+                    if (_db.Entry(patient).State == EntityState.Detached) _db.Patients.Add(patient);
+                    document = await _db.PatientDocuments.SingleOrDefaultAsync(
+                        x => x.PatientId == patientId && x.RelativePath == relativePath, cancellationToken);
+                    if (document is null)
+                    {
+                        document = new PatientDocument { Id = Guid.NewGuid(), PatientId = patientId,
+                            RelativePath = relativePath, FileName = Path.GetFileName(filePath),
+                            DocumentType = "mimic_pdf", CreatedAtUtc = now };
+                        _db.PatientDocuments.Add(document);
+                    }
+                }
                 if (document is not null)
                 {
                     // A changed source must never keep serving text from its older version.
@@ -227,6 +255,8 @@ public sealed class PatientDocumentSyncService
                     document.UpdatedAtUtc = now;
                     patient.UpdatedAtUtc = now;
                 }
+
+                await _db.SaveChangesAsync(cancellationToken);
 
                 result.Failures.Add($"{patientId}/{relativePath}: {ex.Message}");
                 _progress.Error($"Could not parse PDF: {ex.Message}", patientId, Path.GetFileName(relativePath));

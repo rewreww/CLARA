@@ -40,12 +40,8 @@ public sealed class PatientDocumentSyncWorker(
         {
             await RunPendingSyncAsync(pendingPatientIds, stoppingToken);
 
-            var signalTask = syncSignal.WaitAsync(stoppingToken);
-            var intervalTask = Task.Delay(interval, stoppingToken);
-            var completed = await Task.WhenAny(signalTask, intervalTask);
-            if (completed == signalTask)
+            if (await syncSignal.WaitAsync(interval, stoppingToken))
             {
-                await signalTask;
                 await Task.Delay(debounce, stoppingToken);
                 DrainSignal(syncSignal);
             }

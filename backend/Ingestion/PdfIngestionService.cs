@@ -10,10 +10,10 @@ namespace CLARA.Backend.Ingestion
         private readonly PdfParser _pdfParser;
         private readonly string _patientsFolderPath;
 
-        public PdfIngestionService()
+        public PdfIngestionService(IConfiguration configuration, PdfParser pdfParser)
         {
-            _pdfParser = new PdfParser();
-            _patientsFolderPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "Patients");
+            _pdfParser = pdfParser;
+            _patientsFolderPath = PatientDocumentSyncService.ResolvePatientsFolderPath(configuration);
         }
 
         public IReadOnlyList<ExtractedPdf> ExtractTextFromFolder(string folderName)

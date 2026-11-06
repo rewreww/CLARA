@@ -197,6 +197,13 @@ public sealed class PatientDataController(ClaraDbContext db) : ControllerBase
     [HttpGet("patients")]
     public async Task<PatientsResponse> Patients(CancellationToken cancellationToken)
     {
+        if (await db.Patients.AnyAsync(x => x.Id.StartsWith("Patient_"), cancellationToken))
+        {
+            var mimicPatients = await db.Patients.AsNoTracking().Where(x => x.Id.StartsWith("Patient_"))
+                .OrderBy(x => x.Id).Select(x => new { x.Id }).ToListAsync(cancellationToken);
+            return new PatientsResponse(mimicPatients.Select(x => new PatientSummaryDto(
+                x.Id, x.Id.Replace("_", " "), null, null, "historical", ["overview"], [])).ToList());
+        }
         var patients = await db.Patients
             .AsNoTracking()
             .Include(patient => patient.Documents)

@@ -2,7 +2,6 @@
 CLARA discharge summary parser.
 """
 
-import json
 import re
 from typing import Optional
 
@@ -410,7 +409,3 @@ def parse_discharge(raw_text: str) -> dict:
     schema["followup"] = extract_followup(text)
 
     return schema
-
-
-def parse_discharge_to_json(raw_text: str) -> str:
-    return json.dumps(parse_discharge(raw_text), indent=2, ensure_ascii=False)

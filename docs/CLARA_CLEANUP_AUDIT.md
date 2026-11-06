@@ -1,5 +1,42 @@
 # CLARA cleanup and working-baseline audit
 
+## Cleanup implemented — 6 November 2026
+
+Rechecked repository references before removing the unused `useDischarge` hook,
+`PatientDto`, `FOLDER_SECTIONS`, `QUICK_PROMPTS`, `parse_discharge_to_json`, and
+`extract_ecg_values`. Removed their unused imports, the unused `retrieve_guidelines`
+import, and the unused `ctypes` import in the demo watchdog. Removed direct package
+references to `FluentValidation.AspNetCore`, `Newtonsoft.Json`, and
+`Microsoft.AspNetCore.OpenApi`; Swagger still uses `Swashbuckle.AspNetCore`.
+
+Kept the explicitly backward-compatible `retrieve_guidelines` function, all HTTP
+routes, the optional legacy parser service, and active UI/ingestion/chat paths.
+No database migration, patient-data edit, model retraining, or guideline-index
+rebuild was performed. Dataset PDFs and offline research assets were preserved.
+
+Validation after cleanup:
+
+- Frontend production build and 15 frontend/deployment tests passed.
+- Backend restore/build passed with zero warnings/errors. NuGet vulnerability
+  auditing was disabled for this build; this is not a security audit.
+- 21 LLM tests passed using mocked model responses.
+- 19 launcher/gateway/watchdog tests and 22 discharge-parser checks passed.
+- Read-only backend probe passed the patient-list call and eight controller
+  calls per patient for all five existing patients. Synthetic C# lab extraction
+  and discharge-section checks passed. No migrations were pending.
+- `git diff --check` passed.
+
+Local socket/process tests required execution outside the sandbox. The backend
+probe was built into an isolated output folder after the normal output path was
+found locked by the running backend. No running CLARA service was stopped.
+Temporary verification build outputs were removed afterward.
+
+This verifies the bounded cleanup, not a full live browser-to-model acceptance
+run or ingestion of the newly exported MIMIC-IV PDFs. The older audit findings
+below, including the semaphore-pattern diagnostic, are not fixed by this cleanup.
+
+## Original audit
+
 Date: 20 October 2026, Asia/Manila  
 Baseline commit: `6a72ed9` — `safety v before cleanup`
 

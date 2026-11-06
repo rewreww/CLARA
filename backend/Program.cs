@@ -9,6 +9,10 @@ builder.Configuration.AddJsonFile("appsettings.Development.local.json", optional
 
 var connectionString = builder.Configuration.GetConnectionString("ClaraDatabase")
     ?? throw new InvalidOperationException("Connection string 'ClaraDatabase' is required.");
+// Reuse local credentials, but never import the new source into the legacy DB.
+var databaseName = builder.Configuration["PatientDocumentSync:DatabaseName"];
+if (!string.IsNullOrWhiteSpace(databaseName))
+    connectionString = new Npgsql.NpgsqlConnectionStringBuilder(connectionString) { Database = databaseName }.ConnectionString;
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -17,6 +21,7 @@ builder.Services.AddDbContext<ClaraDbContext>(options => options.UseNpgsql(conne
 // Register ingestion service for PDF text extraction
 builder.Services.AddScoped<PdfIngestionService>();
 builder.Services.AddSingleton<PdfParser>();
+builder.Services.AddSingleton<MimicPdfParser>();
 builder.Services.AddSingleton<ClinicalTextExtractor>();
 builder.Services.AddSingleton<PatientDocumentSyncProgress>();
 builder.Services.AddScoped<PatientDocumentSyncService>();

@@ -18,6 +18,13 @@ class Body(httpx.AsyncByteStream):
         yield b'data: second\n\n'
 
 class GatewayTests(unittest.TestCase):
+    def test_mimic_read_routes_and_private_context(self):
+        for endpoint in ['summary', 'records', 'documents', 'vitals']:
+            self.assertIsNotNone(route_target('GET', f'api/backend/patientdata/Patient_12345678/mimic/{endpoint}'))
+        self.assertIsNotNone(route_target('GET', 'api/backend/patientdata/Patient_12345678/document'))
+        self.assertIsNone(route_target('GET', 'api/backend/patientdata/Patient_12345678/mimic/context'))
+        self.assertIsNone(route_target('POST', 'api/backend/patientdata/Patient_12345678/mimic/records'))
+
     def setUp(self):
         self.requests = []
         def upstream(request):

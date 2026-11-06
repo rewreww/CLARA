@@ -16,6 +16,10 @@ SPEC.loader.exec_module(launcher)
 
 
 class LauncherTests(unittest.TestCase):
+    def test_state_read_retries_transient_windows_sharing_violation(self):
+        with patch.object(Path, 'read_text', side_effect=[PermissionError('busy'), '{"phase":"ready"}']):
+            self.assertEqual(launcher.read_state(), {'phase': 'ready'})
+
     def test_atomic_state_update_retries_windows_reader_contention(self):
         with tempfile.TemporaryDirectory() as directory:
             state_path = Path(directory) / "run.json"

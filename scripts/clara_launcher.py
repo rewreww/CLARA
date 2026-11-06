@@ -117,12 +117,17 @@ def process_identity(pid):
 
 
 def read_state():
-    try:
-        return json.loads(STATE.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        return {}
-    except (ValueError, OSError) as exc:
-        raise LauncherError("Cannot read .clara/run.json. Preserve it and inspect the launcher logs.") from exc
+    for attempt in range(50):
+        try:
+            return json.loads(STATE.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return {}
+        except PermissionError as exc:
+            if attempt == 49:
+                raise LauncherError("Cannot read .clara/run.json. Preserve it and inspect the launcher logs.") from exc
+            time.sleep(0.04)
+        except (ValueError, OSError) as exc:
+            raise LauncherError("Cannot read .clara/run.json. Preserve it and inspect the launcher logs.") from exc
 
 
 def write_state(state):
@@ -252,11 +257,13 @@ def preflight(args):
         if not (ROOT / relative).is_file():
             raise LauncherError(f"Missing {relative}. Complete first-time setup; startup does not reinstall or retrain automatically.")
     provider = os.getenv("LLM_PROVIDER", "gemini").strip().lower()
-    if provider not in ("gemini", "groq", "ollama", "huggingface", "hf"):
+    if provider not in ("gemini", "groq", "openrouter", "ollama", "huggingface", "hf"):
         raise LauncherError(f"Unsupported LLM_PROVIDER: {provider}")
-    key = {"gemini": "GEMINI_API_KEY", "groq": "GROQ_API_KEY"}.get(provider)
+    key = {"gemini": "GEMINI_API_KEY", "groq": "GROQ_API_KEY", "openrouter": "OPENROUTER_API_KEY"}.get(provider)
     if key and not os.getenv(key, "").strip():
         raise LauncherError(f"Set {key} in ai-services/llm_service/.env or your environment. Its value will not be logged.")
+    if provider == "openrouter" and not os.getenv("GROQ_API_KEY", "").strip():
+        raise LauncherError("Set GROQ_API_KEY for the OpenRouter fallback. Its value will not be logged.")
     host, port = configured_database()
     if not port_open(port, host):
         raise LauncherError(f"PostgreSQL is not reachable at {host}:{port}. Start your PostgreSQL service, then retry.")

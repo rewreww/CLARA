@@ -17,6 +17,9 @@ public sealed class ClaraDbContextFactory : IDesignTimeDbContextFactory<ClaraDbC
 
         var connectionString = configuration.GetConnectionString("ClaraDatabase")
             ?? throw new InvalidOperationException("Connection string 'ClaraDatabase' is required.");
+        var databaseName = configuration["PatientDocumentSync:DatabaseName"];
+        if (!string.IsNullOrWhiteSpace(databaseName))
+            connectionString = new Npgsql.NpgsqlConnectionStringBuilder(connectionString) { Database = databaseName }.ConnectionString;
 
         var options = new DbContextOptionsBuilder<ClaraDbContext>()
             .UseNpgsql(connectionString)

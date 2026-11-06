@@ -5,6 +5,7 @@ import DischargePanel from './DischargePanel'
 import { useTrends } from '../hooks/useTrends'
 import LabResultsTable from './LabResultsTable'
 import PrescriptionsPanel from './PrescriptionsPanel'
+import MimicRecordsPanel from './MimicRecordsPanel'
 
 const LAB_TYPES = ['chemistry', 'hematology', 'microscopy']
 const SECTIONS = [
@@ -17,7 +18,12 @@ const SECTIONS = [
   { key: 'imaging', label: 'Imaging', Icon: ScanLine },
 ]
 
-export default function MainContent({ patient, activeSection, labData, labLoading, labError,
+export default function MainContent(props) {
+  if (props.patient?.id?.startsWith('Patient_')) return <MimicRecordsPanel {...props} />
+  return <LegacyMainContent {...props} />
+}
+
+function LegacyMainContent({ patient, activeSection, labData, labLoading, labError,
   onLoad, onRefresh, refreshKey, onSelectSection, onBrowse }) {
   const { data: trendData, loading: trendLoading, error: trendError, load: loadTrend, reset: resetTrend } = useTrends()
   const isLabSection = LAB_TYPES.includes(activeSection)

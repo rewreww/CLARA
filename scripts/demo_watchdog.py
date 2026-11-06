@@ -1,5 +1,4 @@
 """Keep the existing protected demo tunnel online; run via Windows Task Scheduler."""
-import ctypes
 import json
 import logging
 from logging.handlers import RotatingFileHandler

@@ -34,8 +34,8 @@ def generation(prompt, provider):
         return
     # Other adapters may truncate input or fall back to another model. Until
     # instrumented at their token boundary, never claim exact context for them.
-    if provider != 'groq':
-        raise ValueError('Exact guideline evaluation capture currently supports the Groq adapter only.')
+    if provider not in {'groq', 'openrouter'}:
+        raise ValueError('Exact guideline evaluation capture supports the Groq and OpenRouter adapters only.')
     cursor = 0
     for chunk in trace['passages']:
         text = str(chunk.get('text') or '').strip()

@@ -15,12 +15,12 @@ import { LABS_URL, LLM_URL } from './constants'
 
 function PatientChat(props) {
   const { messages, loading, send, stop } = useChat(props.conversationId, props.initialMessages)
-  const { onSave, conversationId, patient, activeSection } = props
+  const { onSave, conversationId, patient, activeSection, admission } = props
   useEffect(() => {
-    if (patient) onSave({ id: conversationId, patientId: patient.id, activeSection, messages })
-  }, [messages, conversationId, patient?.id, activeSection, onSave])
+    if (patient) onSave({ id: conversationId, patientId: patient.id, activeSection, admissionId: admission, messages })
+  }, [messages, conversationId, patient?.id, activeSection, admission, onSave])
   return <ChatPanel {...props} messages={messages} loading={loading}
-    onSend={(message, section) => send(message, props.patient?.id, section)} onClear={props.onNew} onStop={stop} />
+    onSend={(message, section) => send(message, props.patient?.id, section, admission)} onClear={props.onNew} onStop={stop} />
 }
 
 export default function App() {
@@ -33,6 +33,7 @@ export default function App() {
 function ClaraWorkspace() {
   const [activeApp, setActiveApp] = useState(() => window.location.hash === '#patients' ? 'patients' : 'home')
   const [selectedPatient, setSelectedPatient] = useState(null)
+  const [admission, setAdmission] = useState('')
   const [activeSection, setActiveSection] = useState('overview')
   const [refreshKey, setRefreshKey] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -58,6 +59,7 @@ function ClaraWorkspace() {
   const handleSelectPatient = useCallback(patient => {
     if (patient?.id !== selectedPatient?.id) {
       setSelectedPatient(patient)
+      setAdmission('')
       setConversationId(newConversationId())
       setHistoryNotice('')
       setActiveSection('overview')
@@ -72,8 +74,9 @@ function ClaraWorkspace() {
     if (!patient) { setHistoryNotice('This conversation\'s patient record is currently unavailable.'); return }
     reset()
     setSelectedPatient(patient)
+    setAdmission(conversation.admissionId || '')
     setActiveSection(conversation.activeSection || 'overview')
-    if (conversation.activeSection) load(conversation.activeSection, patient.id)
+    if (conversation.activeSection && !patient.id.startsWith('Patient_')) load(conversation.activeSection, patient.id)
     setConversationId(conversation.id)
     setHistoryNotice('')
     navigate('home')
@@ -86,7 +89,7 @@ function ClaraWorkspace() {
 
   const handleSelectSection = useCallback(section => {
     setActiveSection(section)
-    if (selectedPatient) load(section, selectedPatient.id)
+    if (selectedPatient && !selectedPatient.id.startsWith('Patient_')) load(section, selectedPatient.id)
   }, [selectedPatient, load])
 
   const handleLoad = useCallback((options = {}) => {
@@ -129,6 +132,7 @@ function ClaraWorkspace() {
         <main className="app-views" id="main-content">
           <section className="view-pane" hidden={activeApp !== 'home'} aria-label="Home">
             <PatientChat key={conversationId} patient={selectedPatient}
+              admission={admission}
               conversationId={conversationId} initialMessages={conversations.find(item => item.id === conversationId)?.messages}
               onSave={save} onNew={newChat}
               patients={patients} patientsLoading={patientsLoading} patientsError={patientsError}
@@ -137,6 +141,8 @@ function ClaraWorkspace() {
           </section>
           <section className="view-pane patient-workspace" hidden={activeApp !== 'patients'} aria-label="Patient records">
             <MainContent patient={selectedPatient} activeSection={activeSection}
+              admission={admission}
+              onAdmissionChange={value => { setAdmission(value); setConversationId(newConversationId()); setHistoryNotice('') }}
               labData={labData} labLoading={labLoading} labError={labError}
               onLoad={handleLoad} onRefresh={handleRefresh} refreshKey={refreshKey}
               onSelectSection={handleSelectSection} onBrowse={() => setSidebarOpen(true)} />

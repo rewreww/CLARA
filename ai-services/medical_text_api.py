@@ -1,13 +1,11 @@
 import requests
 import re as _re
 import os
-import base64 as _b64
-import sys as _sys_rag
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from collections import Counter
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union
 from fastapi.middleware.cors import CORSMiddleware
 from discharge_parser import parse_discharge
 

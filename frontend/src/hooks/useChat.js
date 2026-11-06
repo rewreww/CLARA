@@ -97,8 +97,12 @@ export function useChat(sessionId, initialMessages = []) {
   }, [flushWords])
 
   // ↓ activeSection added as third parameter
-  const send = useCallback(async (message, patientId, activeSection = null) => {
+  const send = useCallback(async (message, patientId, activeSection = null, admissionId = null) => {
     if (!message.trim() || loading) return
+    if (patientId?.startsWith('Patient_') && !admissionId) {
+      setMessages(m => [...m, { role: 'clara', text: 'Choose an admission date in Patients before asking about this record.', tools: [], guidelines: false }])
+      return
+    }
 
     if (!patientId) {
       setMessages(m => [...m, {
@@ -139,6 +143,7 @@ export function useChat(sessionId, initialMessages = []) {
           message,
           session_id:     sessionId,
           active_section: activeSection,   // ← added
+          admission_id: admissionId,
           history: conversationContext(messages),
         }),
         signal: controller.signal,

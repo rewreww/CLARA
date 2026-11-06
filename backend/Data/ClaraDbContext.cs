@@ -5,6 +5,8 @@ namespace CLARA.Backend.Data;
 public sealed class ClaraDbContext(DbContextOptions<ClaraDbContext> options) : DbContext(options)
 {
     public DbSet<PatientRecord> Patients => Set<PatientRecord>();
+    public DbSet<MimicDocumentInfo> MimicDocuments => Set<MimicDocumentInfo>();
+    public DbSet<MimicPdfRow> MimicRows => Set<MimicPdfRow>();
     public DbSet<PatientDocument> PatientDocuments => Set<PatientDocument>();
     public DbSet<DiagnosisRecord> Diagnoses => Set<DiagnosisRecord>();
     public DbSet<MedicationRecord> Medications => Set<MedicationRecord>();
@@ -13,6 +15,24 @@ public sealed class ClaraDbContext(DbContextOptions<ClaraDbContext> options) : D
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<MimicDocumentInfo>(entity =>
+        {
+            entity.ToTable("mimic_documents");
+            entity.HasKey(x => x.DocumentId);
+            entity.HasOne(x => x.Document).WithOne().HasForeignKey<MimicDocumentInfo>(x => x.DocumentId).OnDelete(DeleteBehavior.Cascade);
+            entity.Property(x => x.MetadataJson).HasColumnType("jsonb");
+            entity.HasIndex(x => new { x.AdmissionId, x.Category });
+        });
+        modelBuilder.Entity<MimicPdfRow>(entity =>
+        {
+            entity.ToTable("mimic_pdf_rows");
+            entity.HasKey(x => x.Id);
+            entity.HasOne(x => x.Document).WithMany().HasForeignKey(x => x.DocumentId).OnDelete(DeleteBehavior.Cascade);
+            entity.Property(x => x.ObservedAt).HasColumnType("timestamp without time zone");
+            entity.Property(x => x.CellsJson).HasColumnType("jsonb");
+            entity.HasIndex(x => new { x.DocumentId, x.RowNumber }).IsUnique();
+            entity.HasIndex(x => new { x.PatientId, x.AdmissionId, x.Category, x.ObservedAt });
+        });
         modelBuilder.Entity<PatientRecord>(entity =>
         {
             entity.ToTable("patients");

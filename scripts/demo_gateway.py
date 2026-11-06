@@ -27,7 +27,9 @@ def route_target(method, path):
     if method in {"GET", "HEAD"}:
         if path == "api/backend/patientdata/patients":
             return "http://127.0.0.1:5000/api/patientdata/patients"
-        if re.fullmatch(r"api/backend/patientdata/[0-9]{5}/document", path):
+        if re.fullmatch(r"api/backend/patientdata/(?:[0-9]{5}|Patient_[0-9]{8})/document", path):
+            return "http://127.0.0.1:5000/" + path.replace("api/backend/", "api/", 1)
+        if re.fullmatch(r"api/backend/patientdata/Patient_[0-9]{8}/mimic/(summary|records|documents|vitals)", path):
             return "http://127.0.0.1:5000/" + path.replace("api/backend/", "api/", 1)
         if path == "api/llm/documents/guideline":
             return "http://127.0.0.1:8001/documents/guideline"
