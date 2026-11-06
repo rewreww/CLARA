@@ -33,6 +33,7 @@ from rag.retriever import (
     infer_diagnosis_hint,
     is_management_query,
     retrieve,
+    following_passage,
 )
 from rag.embeddings import EMBEDDING_PROVIDER as RAG_EMBEDDING_PROVIDER, EMBED_MODEL as RAG_EMBED_MODEL
 from rule_engine.rules import rule_engine
@@ -1042,31 +1043,35 @@ def build_guideline_bundle(query: str) -> tuple[str, list[dict]]:
     """Return focused RAG context plus compact source metadata for the chat UI."""
     diagnosis_hint = infer_diagnosis_hint(query)
     management_query = is_management_query(query)
+    broad_question = not guideline_grounding.wants_brief_answer(query)
     chunks = retrieve(
         query,
         diagnosis_hint=diagnosis_hint,
         only_recommendations=management_query,
-        top_k=5,
+        top_k=20 if broad_question else 10,
     )
-    if not chunks and management_query:
-        chunks = retrieve(query, diagnosis_hint=diagnosis_hint, top_k=5)
-    if not chunks and diagnosis_hint:
-        chunks = retrieve(query, top_k=5)
     if not chunks:
         return "[GUIDELINE EVIDENCE UNAVAILABLE] " + guideline_grounding.NO_EVIDENCE, []
 
-    # Keep the answer focused: prefer Philippine recommendation excerpts and
-    # avoid sending several nearly identical chunks from one page to the LLM.
+    # Preserve hybrid relevance; geography must not outrank answering the question.
     chunks.sort(key=lambda chunk: (
+        -float(chunk.get('retrieval_score', chunk.get('relevance', 0)) or 0),
         0 if chunk.get("is_philippine") else 1,
         0 if chunk.get("is_recommendation") else 1,
-        -float(chunk.get("relevance") or 0),
     ))
 
     lines = ["[RELEVANT CLINICAL GUIDELINES]"]
     sources = []
     seen = set()
-    for chunk in chunks:
+    pending = [(chunk, False) for chunk in chunks]
+    included = set()
+    expanded = 0
+    while pending:
+        chunk, adjacent = pending.pop(0)
+        identity = chunk.get('chunk_id') or (chunk.get('source'), chunk.get('text'))
+        if identity in included:
+            continue
+        included.add(identity)
         source = str(chunk.get("source") or "Clinical guideline")
         verified = guideline_grounding.verified_source(chunk)
         if verified is None:
@@ -1074,7 +1079,7 @@ def build_guideline_bundle(query: str) -> tuple[str, list[dict]]:
         page = verified['page']
         key = (source, page, verified['page_end'])
         if key not in seen:
-            if len(sources) >= 3:
+            if len(sources) >= (8 if broad_question else 3):
                 continue
             verified['citation_id'] = f'G{len(sources) + 1}'
             verified['_evidence'] = []
@@ -1087,6 +1092,14 @@ def build_guideline_bundle(query: str) -> tuple[str, list[dict]]:
                      f"| PDF: {citation['pdf_file']} | physical PDF pages: {citation['pages']} ---")
         lines.append(str(chunk.get("text") or "").strip())
         guideline_trace.passage(chunk)
+        # Expand only verified anchors, not table-of-contents matches. This
+        # captures answers that continue beyond a page boundary without sending
+        # the whole PDF or making another embedding/model request.
+        if not adjacent and expanded < 2:
+            neighbor = following_passage(chunk)
+            if neighbor:
+                pending.insert(0, (neighbor, True))
+                expanded += 1
     if not sources:
         return "[GUIDELINE EVIDENCE UNAVAILABLE] " + guideline_grounding.NO_EVIDENCE, []
     return "\n".join(lines), sources
@@ -1240,13 +1253,22 @@ def format_ml_context(predictions: list[dict], coverage: dict) -> str:
     return "\n".join(lines)
 
 
+def general_retrieval_query(message, history):
+    # A complete new question must not inherit an earlier topic. Use history
+    # only for short referential follow-ups, with the current message first.
+    followup = re.search(r'\b(it|its|they|them|their|this|that|these|those)\b|^(?:and\b|also\b|what about\b|how about\b|why\??$|continue\b|explain more\b)', message, re.I)
+    if len(message.split()) > 12 or not followup or infer_diagnosis_hint(message):
+        return message
+    previous = [entry['content'][:500] for entry in history if entry['role'] == 'doctor'][-2:]
+    return '\n'.join([message] + previous)
+
+
 def prepare_general_chat(request):
     """General chat uses only explicit conversation history and guideline evidence."""
     message = sanitize_name_text(request.message)
     history = [{"role": entry.role, "content": sanitize_name_text(entry.content[:2000])}
                for entry in (request.history or [])[-6:]]
-    # Include recent questions so short follow-ups retain their clinical topic.
-    query = "\n".join([entry["content"] for entry in history if entry["role"] == "doctor"][-2:] + [message])
+    query = general_retrieval_query(message, history)
     guidelines, sources = build_guideline_bundle(query)
     prompt = "\n\n".join([
         "You are CLARA, a general clinical reference assistant. No patient is selected. "
@@ -1259,6 +1281,13 @@ def prepare_general_chat(request):
         "Conversation:\n" + build_history_block(history),
         guidelines,
         guideline_grounding.INSTRUCTIONS,
+        ("This question calls for a comparison or explanation. Cover each supported condition or "
+         "sub-question with its relevant evidence, using separate cited paragraphs as needed. "
+         "For condition-dependent medication selection, organize the answer by condition and preserve "
+         "the evidence's qualifications and contraindications. Check all supplied excerpts for relevant "
+         "conditions before drafting. Prioritize those distinctions over unasked general treatment "
+         "background. Do not reduce a condition-by-condition answer to one generic statement."
+         if not guideline_grounding.wants_brief_answer(message) else ""),
         "Question: " + message,
     ])
     return prompt, sources

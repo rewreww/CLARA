@@ -98,7 +98,7 @@ def wants_brief_answer(question):
     if not question:
         return False
     text = question.lower()
-    detailed = re.search(r'\b(detail\w*|explain|compare|list|all|full|thorough|elaborate|expand|comprehensive|steps|why)\b|step.by.step|\b(?:and|also)\s+(?:what|how|when|under|which)\b', text)
+    detailed = re.search(r'\b(detail\w*|explain|compar\w*|list|all|full|thorough|elaborate|expand|comprehensive|steps|why|comorbid\w*)\b|step.by.step|\b(?:different|various|which|what)\s+conditions\b|\b(?:and|also)\s+(?:what|how|when|under|which)\b', text)
     return not detailed and text.count('?') <= 1 and len(text.split()) <= 45
 
 

@@ -1,0 +1,31 @@
+{
+  "answer": "Based on Clinical Practice Guidelines for the Management of Hypertension in the Philippines (PDF pages 26, 63):\n\nFor uncomplicated hypertension, ACE inhibitors, ARBs, calcium channel blockers, and thiazide/thiazide-like diuretics are all suitable first-line options. Beta-blockers are preferred as initial therapy for patients with coronary artery disease, acute coronary syndrome, high sympathetic drive, or pregnancy, with newer generation agents (bisoprolol, carvedilol, metoprolol succinate, nebivolol) preferred for congestive heart failure. ACE inhibitors and ARBs should not be combined with each other or with direct renin inhibitors.\n\nIn pregnancy, first-line oral antihypertensives are methyldopa, long-acting oral nifedipine, and other beta-blockers (acebutolol, metoprolol, pindolol, propranolol). ACE inhibitors and ARBs are contraindicated (Category X) due to fetotoxicity. Second-line options include clonidine and thiazide diuretics.",
+  "sources": [
+    {
+      "title": "Clinical Practice Guidelines for the Management of Hypertension in the Philippines",
+      "source": "[CPG] Clinical Practice Guidelines for the Management of Hypertension in the Philippines",
+      "pdf_file": "[CPG] Clinical Practice Guidelines for the Management of Hypertension in the Philippines.pdf",
+      "page": 26,
+      "page_end": 26,
+      "pages": [
+        26
+      ],
+      "section": "4.2.1 Among persons with uncomplicated hypertension, defined as sustained BP",
+      "type": "guideline",
+      "citation_id": "G3"
+    },
+    {
+      "title": "Clinical Practice Guidelines for the Management of Hypertension in the Philippines",
+      "source": "[CPG] Clinical Practice Guidelines for the Management of Hypertension in the Philippines",
+      "pdf_file": "[CPG] Clinical Practice Guidelines for the Management of Hypertension in the Philippines.pdf",
+      "page": 63,
+      "page_end": 63,
+      "pages": [
+        63
+      ],
+      "section": "",
+      "type": "guideline",
+      "citation_id": "G4"
+    }
+  ]
+}
