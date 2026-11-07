@@ -28,6 +28,14 @@ def validation(answer, accepted):
         trace.setdefault('answer_validation', []).append({'raw_answer': answer, 'accepted': accepted})
 
 
+def claim_review(record):
+    trace = _trace.get()
+    if trace is not None:
+        # Review receives selected evidence only; keep it separate from the
+        # complete generation contexts used by the evaluation harness.
+        trace.setdefault('claim_reviews', []).append(deepcopy(record))
+
+
 def generation(prompt, provider):
     trace = _trace.get()
     if trace is None:

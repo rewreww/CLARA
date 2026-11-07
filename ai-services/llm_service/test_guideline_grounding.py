@@ -11,6 +11,11 @@ import llm_client as service
 
 
 class GroundingTests(unittest.TestCase):
+    def setUp(self):
+        reviewer = patch.object(service, 'review_guideline_claims', return_value=(True, ''))
+        self.reviewer = reviewer.start()
+        self.addCleanup(reviewer.stop)
+
     def test_bp_question_reaches_guidelines_without_patient_labs(self):
         for question in ['What is the best way to decide whether to go by home blood pressures that are normal versus office blood pressures that are high?',
                          'Home BP is normal but office BP is high. What next?', 'How is ABPM used?']:
@@ -43,7 +48,7 @@ class GroundingTests(unittest.TestCase):
         self.assertIsNone(grounding.render_citations(json.dumps({'paragraphs':[paragraph,{'text':'Extra claim.'}]}), sources))
         self.assertIsNone(grounding.render_citations(json.dumps({'paragraphs':[{'text':'Claim',
             'evidence':[{'source_id':[]}]}]}), sources))
-        self.assertIsNotNone(grounding.render_citations(json.dumps({'paragraphs':[{'text':'Supported answer.',
+        self.assertIsNone(grounding.render_citations(json.dumps({'paragraphs':[{'text':'Supported answer.',
             'evidence':[{'source_id':'G1'}]}]}), sources))
         self.assertNotIn('_evidence', service.public_guideline_sources(sources)[0])
         sources[0]['_evidence'] = ['This is exact sup-\nporting evidence.']
@@ -57,15 +62,15 @@ class GroundingTests(unittest.TestCase):
 
     def test_compact_sources_are_cited_once_without_dropping_needed_pages(self):
         sources = [{'citation_id':f'G{i}', 'title':'Guideline', 'pdf_file':'guideline.pdf',
-                    'page':page, 'page_end':page} for i,page in enumerate([19,20,30],1)]
+                    'page':page, 'page_end':page, '_evidence':['This is the supporting evidence.']} for i,page in enumerate([19,20,30],1)]
         payload = {'paragraphs': [
-            {'text':'First requested point.', 'evidence':[{'source_id':'G1'}]},
-            {'text':'Second requested point.', 'evidence':[{'source_id':'G1'},{'source_id':'G2'}]}]}
+            {'text':'First requested point.', 'evidence':[{'source_id':'G1','quote':'This is the supporting evidence.'}]},
+            {'text':'Second requested point.', 'evidence':[{'source_id':'G1','quote':'This is the supporting evidence.'},{'source_id':'G2','quote':'This is the supporting evidence.'}]}]}
         with patch.object(service,'call_llm') as model:
             result = service.finalize_guideline_answer(json.dumps(payload), sources, 'prompt')
-        self.assertEqual(result.count('Guideline'),1)
+        self.assertEqual(result.count('Guideline'),2)
         self.assertIn('PDF pages 19-20',result)
-        self.assertNotIn('Source:',result)
+        self.assertIn('Source:',result)
         self.assertNotIn('guideline.pdf',result)
         self.assertIn('Second requested point.',result)
         self.assertEqual([s['page'] for s in service.public_guideline_sources(sources)], [19,20])
@@ -73,19 +78,21 @@ class GroundingTests(unittest.TestCase):
 
     def test_single_page_answer_does_not_display_other_retrieved_pages(self):
         sources = [{'citation_id':f'G{i}', 'title':'Guideline', 'pdf_file':'guideline.pdf',
-                    'page':page, 'page_end':page} for i,page in enumerate([19,20],1)]
-        answer = json.dumps({'paragraphs':[{'text':'Direct answer.', 'source_id':'G1'}]})
+                    'page':page, 'page_end':page, '_evidence':['This is the supporting evidence.']} for i,page in enumerate([19,20],1)]
+        answer = json.dumps({'paragraphs':[{'text':'Direct answer.', 'evidence':[{'source_id':'G1','quote':'This is the supporting evidence.'}]}]})
         result = service.finalize_guideline_answer(answer, sources, 'prompt')
         self.assertIn('PDF page 19',result)
         self.assertNotIn('20',result)
         self.assertEqual([s['page'] for s in service.public_guideline_sources(sources)], [19])
 
     def test_simple_question_retries_expansion_instead_of_silently_truncating(self):
-        sources = [{'citation_id':'G1','title':'Guideline','pdf_file':'test.pdf','page':19,'page_end':19}]
+        sources = [{'citation_id':'G1','title':'Guideline','pdf_file':'test.pdf','page':19,'page_end':19,
+                    '_evidence':['This is the supporting evidence.']}]
         question = 'Should normal home BP or high office BP be used?'
         draft = json.dumps({'paragraphs':[{'text':'Direct answer.','source_id':'G1'},
                                          {'text':'Unrequested follow-up.','source_id':'G1'}]})
-        revised = json.dumps({'paragraphs':[{'text':'Direct answer with essential qualification.','source_id':'G1'}]})
+        revised = json.dumps({'paragraphs':[{'text':'Direct answer with essential qualification.',
+            'evidence':[{'source_id':'G1','quote':'This is the supporting evidence.'}]}]})
         with patch.object(service,'call_llm',return_value=revised) as model:
             result = service.finalize_guideline_answer(draft, sources, 'prompt', question)
         model.assert_called_once()
@@ -100,7 +107,7 @@ class GroundingTests(unittest.TestCase):
         with patch.object(service,'call_llm', return_value='Based on [G9], invented answer.'):
             answer = service.finalize_guideline_answer('Uncited answer.', sources, 'evidence prompt')
         self.assertNotIn('invented answer', answer)
-        self.assertIn('could not produce', answer)
+        self.assertIn('could not verify', answer)
 
     def test_groq_withholds_truncated_answer_and_budgets_guideline_output(self):
         response = Mock(status_code=200)

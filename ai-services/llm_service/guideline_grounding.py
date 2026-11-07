@@ -5,6 +5,7 @@ from functools import lru_cache
 from pathlib import Path
 
 import fitz
+import claim_validation
 
 ROOT = Path(__file__).resolve().parent.parent / 'guidelines'
 NO_EVIDENCE = ('I could not find sufficiently traceable evidence in the ingested guideline PDFs '
@@ -23,23 +24,30 @@ Avoid numerical cutoffs unless needed to answer the question; do not turn a hype
 a claim that all values below it are normal. State the source's explicit preferred method first.
 Return ONLY a JSON object with this structure:
 {"paragraphs": [{"text": "A complete answer point in plain prose.",
-"source_id": "G1"}]}
+"evidence": [{"source_id": "G1", "passage_id": "G1.P1"}]}]}
 For a simple question, return ONE short paragraph of 1-3 sentences, normally under 80 words.
 Give the direct answer and at most one essential explanation, then STOP. Do not append follow-up
 management, numerical diagnostic criteria, or hypothetical if/then branches that were not asked for.
 Use additional paragraphs only for an explicitly detailed or multi-part question, or an essential
 qualification without which the direct answer would be misleading. Do not truncate requested details.
+For multi-condition questions, use separate condition-specific paragraphs, each at most 100 words.
+Return at most SIX paragraphs. Do not call an option preferred when the source
+only calls it suitable. Do not add disease subtypes absent from the evidence.
 Do not omit the source's explicitly preferred option or the explanation of the discrepancy the user asks about.
-Every paragraph must cite ONE source_id whose excerpt supports ALL its claims. If necessary claims
+Every paragraph must include evidence with a source_id and passage_id covering ALL its claims. If necessary claims
 require different excerpts, put them in separate paragraphs with their respective source_id values.
-Use the supplied source ID for each point. Do not generate a quote field: cite the provided excerpt directly.
+Choose the supplied passage IDs. The server attaches their exact original text; do not write a quote field.
+Use multiple evidence entries when distinct claims or page continuations need different passages.
+Never attach a real but unrelated passage. Check ALL supplied passages before claiming evidence is absent.
+If the question omits a required condition (such as albuminuria), explicitly state that the recommendation
+applies only when that condition is present. Do not assume it or present it as a universal drug of choice.
 Do not put source names, page numbers, citation brackets, or "Based on" in the text field.
 Cite the smallest sufficient set of excerpts. For a simple question, FIRST select the single excerpt
 that directly answers it, then write the answer from that excerpt. Use one evidence source_id when
 that excerpt supports the whole answer. Do not cite other excerpts just because they discuss the same
 topic or repeat the same recommendation. Add another source ONLY for a necessary claim missing from
 the first excerpt. Never drop necessary support or choose a page merely to shorten a citation.
-The server will verify the source IDs and attach one compact title-and-page citation to the answer.
+The server will check the quoted text and independently review each claim before attaching citations.
 Do not add facts merely to make the answer longer.
 Never invent a citation, page, guideline organization, or source. Do not use remembered guidelines or
 conversation history as evidence. If the passages are insufficient, say what is not established.
@@ -91,7 +99,33 @@ def verified_source(chunk):
     title = metadata_title or re.sub(r'^\[CPG\]\s*', '', path.stem).replace('_', ' ')
     return {'title': title, 'source': source, 'pdf_file': name,
             'page': pages[0], 'page_end': pages[-1], 'pages': pages,
-            'section': chunk.get('section_heading') or '', 'type': 'guideline'}
+            'section': chunk.get('section_heading') or '', 'type': 'guideline',
+            '_file_version': (stat.st_mtime_ns, stat.st_size)}
+
+
+def locate_supporting_pages(source, quotes):
+    """Locate accepted quotations in the verified page range, not just its first page."""
+    if '_file_version' not in source:
+        return source.get('pages') or list(range(source['page'], source['page_end'] + 1))
+    path = ROOT / source['pdf_file']
+    stat = path.stat()
+    if (stat.st_mtime_ns, stat.st_size) != tuple(source['_file_version']):
+        return None
+    allowed = source.get('pages') or list(range(source['page'], source['page_end'] + 1))
+    text, spans = '', []
+    with fitz.open(path) as pdf:
+        for page in allowed:
+            start = len(text)
+            text += claim_validation.normalize(pdf[page - 1].get_text()) + ' '
+            spans.append((start, len(text), page))
+    pages = set()
+    for quote in quotes:
+        matches = list(re.finditer(re.escape(claim_validation.normalize(quote)), text))
+        if not matches:
+            return None
+        for match in matches:
+            pages.update(page for start, end, page in spans if start < match.end() and end > match.start())
+    return sorted(pages)
 
 
 def wants_brief_answer(question):
@@ -102,18 +136,18 @@ def wants_brief_answer(question):
     return not detailed and text.count('?') <= 1 and len(text.split()) <= 45
 
 
-BRIEF_INSTRUCTIONS = ('For this short question, return exactly ONE paragraph with ONE source_id, '
+BRIEF_INSTRUCTIONS = ('For this short question, return exactly ONE paragraph with supporting passage IDs, '
                       'at most 3 sentences and 80 words. State the direct answer and only its '
                       'essential qualifications. Do not append unrequested background benefits, thresholds, '
-                      'treatment decisions, or follow-up scenarios. Choose the single excerpt '
+                      'treatment decisions, or follow-up scenarios. Choose the smallest set of excerpts '
                       'that supports this direct answer. Do not omit a qualification essential to correctness.')
 
 
 def render_citations(answer, sources, brief=False):
-    """Validate source references (and any optional quotes), then attach trusted metadata.
-
-    This verifies provenance, not whether the cited passage entails a generated claim.
-    """
+    """Render exact-quote-checked citations; finalization additionally requires semantic review."""
+    claims, error = claim_validation.prepare_review(answer, sources)
+    if error:
+        return None
     known = {s['citation_id']: s for s in sources}
     try:
         payload = json.loads(answer)
@@ -151,10 +185,10 @@ def render_citations(answer, sources, brief=False):
         return '; '.join(output)
     rendered = []
     all_cited = []
-    for paragraph in paragraphs:
+    for paragraph_index, paragraph in enumerate(paragraphs):
         if not isinstance(paragraph, dict):
             return None
-        text, evidence = paragraph.get('text'), paragraph_evidence(paragraph)
+        text, evidence = paragraph.get('text'), claims[paragraph_index]['evidence']
         if not isinstance(text, str) or not text.strip() or not isinstance(evidence, list) or not evidence:
             return None
         cited = []
@@ -189,15 +223,14 @@ def render_citations(answer, sources, brief=False):
                 all_cited.append(source)
         # The UI uses resolved document citations, not the model's internal IDs.
         text = re.sub(r'\s*[\[(]G\d+(?:\s*[,;]\s*G\d+)*[\])]', '', text).strip()
-        rendered.append(text)
-    return f'Based on {labels(all_cited)}:\n\n' + '\n\n'.join(rendered)
+        rendered.append((text, cited))
+    if len(rendered) == 1:
+        return f'Based on {labels(all_cited)}:\n\n' + rendered[0][0]
+    return '\n\n'.join(f'{text}\n\n*Source: {labels(cited)}.*' for text, cited in rendered)
 
 
 def paragraph_evidence(paragraph):
-    # A single best excerpt per point discourages redundant citations. Retain the
-    # old representation for stored evaluation outputs and genuinely multi-source points.
-    if 'source_id' in paragraph:
-        return [{'source_id': paragraph['source_id']}]
+    # New answers cannot bypass quotation checking through the old source-only format.
     return paragraph.get('evidence')
 
 

@@ -29,6 +29,16 @@ class RetrievalFocusTests(unittest.TestCase):
                                              'Antihypertensive treatment for resistant hypertension.']})
         self.assertEqual(index.search('What antihypertensives are safe while breast feeding?')[0][0], 0)
 
+    def test_renal_failure_and_ckd_share_retrieval_vocabulary(self):
+        index = PassageIndex({'documents': ['CKD: recommended antihypertensive drug options.',
+                                             'Scope and purpose of a renal screening guideline.']})
+        self.assertEqual(index.search('Drug of choice for hypertension in chronic renal failure?')[0][0], 0)
+        self.assertIn('CKD', retriever.semantic_query('Hypertension in chronic renal failure'))
+
+    def test_scope_page_is_not_treatment_evidence(self):
+        self.assertTrue(retriever.is_background_passage('18\n2. Scope and Purpose\nChronic kidney disease prevalence.'))
+        self.assertFalse(retriever.is_background_passage('Clinical question 13. Treatment for CKD.'))
+
     def test_keyword_match_recovers_passage_excluded_by_old_tags(self):
         records = {'ids': ['measurement', 'drug-selection'],
             'documents': ['Blood pressure measurement cuff sizing ambulatory monitoring.',

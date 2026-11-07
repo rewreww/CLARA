@@ -46,6 +46,21 @@ class GeneralChatTests(unittest.TestCase):
         self.assertEqual(response.json()['response'], service.guideline_grounding.NO_EVIDENCE)
         self.assertEqual(response.json()['sources'], [])
 
+    def test_stream_never_emits_rejected_clinical_draft(self):
+        source = {'type':'guideline', 'citation_id':'G1', 'source':'scope', 'title':'Scope',
+                  'pdf_file':'scope.pdf', 'page':18, 'page_end':18,
+                  '_evidence':['Chronic kidney disease is a common condition.']}
+        draft = json.dumps({'paragraphs':[{'text':'UNSUPPORTED drug recommendation.',
+            'evidence':[{'source_id':'G1', 'quote':source['_evidence'][0]}]}]})
+        with patch.object(service, 'build_guideline_bundle', return_value=('Evidence', [source])), \
+             patch.object(service, 'call_llm', return_value=draft), \
+             patch.object(service, 'review_guideline_claims', return_value=(False, 'Unrelated evidence.')):
+            result = TestClient(service.app).post('/chat/stream', json={'message':'Which drug?'}).text
+        self.assertNotIn('UNSUPPORTED', result)
+        events = [json.loads(line[6:]) for line in result.splitlines() if line.startswith('data: ')]
+        metadata = next(event for event in events if event['type'] == 'meta')
+        self.assertEqual(metadata['sources'], [])
+
     def test_followup_uses_explicit_history_not_patient_session_cache(self):
         service.conversation_store['general-isolation-test'] = [{'role': 'doctor', 'content': 'Private patient record'}]
         try:

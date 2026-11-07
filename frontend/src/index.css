@@ -597,3 +597,6 @@ svg { flex-shrink: 0; }
   .mimic-toolbar form { flex: 1 1 100%; min-width: 0; }
   .mimic-toolbar input { min-width: 0; flex: 1; }
 }
+.source-support { margin: 8px 12px; font-size: 12px; line-height: 1.5; }
+.source-support summary { cursor: pointer; font-weight: 600; }
+.source-support blockquote { margin: 8px 0; padding-left: 10px; border-left: 2px solid currentColor; }

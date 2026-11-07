@@ -19,7 +19,12 @@ def _sentence_transformer():
             "pip install -r ai-services/requirements.txt"
         ) from exc
 
-    return SentenceTransformer(EMBED_MODEL)
+    # Reuse the downloaded model without slow Hub checks on each service restart.
+    # Fresh installations still download normally when the cache is absent.
+    try:
+        return SentenceTransformer(EMBED_MODEL, local_files_only=True)
+    except OSError:
+        return SentenceTransformer(EMBED_MODEL)
 
 
 def get_embedding(text: str) -> list[float]:

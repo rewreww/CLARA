@@ -75,8 +75,8 @@ export default function ChatPanel({ patient, patients, patientsLoading, patients
   useEffect(() => {
     if (evidenceIndex != null) return
     const sources = latestResponse?.sources || []
-    setSelectedSource(source => source && sources.some(item => sourceKey(item) === sourceKey(source))
-      ? source : sources[0] || null)
+    setSelectedSource(source => (source && sources.find(item => sourceKey(item) === sourceKey(source)))
+      || sources[0] || null)
   }, [latestResponse?.sources, evidenceIndex])
   const hasConversation = messages.some(message => message.role === 'doctor')
   const visibleMessages = hasConversation ? messages : []

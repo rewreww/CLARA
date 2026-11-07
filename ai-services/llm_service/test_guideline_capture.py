@@ -15,12 +15,12 @@ class GuidelineCaptureTests(unittest.TestCase):
 
     def test_only_supplied_passages_are_captured(self):
         chunks = [{'source': f'doc-{i}', 'page': 1, 'text': f'evidence-{i}', 'relevance': 100-i,
-                   'is_philippine': True, 'is_recommendation': True} for i in range(5)]
+                   'is_philippine': True, 'is_recommendation': True} for i in range(7)]
         with guideline_trace.capture() as trace, patch.object(service, 'retrieve', return_value=chunks):
             context, sources = service.build_guideline_bundle('guideline treatment')
-            self.assertEqual(len(sources), 3)
-            self.assertEqual([p['text'] for p in trace['passages']], ['evidence-0', 'evidence-1', 'evidence-2'])
-            self.assertNotIn('evidence-3', context)
+            self.assertEqual(len(sources), 5)
+            self.assertEqual([p['text'] for p in trace['passages']], [f'evidence-{i}' for i in range(5)])
+            self.assertNotIn('evidence-5', context)
             with patch.object(service, 'LLM_PROVIDER', 'groq'), patch.object(service, 'call_groq', return_value='mock response') as model:
                 service.call_llm('prefix\n' + context)
                 self.assertEqual(trace['generation_calls'][0]['prompt'], model.call_args.args[0])

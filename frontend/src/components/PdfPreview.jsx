@@ -66,6 +66,10 @@ export default function PdfPreview({ source, patientId }) {
   return <div className="pdf-preview">
     <div className="pdf-document-title" title={source.source}>{source.title || source.source}</div>
     <div className="pdf-citation-label">{citedPage ? `Cited PDF page ${citedPage}` : 'No page number supplied by this citation'}</div>
+    {source.supporting_quotes?.length > 0 && <details className="source-support">
+      <summary>Supporting excerpts</summary>
+      {source.supporting_quotes.map((quote, index) => <blockquote key={index}>{quote}</blockquote>)}
+    </details>}
     <div className="pdf-toolbar">
       <button className="icon-button" aria-label="Previous PDF page" title="Previous page" disabled={!document || page <= 1} onClick={() => setPage(value => value - 1)}><ChevronLeft size={16} /></button>
       <span className="pdf-page-count" aria-live="polite">{page} / {document?.numPages || '-'}</span>

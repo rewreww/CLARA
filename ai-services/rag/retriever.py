@@ -78,6 +78,17 @@ def is_management_query(query: str) -> bool:
     return any(term in text for term in _MANAGEMENT_TERMS)
 
 
+def is_background_passage(text):
+    beginning = ' '.join(text.lower().split())[:220]
+    return bool(re.match(r'^(?:\d+\s+)*(?:\d+(?:\.\d+)*[.)]?\s*)?(?:scope and purpose|table of contents|references\b|bibliography\b)', beginning))
+
+
+def semantic_query(query):
+    if re.search(r'\bchronic renal (?:failure|disease)\b', query, re.I):
+        return query + ' Chronic kidney disease (CKD).'
+    return query
+
+
 def retrieve(
     query: str,
     diagnosis_hint: str = None,
@@ -128,7 +139,7 @@ def retrieve(
     except Exception:
         logging.getLogger(__name__).exception('Guideline lexical retrieval failed')
     try:
-        results = collection.query(query_embeddings=[get_embedding(query)],
+        results = collection.query(query_embeddings=[get_embedding(semantic_query(query))],
             n_results=min(max(30, top_k), collection.count()),
             include=['documents', 'metadatas', 'distances'])
         for rank, (identifier, doc, meta, distance) in enumerate(zip(
@@ -157,6 +168,13 @@ def retrieve(
                 if position is not None:
                     coverage = len(specific.intersection(index.counts[position])) / len(specific)
                     item['retrieval_score'] *= .25 + .75 * coverage
+    for item in candidates.values():
+        if is_background_passage(item['text']):
+            item['retrieval_score'] *= .15
+        elif only_recommendations and not re.search(
+                r'\brecommend\w*|\bfirst[- ]line|\bshould\b|\bpreferred\b|\bcontraindicat\w*|\bprescrib\w*',
+                item['text'], re.I):
+            item['retrieval_score'] *= .65
     return sorted(candidates.values(), key=ranking)[:top_k]
 
 
