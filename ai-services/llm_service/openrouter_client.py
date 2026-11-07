@@ -23,8 +23,10 @@ def generate(prompt, api_key, model, structured=False):
         ],
         "temperature": 0.1,
         "stream": False,
-        "max_tokens": 4096 if structured else 2048,
-        "reasoning": {"enabled": False},
+        "max_tokens": 8192 if structured else 2048,
+        "reasoning": {
+            "effort": "medium" if structured else "low",
+            "enabled": True},
     }
     # The existing guideline prompt and validator enforce the JSON contract;
     # do not require response_format on endpoints that may not support it.
