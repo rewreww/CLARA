@@ -576,8 +576,13 @@ def call_llm(prompt: str) -> str:
             guideline_trace.generation(prompt, "groq")
             try:
                 answer = call_groq(prompt)
-            except HTTPException:
-                raise HTTPException(503, "OpenRouter and the Groq fallback could not respond. Please try again later.") from None
+            
+            except HTTPException as groq_error:
+                logging.getLogger("uvicorn.error").warning("Groq fallback failed: HTTP %s - %s", groq_error.status_code,groq_error.detail)
+                raise HTTPException(
+                    503,
+                    "OpenRouter and the Groq fallback could not respond. Please try again later.") from None
+
             logging.getLogger("uvicorn.error").info("LLM response provider=groq model=%s fallback=true", GROQ_MODEL)
             return answer
     if LLM_PROVIDER == "gemini":
