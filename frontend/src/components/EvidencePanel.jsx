@@ -42,8 +42,8 @@ export default function EvidencePanel({ mobileOpen, sources, selectedSource, onS
   return <>
     {mobileOpen && <button className="evidence-backdrop" aria-label="Close document panel" tabIndex={-1} onClick={onClose} />}
     <aside className={`evidence-panel ${mobileOpen ? 'mobile-open' : ''}`} role={modal ? 'dialog' : undefined} aria-modal={modal || undefined} aria-label="Sources and activity" ref={panelRef}>
-      <header><strong>Source preview</strong><button ref={closeRef} className="icon-button evidence-close" onClick={onClose} aria-label="Close source preview" title="Close panel"><X size={18} /></button></header>
-      <div className="evidence-tabs" role="tablist" aria-label="Evidence views">
+      <div className="evidence-panel-toolbar">
+        <div className="evidence-tabs" role="tablist" aria-label="Evidence views">
         {['sources', 'activity'].map(value => <button key={value} role="tab" aria-selected={tab === value} tabIndex={tab === value ? 0 : -1}
           onKeyDown={event => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
             event.preventDefault()
@@ -52,6 +52,8 @@ export default function EvidencePanel({ mobileOpen, sources, selectedSource, onS
             event.currentTarget.parentElement.children[next === 'sources' ? 0 : 1].focus()
           } }}
           className={tab === value ? 'is-active' : ''} onClick={() => onTab(value)}>{value === 'sources' ? `Sources (${sources.length})` : 'Activity'}</button>)}
+        </div>
+        <button ref={closeRef} className="icon-button evidence-close" onClick={onClose} aria-label="Close source preview" title="Close panel"><X size={18} /></button>
       </div>
       {tab === 'activity' ? <div className="evidence-activity" role="tabpanel"><ActivityTimeline key={message?.startedAt || 'empty'} message={message} expanded /></div>
         : <div className="evidence-sources" role="tabpanel">
