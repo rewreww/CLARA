@@ -29,6 +29,10 @@ export default function AuthScreen({ onLogin, accountNotice = '' }) {
   }
   const changeView = next => { setView(next); setError(''); setNotice(''); setToken(''); setNewPassword('') }
   return <main className="clara-auth-page">
+    {(accountNotice || error.toLowerCase().includes('disabled')) && <div className="clara-account-disabled-banner" role="alert">
+      <strong>Account access suspended</strong>
+      <span>{accountNotice || error}</span>
+    </div>}
     <div className="clara-auth-card">
       <div className="clara-auth-brand">
         <img src="/clara-mark.svg" alt="" width="62" height="52" />
