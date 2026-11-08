@@ -719,3 +719,43 @@ svg { flex-shrink: 0; }
   .composer-area .patient-admission-inline .patient-admission-search { margin: 0 10px 8px; }
   .composer-area .patient-admission-inline .patient-admission-columns { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
+
+
+/* Unified left navigation: brand, actions, recents, and account. */
+.workspace-sidebar {
+  flex: 0 0 272px;
+  width: 272px;
+  background: #171b1e;
+}
+.sidebar-clara-brand { padding: 0 18px; height: 78px; }
+.sidebar-brand-identity { display: flex; align-items: center; gap: 12px; min-width: 0; color: #a5e0d5; }
+.sidebar-brand-identity strong { color: #ecf3f1; font-size: 19px; font-weight: 700; letter-spacing: .055em; }
+.clara-main-navigation { display: grid; gap: 4px; padding: 12px 10px 14px; border-bottom: 1px solid #303539; }
+.clara-nav-button { display: flex; gap: 12px; align-items: center; width: 100%; min-height: 44px; padding: 10px 12px; text-align: left; color: #cbd4d7; border-radius: 9px; font-size: 14px; }
+.clara-nav-button:hover { background: #292f32; color: #f0f6f4; }
+.clara-nav-button.is-active { background: #263b35; color: #a5e0d5; }
+.clara-nav-button:focus-visible { outline: 2px solid #96d9ce; outline-offset: 2px; }
+.workspace-sidebar .clara-sidebar-content { padding-top: 12px; min-height: 0; flex: 1; display: flex; flex-direction: column; }
+.clara-sidebar-content .history-section { min-height: 0; margin-top: 0; flex: 1; }
+.clara-sidebar-content .history-heading { display: flex; align-items: center; justify-content: flex-start; gap: 11px; padding: 10px 20px 14px; color: #b9c4ca; font-size: 13px; font-weight: 600; }
+.clara-sidebar-content .history-list { min-height: 0; overflow-y: auto; }
+.clara-account-footer { flex-shrink: 0; display: flex; gap: 11px; align-items: center; padding: 16px 18px; border-top: 1px solid #303539; }
+.clara-account-avatar { display: grid; place-items: center; flex: 0 0 38px; height: 38px; border-radius: 50%; color: #e3eeea; background: #3e5750; }
+.clara-account-label { display: grid; gap: 2px; min-width: 0; }
+.clara-account-label strong { font-size: 13px; color: #e5eeeb; font-weight: 600; }
+.clara-account-label small { color: #91a3a1; font-size: 11px; }
+.clara-patient-directory-section { display: flex; flex-direction: column; min-height: 125px; flex: 1; border-top: 1px solid #303539; padding-top: 14px; }
+.clara-patient-directory-section .patient-directory { min-height: 0; overflow-y: auto; }
+.clara-sidebar-content:has(.clara-patient-directory-section) .history-section { flex: 0 1 42%; }
+.clara-sidebar-content:has(.clara-patient-directory-section) .history-list { flex: 1; }
+.chat-page-toolbar-minimal { min-height: 0; padding: 0; justify-content: flex-end; }
+.chat-page-toolbar-minimal:has(.source-preview-tile) { min-height: 0; }
+.chat-welcome h1 { margin-top: 0; }
+@media (max-width: 1100px) {
+  .workspace-sidebar { inset: 0 auto 0 0; width: min(320px, calc(100vw - 32px)); }
+}
+@media (max-width: 760px) {
+  .workspace-sidebar { left: 0; width: min(320px, calc(100vw - 32px)); }
+  .sidebar-clara-brand { height: 64px; }
+  .clara-nav-button { min-height: 48px; }
+}
