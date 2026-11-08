@@ -367,7 +367,10 @@ def supervise(args):
             checkpoint()
         # Vite may still be warming up after its HTML endpoint is available.
         # Verify the browser's actual API paths with the same readiness budget.
-        for name in ("backend-proxy", "llm-proxy"):
+        # With accounts enabled, AI requests require a clinician cookie.
+        # The LLM service was already verified above; do not probe it anonymously.
+        proxy_checks = ("backend-proxy",) if args.with_accounts else ("backend-proxy", "llm-proxy")
+        for name in proxy_checks:
             state["message"] = f"Checking {name}"
             write_state(state)
             deadline = time.monotonic() + args.timeout
@@ -508,7 +511,8 @@ def status():
         ready = ready and ok
         print(f"  {service['name']}: {'ready' if ok else 'not ready'} (port {service['port']})")
     if ready:
-        ready = healthy("backend-proxy") and healthy("llm-proxy")
+        account_mode = any(item["name"] == "admin" for item in state.get("services", []))
+        ready = healthy("backend-proxy") and (account_mode or healthy("llm-proxy"))
         print(f"  frontend API proxies: {'ready' if ready else 'not ready'}")
     return 0 if ready else 1
 
