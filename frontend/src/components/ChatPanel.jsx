@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
-import { Activity, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, FileText, ShieldCheck, Square, SquarePen, UserRoundPlus } from 'lucide-react'
+import { Activity, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, FileText, ShieldCheck, Square, UserRoundPlus } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import ActivityTimeline from './ActivityTimeline'
 import EvidencePanel from './EvidencePanel'
@@ -60,7 +60,7 @@ function Message({ msg, onSource, onActivity }) {
 }
 
 export default function ChatPanel({ patient, admission, patients, patientsLoading, patientsError, onSelectPatientContext,
-  activeSection, isActive, messages, loading, onSend, onClear, onStop, onOpenRecord }) {
+  activeSection, isActive, messages, loading, onSend, onStop, onOpenRecord }) {
   const [input, setInput] = useState('')
   const [pickerOpen, setPickerOpen] = useState(false)
   const closePicker = useCallback(() => setPickerOpen(false), [])
@@ -106,13 +106,6 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
     setInput('')
   }
 
-  const newChat = () => {
-    onClear()
-    setInput('')
-    followResponse.current = true
-    taRef.current?.focus()
-  }
-
 
   const picker = pickerOpen ? <PatientAdmissionPicker
     patients={patients} patientsLoading={patientsLoading} patientsError={patientsError}
@@ -155,10 +148,12 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
   return (
     <div className="chat-workspace evidence-is-open">
     <div className={`chat-page ${hasConversation ? 'has-conversation' : 'is-new-chat'}`}>
-      <div className="chat-page-toolbar">
-        <span className="chat-context-label">{patient ? `Patient ${patient.id}` : 'General chat · No patient selected'}</span>
-        <div className="chat-toolbar-actions"><button className="text-button" onClick={newChat} title="New chat"><SquarePen size={16} />New chat</button>
-          <button className="source-preview-tile" aria-label="Open source preview" aria-expanded={evidenceOpen} onClick={() => setEvidenceOpen(true)} title="Source preview"><FileText size={18} /><span>Sources<small>{evidenceSources.length} document{evidenceSources.length === 1 ? '' : 's'}</small></span><ArrowUpRight size={14} /></button></div>
+      <div className="chat-page-toolbar chat-page-toolbar-minimal">
+        <button className="source-preview-tile" aria-label="Open source preview"
+          aria-expanded={evidenceOpen} onClick={() => setEvidenceOpen(true)}
+          title="Source preview"><FileText size={18} /><span>Sources
+            <small>{evidenceSources.length} document{evidenceSources.length === 1 ? '' : 's'}</small>
+          </span><ArrowUpRight size={14} /></button>
       </div>
       {hasConversation ? (
         <>
@@ -177,7 +172,6 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
       ) : (
         <div className="chat-welcome-scroll">
           <div className="chat-welcome">
-            <div className="welcome-brand"><Activity size={30} strokeWidth={1.8} /><span>CLARA</span></div>
             <h1>How can I help, Doctor?</h1>
             {composer}
           </div>
