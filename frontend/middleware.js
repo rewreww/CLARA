@@ -36,9 +36,13 @@ export default function middleware(request) {
     // Pass only the browser's CLARA session cookie along with safe content headers.
     // Never forward user-supplied gateway credentials or proxy/security headers.
     const headers = new Headers()
-    for (const name of ['accept', 'content-type', 'range', 'if-range', 'cookie']) {
+    for (const name of ['accept', 'content-type', 'range', 'if-range']) {
       if (request.headers.has(name)) headers.set(name, request.headers.get(name))
     }
+    // Never forward unrelated browser cookies or deployment-platform cookies.
+    const sessionCookie = (request.headers.get('cookie') || '').split(';')
+      .map(part => part.trim()).find(part => part.startsWith('clara_session='))
+    if (sessionCookie) headers.set('cookie', sessionCookie)
     headers.set('x-clara-gateway-key', CLARA_GATEWAY_KEY)
     if (gateway.hostname.endsWith('.devtunnels.ms')) {
       headers.set('X-Tunnel-Skip-AntiPhishing-Page', '1')
