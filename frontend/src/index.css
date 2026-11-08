@@ -649,3 +649,11 @@ svg { flex-shrink: 0; }
 
 /* Keep the patient picker at the left, including the mobile composer. */
 .chat-composer .composer-controls { justify-content: space-between; }
+
+/* Overlay is portal-mounted to body, avoiding native dialog lifecycle failures. */
+.patient-admission-overlay { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; padding: 16px; background: rgba(0,0,0,.68); }
+.patient-admission-overlay > .patient-admission-dialog { position: relative; display: block; width: min(800px, 100%); max-width: none; max-height: min(82dvh, 680px); margin: 0; }
+@media (max-width: 600px) {
+  .patient-admission-overlay { padding: 8px; }
+  .patient-admission-overlay > .patient-admission-dialog { max-height: calc(100dvh - 20px); }
+}
