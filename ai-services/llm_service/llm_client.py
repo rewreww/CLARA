@@ -7,7 +7,7 @@ import json
 from functools import lru_cache
 from dotenv import load_dotenv
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 from typing import Literal
 from typing import Optional, Dict, Any
@@ -2669,6 +2669,49 @@ def chat(request: ChatRequest):
             + public_guideline_sources(_guideline_sources)
         ),
     )
+
+
+# Explicitly opt-in, loopback-only research endpoint. It executes the same
+# production /chat logic but returns the EXACT ordered guideline passages used
+# for generation, allowing a reproducible RAGAS evaluation.
+@app.post("/evaluation/guideline")
+def evaluate_guideline(request: ChatRequest, http_request: Request):
+    if os.getenv("CLARA_ENABLE_EVALUATION", "") != "1":
+        raise HTTPException(status_code=404, detail="Evaluation endpoint disabled.")
+    if not http_request.client or http_request.client.host not in {"127.0.0.1", "::1"}:
+        raise HTTPException(status_code=403, detail="Evaluation is local-only.")
+    if request.patient_id or request.admission_id:
+        raise HTTPException(status_code=400, detail="Guideline evaluation cannot access patient records.")
+    if request.history:
+        raise HTTPException(status_code=400, detail="Evaluation questions must have no conversation history.")
+    with guideline_trace.capture() as trace:
+        answer = chat(request)
+    generation = next(
+        (entry for entry in trace.get("generation_calls", [])
+         if entry.get("passages")),
+        None,
+    )
+    contexts = [
+        str(chunk.get("text") or "").strip()
+        for chunk in (generation or {}).get("passages", [])
+        if str(chunk.get("text") or "").strip()
+    ]
+    data = answer.model_dump()
+    data.update({
+        "retrieved_contexts": contexts,
+        "ragas_ready": bool(contexts and answer.guidelines_used),
+        "evaluation_status": (
+            "context_captured" if contexts and answer.guidelines_used
+            else "no_accepted_guideline_evidence"
+        ),
+        "context_capture_version": 1,
+        "llm_provider_configured": LLM_PROVIDER,
+        "llm_model_configured": (
+            OPENROUTER_MODEL if LLM_PROVIDER == "openrouter" else
+            GROQ_MODEL if LLM_PROVIDER == "groq" else LLM_PROVIDER
+        ),
+    })
+    return data
 
 
 # ── /chat/stream endpoint ──────────────────────────────────────────────────────
