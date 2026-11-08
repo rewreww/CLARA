@@ -43,7 +43,7 @@ export default function PatientAdmissionPicker({
       .then(result => {
         if (controller.signal.aborted) return
         if (result.patient !== focusedPatient.id) throw new Error('Patient summary did not match.')
-        setSummary(result)
+        setSummary({ patientId: focusedPatient.id, data: result })
       })
       .catch(error => {
         if (!controller.signal.aborted) setAdmissionsError(error.message)
@@ -59,13 +59,18 @@ export default function PatientAdmissionPicker({
     `${item.name || ''} ${item.id || ''}`.toLowerCase().includes(search.trim().toLowerCase())
   )
 
+  // A previously loaded patient's admissions must never appear while switching.
+  const currentSummary = summary?.patientId === focusedPatient?.id ? summary.data : null
   let admissions = []
-  if (summary) {
+  if (currentSummary) {
     try {
-      admissions = admissionDates(summary)
+      admissions = admissionDates(currentSummary)
     } catch {
-      // Do not display or select unverified dates if source metadata is malformed.
-      admissions = []
+      // Keep verified admission IDs visible even if date metadata is malformed.
+      // Never guess missing dates.
+      admissions = (currentSummary.admissions || [])
+        .filter(item => /^(?:\d{8}|unlinked)$/.test(String(item.id || '')))
+        .map(item => ({ ...item, date: null }))
     }
   }
 
@@ -137,9 +142,9 @@ export default function PatientAdmissionPicker({
               <p className="patient-admission-note">Historical MIMIC-IV data: recorded dates are shifted.</p>
               {loadingAdmissions && <p className="patient-admission-info" role="status">Loading admission dates…</p>}
               {admissionsError && <p className="patient-admission-info" role="alert">{admissionsError}</p>}
-              {!loadingAdmissions && !admissionsError && summary && admissions.length === 0 &&
+              {!loadingAdmissions && !admissionsError && currentSummary && admissions.length === 0 &&
                 <p className="patient-admission-info">No available admissions for this patient.</p>}
-              {!loadingAdmissions && !admissionsError && admissions.map(item => (
+              {!loadingAdmissions && !admissionsError && currentSummary && admissions.map(item => (
                 <button type="button" key={item.id}
                   className={`patient-admission-date-row ${selectedPatient?.id === focusedPatient.id && selectedAdmission === item.id ? 'is-selected' : ''}`}
                   onClick={() => choose(focusedPatient, item.id)}>
