@@ -7,6 +7,7 @@ async function readResponse(response) {
   if (!response.ok) {
     const error = new Error(body?.error || (response.status === 401 ? 'Invalid credentials or session expired.' : 'Account service unavailable.'))
     error.status = response.status
+    error.code = body?.code
     throw error
   }
   return body
@@ -20,7 +21,7 @@ export async function accountRequest(path, { method = 'GET', data, signal } = {}
   return readResponse(response)
 }
 export function useAccount() {
-  const [state, setState] = useState({ loading: true, enabled: false, user: null, error: '' })
+  const [state, setState] = useState({ loading: true, enabled: false, user: null, error: '', accountNotice: '' })
   useEffect(() => {
     // Explicit opt-in avoids disrupting the existing Vercel demo while a local
     // gateway/backend is still on an older deployment. This is not a security
@@ -48,6 +49,35 @@ export function useAccount() {
     load()
     return () => { cancelled = true }
   }, [])
+  useEffect(() => {
+    if (!state.enabled || !state.user) return
+    let cancelled = false
+    let checking = false
+    const check = async () => {
+      if (checking || document.visibilityState === 'hidden') return
+      checking = true
+      try {
+        const user = await accountRequest('/me')
+        if (!cancelled) setState(previous => previous.user ? { ...previous, user } : previous)
+      } catch (error) {
+        if (!cancelled && (error.status === 423 || error.status === 401)) {
+          setState(previous => ({
+            ...previous, user: null,
+            accountNotice: error.status === 423 ? error.message : ''
+          }))
+        }
+      } finally { checking = false }
+    }
+    const onFocus = () => { void check() }
+    window.addEventListener('focus', onFocus)
+    const interval = window.setInterval(check, 5000)
+    return () => {
+      cancelled = true
+      window.removeEventListener('focus', onFocus)
+      window.clearInterval(interval)
+    }
+  }, [state.enabled, state.user?.id])
+
   const login = useCallback(async (username, password) => {
     const user = await accountRequest('/login', { method: 'POST', data: { username, password } })
     setState({ loading: false, enabled: true, user, error: '' })
