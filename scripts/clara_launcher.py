@@ -311,6 +311,9 @@ def supervise(args):
     processes = []
     handles = []
     internal_key = secrets.token_urlsafe(48) if args.with_accounts else None
+    # Supervisor owns bootstrap credentials briefly; other services never inherit them.
+    bootstrap_username = os.environ.pop("ClaraAuth__BootstrapUsername", None)
+    bootstrap_password = os.environ.pop("ClaraAuth__BootstrapPassword", None)
 
     def checkpoint():
         if request.exists():
@@ -333,6 +336,10 @@ def supervise(args):
                 if name == "backend":
                     environment["ClaraAuth__InternalServiceKey"] = internal_key
             if name == "backend":
+                if bootstrap_username:
+                    environment["ClaraAuth__BootstrapUsername"] = bootstrap_username
+                if bootstrap_password:
+                    environment["ClaraAuth__BootstrapPassword"] = bootstrap_password
                 # HTTP session cookies are acceptable only for this controlled,
                 # de-identified LAN defense. Real hospitals must deploy HTTPS.
                 environment["ASPNETCORE_ENVIRONMENT"] = "Development"
