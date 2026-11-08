@@ -100,7 +100,14 @@ export function useChat(sessionId, initialMessages = []) {
   const send = useCallback(async (message, patientId, activeSection = null, admissionId = null) => {
     if (!message.trim() || loading) return
     if (patientId?.startsWith('Patient_') && !admissionId) {
-      setMessages(m => [...m, { role: 'clara', text: 'Choose an admission date in Patients before asking about this record.', tools: [], guidelines: false }])
+      setMessages(m => [...m,
+        { role: 'doctor', text: message, tools: [], guidelines: false },
+        {
+          role: 'clara',
+          text: 'Choose an admission date in Patient Records before asking about this patient. No patient records were accessed.',
+          tools: [], guidelines: false, sources: [],
+        },
+      ])
       return
     }
 
