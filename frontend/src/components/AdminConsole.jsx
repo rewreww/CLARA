@@ -12,6 +12,15 @@ export default function AdminConsole({ account, onLogout }) {
   const [issued, setIssued] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 500)
+    return () => window.clearInterval(timer)
+  }, [])
+  const secondsUntilEnable = user => user.state === 'disabled' && user.reenableAt
+    ? Math.max(0, Math.ceil((Date.parse(user.reenableAt) - now) / 1000))
+    : 0
+  const formatCountdown = seconds => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
   const load = useCallback(async () => {
     try {
       if (auditOnly) {
@@ -54,7 +63,10 @@ export default function AdminConsole({ account, onLogout }) {
   }
   const toggle = user => {
     const method = user.state === 'disabled' ? 'enable' : 'disable'
-    if (!window.confirm(`${method === 'disable' ? 'Disable' : 'Enable'} account ${user.username}?`)) return
+    if (method === 'enable' && secondsUntilEnable(user) > 0) return
+    if (!window.confirm(method === 'disable'
+      ? `Disable account ${user.username}? Their active session will be revoked. IT can re-enable the account after a 60-second security hold.`
+      : `Re-enable account ${user.username}? They will need to sign in again.`)) return
     action(() => accountRequest('/users/' + user.id + '/' + method, { method: 'POST' }))
   }
   const recover = user => {
@@ -99,7 +111,14 @@ export default function AdminConsole({ account, onLogout }) {
             <select aria-label={'Role for ' + user.username} disabled={busy || user.id === account.id} value={user.role} onChange={e => changeRole(user, e.target.value)}>{ROLES.map(role=><option key={role}>{role}</option>)}</select>
             <div className="clara-admin-actions">
               {user.state === 'active' && <button disabled={busy} onClick={()=>recover(user)}><KeyRound size={15}/> Recovery</button>}
-              {user.id !== account.id && user.state !== 'pending' && <button disabled={busy} onClick={()=>toggle(user)}>{user.state === 'active' ? 'Disable' : 'Enable'}</button>}
+              {user.id !== account.id && user.state !== 'pending' && (user.state === 'disabled'
+                ? <div className="clara-admin-enable-control">
+                    {secondsUntilEnable(user) > 0 && <span className="clara-admin-reenable-timer" role="timer" aria-label={`Re-enable available in ${formatCountdown(secondsUntilEnable(user))}`}>
+                      Re-enable in {formatCountdown(secondsUntilEnable(user))}
+                    </span>}
+                    <button disabled={busy || secondsUntilEnable(user) > 0} onClick={() => toggle(user)}>Enable</button>
+                  </div>
+                : <button disabled={busy} onClick={() => toggle(user)}>Disable</button>)}
             </div>
           </article>)}</div>
         </section>
