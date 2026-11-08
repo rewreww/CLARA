@@ -818,9 +818,9 @@ svg { flex-shrink: 0; }
     width: 196px;
     min-width: 0;
     height: auto;
-    max-height: calc(100% - 24px);
+    max-height: calc(100% - 36px);
     align-self: flex-start;
-    margin: 12px 12px 12px 0;
+    margin: 24px 12px 12px 0;
     border: 1px solid #353c40;
     border-radius: 10px;
     overflow: hidden;
@@ -910,6 +910,5 @@ svg { flex-shrink: 0; }
     display: flex; min-height: 38px; padding: 8px 6px; text-align: center;
     font-size: 11px; line-height: 1.35; white-space: normal;
   }
-  .chat-page-toolbar-minimal .source-preview-tile { display: flex; align-items: center; gap: 6px; margin: 8px 12px 0 auto; padding: 5px 9px; font-size: 11px; color: #a5c9be; }
-  .chat-page-toolbar-minimal .source-preview-tile small { display: none; }
+  /* The PDF card owns the desktop Sources controls; mobile retains its launcher. */
 }
