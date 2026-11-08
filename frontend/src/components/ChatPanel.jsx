@@ -116,10 +116,9 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
   const composer = (
     <div className={`composer-area ${pickerOpen ? 'picker-is-open' : ''} ${hasConversation ? 'picker-above' : 'picker-below'}`}>
       {hasConversation && picker}
-      <p id="composer-disclaimer" className="composer-disclaimer">CLARA provides information only and makes mistakes. It does not replace a physician’s clinical judgment.</p>
       <form className="chat-composer" onSubmit={handleSend}>
         <textarea ref={taRef} value={input} onChange={event => setInput(event.target.value)}
-          aria-describedby="composer-disclaimer"
+          aria-describedby={!hasConversation ? "composer-disclaimer" : undefined}
           onKeyDown={event => {
             if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) handleSend(event)
           }}
@@ -137,6 +136,7 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
                 aria-label="Send message" title="Send message"><ArrowUp size={20} /></button>}
         </div>
       </form>
+      {!hasConversation && <p id="composer-disclaimer" className="composer-disclaimer">CLARA provides information only and makes mistakes. It does not replace a physician’s clinical judgment.</p>}
       {patient && <div className="composer-context">
         <span>Record {patient.id}<span className="context-separator">/</span>{admission ? `Admission ${admission}` : activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}</span>
         <button onClick={onOpenRecord}>View record<ArrowUpRight size={13} /></button>
