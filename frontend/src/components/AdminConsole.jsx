@@ -29,6 +29,17 @@ export default function AdminConsole({ account, onLogout }) {
     try { await fn(); await load() } catch (e) { setError(e.message) }
     finally { setBusy(false) }
   }
+  const copyCode = async code => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(code)
+        return
+      }
+    } catch {
+      // HTTP LAN browsers may not expose the Clipboard API.
+    }
+    window.prompt('Select and copy the one-time code:', code)
+  }
   const invite = event => {
     event.preventDefault()
     action(async () => {
@@ -66,7 +77,7 @@ export default function AdminConsole({ account, onLogout }) {
       {issued && <div className="clara-admin-secret" role="status">
         <strong>{issued.kind === 'activation' ? 'Staff activation' : 'Password recovery'} code — {issued.username}</strong>
         <p>This code is shown once. Verify the recipient and transfer it securely. Expires in {issued.expiry}.</p>
-        <div className="clara-admin-secret-code"><code>{issued.code}</code><button type="button" onClick={() => navigator.clipboard.writeText(issued.code)} aria-label="Copy one-time code"><ClipboardCopy size={17}/></button></div>
+        <div className="clara-admin-secret-code"><code>{issued.code}</code><button type="button" onClick={() => copyCode(issued.code)} aria-label="Copy one-time code"><ClipboardCopy size={17}/></button></div>
         <button type="button" onClick={() => setIssued(null)}>I've delivered the code securely</button>
       </div>}
       {!auditOnly && tab === 'users' ? <>
