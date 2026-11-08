@@ -194,15 +194,17 @@ def response(path):
 def healthy(name):
     try:
         if name == "backend":
-            return isinstance(json.loads(response("5000/api/patientdata/patients")).get("patients"), list)
+            return isinstance(json.loads(response("5000/api/account/config")).get("enabled"), bool)
         if name == "ml":
             return json.loads(response("8002/health")).get("model_loaded") is True
         if name == "llm":
             return json.loads(response("8001/health")).get("service") == "CLARA LLM"
         if name == "frontend":
             return b'id="root"' in response("3000/")
+        if name == "admin":
+            return b'id="root"' in response("3001/")
         if name == "backend-proxy":
-            return isinstance(json.loads(response("3000/api/backend/patientdata/patients")).get("patients"), list)
+            return isinstance(json.loads(response("3000/api/backend/account/config")).get("enabled"), bool)
         if name == "llm-proxy":
             return json.loads(response("3000/api/llm/health")).get("service") == "CLARA LLM"
         if name == "legacy":
@@ -283,6 +285,8 @@ def service_specs(args, needs_ollama):
     if args.legacy_parser:
         specs.append(("legacy", 8000, ROOT / "ai-services", [python, "-m", "uvicorn", "medical_text_api:app", "--host", "127.0.0.1", "--port", "8000"]))
     specs.append(("frontend", 3000, ROOT / "frontend", ["node", "node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", "3000", "--strictPort"]))
+    if args.with_accounts:
+        specs.append(("admin", 3001, ROOT / "frontend", ["node", "node_modules/vite/bin/vite.js", "--config", "vite.admin.config.js", "--host", "0.0.0.0", "--port", "3001", "--strictPort"]))
     if needs_ollama and not healthy("ollama"):
         specs.insert(0, ("ollama", 11434, ROOT, ["ollama", "serve"]))
     return specs
@@ -317,8 +321,12 @@ def supervise(args):
         stdout = (log_dir / f"{name}.stdout.log").open("wb")
         stderr = (log_dir / f"{name}.stderr.log").open("wb")
         handles.extend([stdout, stderr])
+        environment = os.environ.copy()
+        if args.with_accounts:
+            environment["ClaraAuth__Enabled"] = "true"
+            environment["VITE_CLARA_AUTH_ENABLED"] = "true"
         process = subprocess.Popen(command, cwd=cwd, stdin=subprocess.DEVNULL, stdout=stdout, stderr=stderr,
-                                   creationflags=subprocess.CREATE_NO_WINDOW)
+                                   env=environment, creationflags=subprocess.CREATE_NO_WINDOW)
         job.assign(process)
         return process
 
@@ -398,7 +406,7 @@ def start(args):
         if alive(state):
             if state.get("phase") == "ready" and all(healthy(s["name"]) for s in state["services"]):
                 present = {s["name"] for s in state["services"]}
-                if (args.legacy_parser and "legacy" not in present) or (args.with_ollama and not healthy("ollama")):
+                if (args.legacy_parser and "legacy" not in present) or (args.with_ollama and not healthy("ollama")) or (args.with_accounts != ("admin" in present)):
                     raise LauncherError("CLARA is already running. Stop it first to change optional services.")
                 print(f"CLARA is already running: {URL}\nLogs: {state['logs']}")
                 if not args.no_browser and not args.check:
@@ -423,6 +431,8 @@ def start(args):
             command.append("--legacy-parser")
         if args.with_ollama:
             command.append("--with-ollama")
+        if args.with_accounts:
+            command.append("--with-accounts")
         with (logs / "supervisor.log").open("wb") as log:
             runner = subprocess.Popen(command, cwd=ROOT, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
                                       creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP)
@@ -509,6 +519,7 @@ def main():
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--legacy-parser", action="store_true")
     parser.add_argument("--with-ollama", action="store_true")
+    parser.add_argument("--with-accounts", action="store_true")
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--timeout", type=int, default=180)
     parser.add_argument("--run-id")
