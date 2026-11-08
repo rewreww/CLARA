@@ -7,9 +7,9 @@ async function readResponse(response) {
   if (!response.ok) throw new Error(body?.error || (response.status === 401 ? 'Invalid credentials or session expired.' : 'Account service unavailable.'))
   return body
 }
-export async function accountRequest(path, { method = 'GET', data } = {}) {
+export async function accountRequest(path, { method = 'GET', data, signal } = {}) {
   const response = await fetch(BASE + path, {
-    method, credentials: 'same-origin', cache: 'no-store',
+    method, credentials: 'same-origin', cache: 'no-store', signal,
     headers: { ...(data ? { 'Content-Type': 'application/json' } : {}) },
     ...(data ? { body: JSON.stringify(data) } : {}),
   })
