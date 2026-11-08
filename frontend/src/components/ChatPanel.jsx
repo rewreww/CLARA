@@ -95,7 +95,7 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
     if (!taRef.current) return
     taRef.current.style.height = 'auto'
     taRef.current.style.height = Math.min(taRef.current.scrollHeight, 180) + 'px'
-  }, [input, isActive])
+  }, [input, isActive, hasConversation])
 
   const handleSend = event => {
     event?.preventDefault()
@@ -123,7 +123,7 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
           onKeyDown={event => {
             if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) handleSend(event)
           }}
-          placeholder={patient ? 'Ask about this patient...' : 'Ask CLARA...'} aria-label="Message CLARA" rows={2} />
+          placeholder={patient ? 'Ask about this patient...' : 'Ask CLARA...'} aria-label="Message CLARA" rows={hasConversation ? 2 : 1} />
         <div className="composer-controls">
           <button className="composer-patient-button" type="button" onClick={() => setPickerOpen(true)}
             title={patient ? 'Change patient or admission' : 'Select a patient'}
