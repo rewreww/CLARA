@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ArrowLeft, ArrowRight, LockKeyhole, ShieldCheck } from 'lucide-react'
 import { accountRequest } from '../hooks/useAccount'
 
-export default function AuthScreen({ onLogin }) {
+export default function AuthScreen({ onLogin, accountNotice = '' }) {
   const [view, setView] = useState('login')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -48,7 +48,7 @@ export default function AuthScreen({ onLogin }) {
           <label>New password<input type="password" autoComplete="new-password" value={newPassword} onChange={e => setNewPassword(e.target.value)} minLength={12} required /></label>
           <p className="clara-auth-hint">At least 12 characters. Do not reuse your hospital password.</p>
         </>}
-        {error && <p className="clara-auth-error" role="alert">{error}</p>}
+        {error && !error.includes('disabled') && <p className="clara-auth-error" role="alert">{error}</p>}
         {notice && <p className="clara-auth-success" role="status">{notice}</p>}
         <button className="clara-auth-primary" type="submit" disabled={busy}>{busy ? 'Please wait...' : view === 'login' ? 'Sign in' : 'Confirm password'} <ArrowRight size={17} /></button>
       </form>
