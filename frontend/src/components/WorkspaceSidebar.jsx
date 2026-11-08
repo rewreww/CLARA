@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowUpRight, Search, X } from 'lucide-react'
+import { Activity, MessageSquarePlus, UsersRound, Search, X, UserRound } from 'lucide-react'
 import { STATUS_COLOR } from '../constants'
 import ConversationHistory from './ConversationHistory'
 
@@ -37,9 +37,20 @@ export default function WorkspaceSidebar({ activeApp, onChangeApp, selectedPatie
     <>
       {open && <button className="workspace-backdrop" onClick={onClose} aria-label="Close sidebar" tabIndex={-1} />}
       <aside ref={sidebarRef} className={`workspace-sidebar ${open ? 'is-open' : ''}`} aria-label={activeApp === 'home' ? 'Conversation history' : 'Patient directory'}>
-        <header className="workspace-sidebar-heading"><strong>{activeApp === 'home' ? 'Conversations' : 'Patients'}</strong>
-          <button ref={closeRef} className="icon-button workspace-sidebar-close" onClick={onClose} aria-label="Close sidebar"><X size={20} /></button>
+        <header className="workspace-sidebar-heading sidebar-clara-brand">
+          <div className="sidebar-brand-identity"><Activity size={24} aria-hidden="true" /><strong>CLARA</strong></div>
+          <button ref={closeRef} className="icon-button workspace-sidebar-close" onClick={onClose}
+            aria-label="Close navigation"><X size={20} /></button>
         </header>
+        <nav className="clara-main-navigation" aria-label="Main navigation">
+          <button className="clara-nav-button" onClick={onNewConversation}>
+            <MessageSquarePlus size={19} aria-hidden="true" /><span>New Chat</span>
+          </button>
+          <button className={`clara-nav-button ${activeApp === 'patients' ? 'is-active' : ''}`}
+            onClick={() => onChangeApp('patients')} aria-current={activeApp === 'patients' ? 'page' : undefined}>
+            <UsersRound size={19} aria-hidden="true" /><span>Patients</span>
+          </button>
+        </nav>
         <div className="sidebar-content">
           {activeApp === 'patients' ? (
             <>
@@ -63,16 +74,14 @@ export default function WorkspaceSidebar({ activeApp, onChangeApp, selectedPatie
               </div>
             </>
           ) : (
-            <><ConversationHistory conversations={conversations} activeId={activeConversationId}
+            <ConversationHistory conversations={conversations} activeId={activeConversationId}
               onOpen={onOpenConversation} onNew={onNewConversation} onRename={onRenameConversation} onDelete={onDeleteConversation} error={historyError} />
-            <div className="home-sidebar-context">
-              <div className="sidebar-section-label">Current patient</div>
-              {selectedPatient ? <button className="context-record-link" onClick={() => onChangeApp('patients')}>
-                <span><strong>{selectedPatient.name}</strong><small>Record {selectedPatient.id}</small></span><ArrowUpRight size={17} />
-              </button> : <span className="sidebar-notice">No patient selected</span>}
-            </div></>
           )}
         </div>
+        <footer className="clara-account-footer" aria-label="Account">
+          <span className="clara-account-avatar" aria-hidden="true"><UserRound size={20} /></span>
+          <span className="clara-account-label"><strong>Dr. Aves</strong><small>Account placeholder</small></span>
+        </footer>
       </aside>
     </>
   )
