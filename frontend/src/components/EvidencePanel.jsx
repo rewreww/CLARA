@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { ArrowLeft, FileText, LoaderCircle, X } from 'lucide-react'
 import ActivityTimeline from './ActivityTimeline'
 import { sourceKey } from '../lib/conversations'
-import { citationPage } from '../lib/sources'
+import { citationPage, sourceDocumentUrl } from '../lib/sources'
 
 const PdfPreview = lazy(() => import('./PdfPreview'))
 
@@ -39,9 +39,10 @@ export default function EvidencePanel({ mobileOpen, sources, selectedSource, onS
       ;(target || closeRef.current)?.focus()
     }
   }, [selectedSource, modal, mobileOpen])
+  const hasPdf = !!sourceDocumentUrl(selectedSource, patientId)
   return <>
     {mobileOpen && <button className="evidence-backdrop" aria-label="Close document panel" tabIndex={-1} onClick={onClose} />}
-    <aside className={`evidence-panel ${mobileOpen ? 'mobile-open' : ''}`} role={modal ? 'dialog' : undefined} aria-modal={modal || undefined} aria-label="Sources and activity" ref={panelRef}>
+    <aside className={`evidence-panel ${mobileOpen ? 'mobile-open' : ''} ${hasPdf ? 'has-pdf' : ''}`} role={modal ? 'dialog' : undefined} aria-modal={modal || undefined} aria-label="Sources and activity" ref={panelRef}>
       <div className="evidence-panel-toolbar">
         <div className="evidence-tabs" role="tablist" aria-label="Evidence views">
         {['sources', 'activity'].map(value => <button key={value} role="tab" aria-selected={tab === value} tabIndex={tab === value ? 0 : -1}
