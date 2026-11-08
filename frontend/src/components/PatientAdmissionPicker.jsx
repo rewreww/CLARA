@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { CalendarDays, ChevronRight, Search, UserRound, X } from 'lucide-react'
 import { LABS_URL } from '../constants'
 import { admissionDates } from '../lib/mimicOverview'
+import { currentAdmissionSummary } from '../lib/patientAdmissionState'
 
 export default function PatientAdmissionPicker({
   patients, patientsLoading, patientsError, selectedPatient, selectedAdmission,
@@ -85,7 +86,7 @@ export default function PatientAdmissionPicker({
   )
 
   // A previously loaded patient's admissions must never appear while switching.
-  const currentSummary = summary?.patientId === focusedPatient?.id ? summary.data : null
+  const currentSummary = currentAdmissionSummary(summary, focusedPatient?.id)
   let admissions = []
   if (currentSummary) {
     try {
