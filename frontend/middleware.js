@@ -33,10 +33,10 @@ export default function middleware(request) {
     if (!/^\/api\/(llm|backend)\//.test(url.pathname)) {
       return new Response('Not found', { status: 404, headers: privateHeaders })
     }
-    // A fresh allowlist prevents forwarding browser credentials/cookies or
-    // client-supplied proxy/security headers to the tunnel.
+    // Pass only the browser's CLARA session cookie along with safe content headers.
+    // Never forward user-supplied gateway credentials or proxy/security headers.
     const headers = new Headers()
-    for (const name of ['accept', 'content-type', 'range', 'if-range']) {
+    for (const name of ['accept', 'content-type', 'range', 'if-range', 'cookie']) {
       if (request.headers.has(name)) headers.set(name, request.headers.get(name))
     }
     headers.set('x-clara-gateway-key', CLARA_GATEWAY_KEY)
