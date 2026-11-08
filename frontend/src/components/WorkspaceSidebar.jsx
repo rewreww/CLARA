@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { MessageSquarePlus, UsersRound, Search, X, UserRound } from 'lucide-react'
+import { MessageSquarePlus, UsersRound, Search, X, UserRound, Settings, LogOut, ChevronUp } from 'lucide-react'
 import { STATUS_COLOR } from '../constants'
 import ConversationHistory from './ConversationHistory'
 
@@ -8,6 +8,9 @@ export default function WorkspaceSidebar({ activeApp, onChangeApp, selectedPatie
   conversations, activeConversationId, onOpenConversation, onNewConversation, onRenameConversation, onDeleteConversation, historyError,
   account, onAccountSettings, onLogout }) {
   const [search, setSearch] = useState('')
+  const [profileOpen, setProfileOpen] = useState(false)
+  const profileRef = useRef(null)
+  const profileButtonRef = useRef(null)
   const sidebarRef = useRef(null)
   const closeRef = useRef(null)
   const filtered = patients.filter(patient =>
@@ -33,6 +36,29 @@ export default function WorkspaceSidebar({ activeApp, onChangeApp, selectedPatie
       previousFocus?.focus()
     }
   }, [open, onClose])
+
+  useEffect(() => {
+    if (!profileOpen) return
+    const onPointerDown = event => {
+      if (!profileRef.current?.contains(event.target)) setProfileOpen(false)
+    }
+    const onKeyDown = event => {
+      if (event.key === 'Escape') {
+        setProfileOpen(false)
+        profileButtonRef.current?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [profileOpen])
+
+  useEffect(() => {
+    if (!open) setProfileOpen(false)
+  }, [open])
 
   return (
     <>
@@ -78,12 +104,36 @@ export default function WorkspaceSidebar({ activeApp, onChangeApp, selectedPatie
             </div>
           </section>}
         </div>
-        <footer className="clara-account-footer" aria-label="Account">
-          <span className="clara-account-avatar" aria-hidden="true"><UserRound size={20} /></span>
-          {account ? <button className="clara-account-footer-button" type="button" onClick={onAccountSettings} title="Account settings">
-            <span className="clara-account-label"><strong>{account.displayName}</strong><small>{account.role} · Account settings</small></span>
-          </button> : <span className="clara-account-label"><strong>CLARA demo</strong><small>Local demonstration</small></span>}
-        </footer>
+        <div className="clara-profile-area" ref={profileRef}>
+          {account && profileOpen && <div className="clara-profile-menu" id="clara-profile-menu" role="group" aria-label="Profile options">
+            <div className="clara-profile-menu-identity">
+              <strong>{account.displayName || account.username}</strong>
+              <small>{account.department ? `${account.role} · ${account.department}` : account.role}</small>
+            </div>
+            <div className="clara-profile-menu-divider" />
+            <button type="button" className="clara-profile-menu-action" onClick={() => {
+              setProfileOpen(false)
+              onAccountSettings?.()
+            }}><Settings size={17} aria-hidden="true" /> Settings</button>
+            <div className="clara-profile-menu-divider" />
+            <button type="button" className="clara-profile-menu-action" onClick={() => {
+              setProfileOpen(false)
+              onLogout?.()
+            }}><LogOut size={17} aria-hidden="true" /> Logout</button>
+          </div>}
+          <footer className="clara-account-footer" aria-label="Account">
+            {account ? <button ref={profileButtonRef} className="clara-account-profile-trigger" type="button"
+              onClick={() => setProfileOpen(value => !value)} aria-expanded={profileOpen}
+              aria-controls="clara-profile-menu" aria-label="Open account menu">
+              <span className="clara-account-avatar" aria-hidden="true"><UserRound size={20} /></span>
+              <span className="clara-account-label"><strong>{account.displayName || account.username}</strong><small>{account.role}</small></span>
+              <ChevronUp className={profileOpen ? 'is-open' : ''} size={16} aria-hidden="true" />
+            </button> : <>
+              <span className="clara-account-avatar" aria-hidden="true"><UserRound size={20} /></span>
+              <span className="clara-account-label"><strong>CLARA demo</strong><small>Local demonstration</small></span>
+            </>}
+          </footer>
+        </div>
       </aside>
     </>
   )
