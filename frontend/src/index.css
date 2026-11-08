@@ -1256,7 +1256,7 @@ svg { flex-shrink: 0; }
   }
   .composer-area .patient-admission-inline .patient-admission-columns {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(110px, 1fr) minmax(120px, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
     overflow: hidden;
   }
   .composer-area .patient-admission-inline .patient-admission-patients {
