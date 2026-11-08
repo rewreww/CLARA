@@ -1127,3 +1127,147 @@ svg { flex-shrink: 0; }
   box-shadow: none;
 }
 
+
+
+/* CLARA phone design: keep the desktop brand hierarchy and stable input treatment. */
+@media (max-width: 760px) {
+  .app-shell, .app-main, .chat-workspace, .chat-page { min-width: 0; }
+  .topbar-home {
+    flex-shrink: 0;
+    height: 52px;
+    background: #101923;
+    border-bottom: 0;
+    padding-inline: 12px;
+  }
+  .topbar-home .mobile-menu {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    border-radius: 12px;
+    color: #d3deea;
+  }
+  .chat-page-toolbar-minimal {
+    min-height: 0;
+    padding: 4px 12px 0;
+    border: 0;
+  }
+  .source-preview-tile {
+    min-height: 40px;
+    gap: 7px;
+    padding: 7px 11px;
+    border: 0;
+    border-radius: 999px;
+    background: #292c30;
+    color: #d8dde4;
+    box-shadow: none;
+  }
+  .source-preview-tile:hover { background: #32363b; }
+  .source-preview-tile small { color: #abb4be; }
+  .chat-page.is-new-chat .chat-welcome {
+    width: 100%;
+    padding: 18px 16px 34px;
+  }
+  .chat-page.is-new-chat .clara-welcome-logo {
+    width: clamp(76px, 24vw, 94px);
+    margin: 0 auto 14px;
+  }
+  .chat-page.is-new-chat .chat-welcome h1 {
+    font-size: clamp(23px, 6.3vw, 28px);
+    line-height: 1.24;
+    margin-bottom: 23px;
+    text-wrap: balance;
+  }
+  .chat-page .chat-composer,
+  .chat-page .chat-composer:focus-within {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    gap: 4px;
+    min-height: 56px;
+    padding: 5px 6px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    outline: none;
+    box-shadow: none;
+    background: #23272c;
+  }
+  .chat-page .chat-composer textarea,
+  .chat-page .chat-composer textarea:focus,
+  .chat-page .chat-composer textarea:focus-visible {
+    min-height: 24px;
+    max-height: min(112px, 25dvh);
+    padding: 0 2px;
+    font-size: 16px;
+    line-height: 1.5;
+    border: 0;
+    outline: none;
+    box-shadow: none;
+    background: transparent;
+  }
+  .chat-page .chat-composer .composer-patient-button {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 5px;
+    border-radius: 50%;
+  }
+  .chat-page .chat-composer .composer-patient-button-label { display: none; }
+  .chat-page .chat-composer .send-button {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    border-radius: 50%;
+  }
+  .conversation-composer {
+    padding: 8px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  .chat-page.has-conversation .composer-disclaimer {
+    margin: 8px 10px 0;
+    max-width: none;
+    text-align: center;
+    font-size: 11px;
+    line-height: 1.45;
+  }
+  .workspace-sidebar {
+    width: min(320px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
+    background: #191b1e;
+    border: 0;
+  }
+  .workspace-sidebar .clara-nav-button.is-active { background: #30343a; color: #eff1f4; }
+  .evidence-panel.mobile-open {
+    width: 100vw;
+    max-width: 100vw;
+    background: #1d2024;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .evidence-panel.mobile-open .evidence-tabs button.is-active {
+    color: #eff1f5;
+    border-bottom-color: #a9b3c1;
+  }
+}
+/* Keep the admission browser readable rather than forcing two cramped columns on small phones. */
+@media (max-width: 600px) {
+  .composer-area .patient-admission-inline,
+  .composer-area .patient-admission-inline .patient-admission-shell {
+    max-height: min(49dvh, 380px);
+  }
+  .composer-area .patient-admission-inline .patient-admission-columns {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(110px, 1fr) minmax(120px, 1fr);
+    overflow: hidden;
+  }
+  .composer-area .patient-admission-inline .patient-admission-patients {
+    border-right: 0;
+    border-bottom: 1px solid #39424a;
+  }
+  .composer-area .patient-admission-inline .patient-admission-dates { min-height: 0; }
+  .composer-area .patient-admission-inline .patient-admission-search input { font-size: 16px; }
+  .composer-area .patient-admission-inline .patient-admission-row,
+  .composer-area .patient-admission-inline .patient-admission-date-row {
+    min-height: 44px;
+    padding: 8px;
+  }
+}
