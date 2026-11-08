@@ -646,3 +646,6 @@ svg { flex-shrink: 0; }
   .patient-admission-row > svg:first-child, .patient-admission-date-row > svg:first-child { display: none; }
   .composer-patient-button-label { max-width: 130px; }
 }
+
+/* Keep the patient picker at the left, including the mobile composer. */
+.chat-composer .composer-controls { justify-content: space-between; }
