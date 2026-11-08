@@ -1,6 +1,6 @@
 # CLARA account management — deployment and test guide
 
-Status: **review feature, not production-approved**. No existing UI or clinical workflow is replaced unless `ClaraAuth__Enabled=true` is explicitly configured. Never enable in a real hospital before security review, network isolation, encrypted storage, patient-level access controls and administrator MFA.
+Status: **review feature, not production-approved**. No existing UI or clinical workflow is replaced unless both backend authentication and the frontend's public feature flag are explicitly configured. Never enable in a real hospital before security review, network isolation, encrypted storage, patient-level access controls and administrator MFA.
 
 ## Architecture
 
@@ -21,8 +21,9 @@ Status: **review feature, not production-approved**. No existing UI or clinical 
    The password is read only for the initial bootstrap. Remove the bootstrap password from the environment after that account exists. Do not put it in Git, Vercel `VITE_*` variables or documentation.
 4. For the **Vercel defense gateway**, set `CLARA_AUTH_ENABLED=true` in the gateway process environment, then restart the gateway. This must agree with the backend flag. The gateway also checks the backend's auth configuration to avoid accidentally exposing clinical/LLM routes.
 5. Keep the existing Vercel gateway URL/key and `CLARA_DEMO_ENABLED=true` protections. Never disable gateway authentication. The Vercel frontend does **not** need access to the database credentials or bootstrap admin password.
-6. Open the Vercel preview in a private browser window. The account configuration endpoint should return `{"enabled":true}`. You should see the CLARA login screen. The backend must bind only to loopback or an appropriately firewalled network interface; never expose its local clinical routes directly to the internet.
-7. On the first admin login, create a clinician account using **User Management → Invite**; securely give the one-time activation code to the intended staff member. Activation codes expire after 24 hours. Admin-assisted recovery codes expire after 20 minutes and revoke existing sessions.
+6. **Only after backend and gateway are working**, set Vercel's public build variable `VITE_CLARA_AUTH_ENABLED=true` and redeploy the frontend. For local Vite development, use the same variable in the frontend's untracked local environment. This flag contains no secret. When it is absent, the existing demo UI remains unchanged even if the frontend deploys ahead of the local backend.
+7. Open the Vercel preview in a private browser window. The account configuration endpoint should return `{"enabled":true}`. You should see the CLARA login screen. The backend must bind only to loopback or an appropriately firewalled network interface; never expose its local clinical routes directly to the internet.
+8. On the first admin login, create a clinician account using **User Management → Invite**; securely give the one-time activation code to the intended staff member. Activation codes expire after 24 hours. Admin-assisted recovery codes expire after 20 minutes and revoke existing sessions.
 
 ## Roles
 
@@ -61,7 +62,7 @@ Status: **review feature, not production-approved**. No existing UI or clinical 
 
 ## Rollback
 
-Set `ClaraAuth__Enabled=false` in the backend and restart it; set `CLARA_AUTH_ENABLED=false` in the demo gateway and restart. The pre-existing CLARA interface and local browser history remain available. **Do not remove the account tables** or roll back the shared database migrations on a database containing real user records without an explicit backup/rollback procedure.
+Unset `VITE_CLARA_AUTH_ENABLED` and redeploy the frontend; set `ClaraAuth__Enabled=false` in the backend and restart it; set `CLARA_AUTH_ENABLED=false` in the demo gateway and restart. The pre-existing CLARA interface and local browser history remain available. **Do not remove the account tables** or roll back the shared database migrations on a database containing real user records without an explicit backup/rollback procedure.
 
 ## CI
 
