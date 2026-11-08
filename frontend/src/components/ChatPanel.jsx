@@ -4,7 +4,6 @@ import ReactMarkdown from 'react-markdown'
 import ActivityTimeline from './ActivityTimeline'
 import EvidencePanel from './EvidencePanel'
 import { sourceKey } from '../lib/conversations'
-import { sourceDocumentUrl } from '../lib/sources'
 import PatientAdmissionPicker from './PatientAdmissionPicker'
 
 function Message({ msg, onSource, onActivity }) {
@@ -76,7 +75,6 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
   const evidenceMessage = evidenceIndex == null ? latestResponse : messages[evidenceIndex]
   const evidenceSources = evidenceMessage?.sources || []
   const activePdfSource = selectedSource && evidenceSources.find(source => sourceKey(source) === sourceKey(selectedSource))
-  const pdfAvailable = !!sourceDocumentUrl(activePdfSource, patient?.id)
   const closeEvidence = useCallback(() => setEvidenceOpen(false), [])
   useEffect(() => {
     if (evidenceIndex != null) return
@@ -185,7 +183,7 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
         </div>
       )}
     </div>
-    {isActive && (pdfAvailable || evidenceOpen) && <EvidencePanel mobileOpen={evidenceOpen} sources={evidenceSources} selectedSource={activePdfSource || null} onSelectSource={setSelectedSource}
+    {isActive && <EvidencePanel mobileOpen={evidenceOpen} sources={evidenceSources} selectedSource={activePdfSource || null} onSelectSource={setSelectedSource}
       onClose={closeEvidence} patientId={patient?.id} message={evidenceMessage} tab={evidenceTab} onTab={setEvidenceTab} />}
     </div>
   )
