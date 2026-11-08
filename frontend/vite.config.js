@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite'
+import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 
 // Development/demo routing. All backend/AI servers stay on loopback; browsers
@@ -33,6 +34,14 @@ function protectLocalAi() {
 
 export default defineConfig({
   plugins: [react(), protectLocalAi()],
+  build: {
+    rollupOptions: {
+      input: {
+        clinical: fileURLToPath(new URL('./index.html', import.meta.url)),
+        admin: fileURLToPath(new URL('./admin.html', import.meta.url)),
+      },
+    },
+  },
   server: {
     host: '127.0.0.1',
     port: 3000,
