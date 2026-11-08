@@ -18,6 +18,13 @@ export async function accountRequest(path, { method = 'GET', data, signal } = {}
 export function useAccount() {
   const [state, setState] = useState({ loading: true, enabled: false, user: null, error: '' })
   useEffect(() => {
+    // Explicit opt-in avoids disrupting the existing Vercel demo while a local
+    // gateway/backend is still on an older deployment. This is not a security
+    // boundary: clinical APIs enforce authentication independently.
+    if (import.meta.env.VITE_CLARA_AUTH_ENABLED !== 'true') {
+      setState({ loading: false, enabled: false, user: null, error: '' })
+      return
+    }
     let cancelled = false
     const load = async () => {
       try {
