@@ -1033,6 +1033,22 @@ svg { flex-shrink: 0; }
 }
 
 
+/* Show the clinical disclaimer only after a conversation has begun. */
+.chat-page.has-conversation .composer-disclaimer {
+  margin: 10px auto 0;
+  max-width: 660px;
+  color: #b5c0c4;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.55;
+}
+@media (max-width: 760px) {
+  .chat-page.has-conversation .composer-disclaimer {
+    margin-top: 8px;
+    font-size: 11px;
+  }
+}
+
 /* Utility surfaces: neutral graphite, separate from CLARA's blue conversation identity. */
 .workspace-sidebar {
   background: #191b1e;
