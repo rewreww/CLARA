@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
 import TopBar from './components/TopBar'
-import Sidebar from './components/SideBar'
 import WorkspaceSidebar from './components/WorkspaceSidebar'
 import MainContent from './components/MainContent'
 import ChatPanel from './components/ChatPanel'
@@ -132,7 +131,6 @@ function ClaraWorkspace() {
 
   return (
     <div className="app-shell">
-      <Sidebar activeApp={activeApp} onChangeApp={navigate} />
       <WorkspaceSidebar activeApp={activeApp} onChangeApp={navigate}
         selectedPatient={selectedPatient} onSelectPatient={handleSelectPatient}
         patients={patients} loading={patientsLoading} error={patientsError}
