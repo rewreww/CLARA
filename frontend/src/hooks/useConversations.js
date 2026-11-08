@@ -21,10 +21,18 @@ export function useConversations(account = null) {
   const latest = useRef(conversations)
   latest.current = conversations
   const saving = useRef(false)
+  const network = useRef(new AbortController())
+  const followup = useRef(null)
+  useEffect(() => {
+    const controller = new AbortController()
+    network.current = controller
+    return () => { controller.abort(); clearTimeout(followup.current) }
+  }, [ownerId])
 
   const persist = useCallback(async () => {
-    if (!changedIds.current.size || !historyReady || saving.current) return
+    if (!changedIds.current.size || !historyReady || saving.current || network.current.signal.aborted) return
     saving.current = true
+    let failed = false
     try {
       if (ownerId) {
         const changed = [...changedIds.current]
@@ -32,10 +40,10 @@ export function useConversations(account = null) {
           const item = latest.current.find(value => value.id === id)
           if (item) {
             await accountRequest('/conversations/' + encodeURIComponent(id), {
-              method: 'PUT', data: { id, title: item.title, conversation: item },
+              method: 'PUT', data: { id, title: item.title, conversation: item }, signal: network.current.signal,
             })
           } else {
-            await accountRequest('/conversations/' + encodeURIComponent(id), { method: 'DELETE' })
+            await accountRequest('/conversations/' + encodeURIComponent(id), { method: 'DELETE', signal: network.current.signal })
           }
           // If a streamed response changed while a request was pending, save it again.
           if (latest.current.find(value => value.id === id) === item) changedIds.current.delete(id)
@@ -49,9 +57,17 @@ export function useConversations(account = null) {
       }
       setStorageError('')
     } catch {
-      setStorageError(ownerId ? 'Your account chat history could not be saved. Check the connection before signing out.'
+      failed = true
+      if (!network.current.signal.aborted) setStorageError(ownerId ? 'Your account chat history could not be saved. Check the connection before signing out.'
         : 'History is not saved. Browser storage is unavailable or full.')
-    } finally { saving.current = false }
+    } finally {
+      saving.current = false
+      // Resave any messages that changed while the previous request was in flight.
+      if (!failed && ownerId && changedIds.current.size && !network.current.signal.aborted) {
+        clearTimeout(followup.current)
+        followup.current = setTimeout(persist, 700)
+      }
+    }
   }, [historyReady, ownerId])
 
   useEffect(() => {
@@ -70,7 +86,7 @@ export function useConversations(account = null) {
       clearTimeout(retry)
       try {
         const items = ownerId
-          ? normalize(await accountRequest('/conversations'))
+          ? normalize(await accountRequest('/conversations', { signal: network.current.signal }))
           : await loadPrivateConversations(localStorage)
         if (cancelled) return
         setConversations(local => mergeConversationChanges(items, local, changedIds.current))
