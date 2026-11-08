@@ -18,6 +18,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import secrets
 import time
 import urllib.request
 import uuid
@@ -309,6 +310,7 @@ def supervise(args):
     job = WindowsJob()
     processes = []
     handles = []
+    internal_key = secrets.token_urlsafe(48) if args.with_accounts else None
 
     def checkpoint():
         if request.exists():
@@ -325,6 +327,11 @@ def supervise(args):
         if args.with_accounts:
             environment["ClaraAuth__Enabled"] = "true"
             environment["VITE_CLARA_AUTH_ENABLED"] = "true"
+            if name in ("backend", "llm"):
+                # Generated per run, never written to the repository or logs.
+                environment["CLARA_INTERNAL_KEY"] = internal_key
+                if name == "backend":
+                    environment["ClaraAuth__InternalServiceKey"] = internal_key
             if name == "backend":
                 # HTTP session cookies are acceptable only for this controlled,
                 # de-identified LAN defense. Real hospitals must deploy HTTPS.
