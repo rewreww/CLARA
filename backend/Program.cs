@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
+using System.Net;
 
 using CLARA.Backend.Ingestion;
 using CLARA.Backend.Data;
@@ -103,6 +104,31 @@ if (hasHttpsEndpoint)
 }
 
 app.UseCors();
+// Protect cookie-authenticated account writes against cross-origin form submissions.
+// The development/demo browser origins are limited to loopback (doctor) and private
+// LAN IPv4 on admin port 3001. Production should use an explicit HTTPS origin list.
+app.Use(async (ctx, next) => {
+    if (builder.Configuration.GetValue<bool>("ClaraAuth:Enabled")
+        && ctx.Request.Path.StartsWithSegments("/api/account")
+        && (HttpMethods.IsPost(ctx.Request.Method) || HttpMethods.IsPut(ctx.Request.Method)
+            || HttpMethods.IsDelete(ctx.Request.Method))) {
+        var origin = ctx.Request.Headers.Origin.ToString();
+        var fetchSite = ctx.Request.Headers["Sec-Fetch-Site"].ToString();
+        if (fetchSite == "cross-site") { ctx.Response.StatusCode = 403; return; }
+        if (origin.Length > 0) {
+            var allowed = Uri.TryCreate(origin, UriKind.Absolute, out var u)
+                && u.Scheme == "http" && u.UserInfo.Length == 0
+                && ((u.Host is "localhost" or "127.0.0.1") && (u.Port == 3000 || u.Port == 3001))
+                    || u.Port == 3001 && IPAddress.TryParse(u.Host, out var address)
+                        && address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork
+                        && (address.GetAddressBytes()[0] == 10
+                            || address.GetAddressBytes()[0] == 192 && address.GetAddressBytes()[1] == 168
+                            || address.GetAddressBytes()[0] == 172 && address.GetAddressBytes()[1] is >= 16 and <= 31));
+            if (!allowed) { ctx.Response.StatusCode = 403; return; }
+        }
+    }
+    await next();
+});
 app.UseAuthentication();
 // When enabled, both patient records and the AI backend-facing routes must
 // require an authenticated clinical user, not merely a frontend login screen.
