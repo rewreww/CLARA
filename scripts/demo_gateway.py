@@ -85,6 +85,18 @@ def create_app(key, transport=None):
             return error(404, 'This endpoint is not available in the respondent demo')
         is_account = path.startswith('api/backend/account/')
         suffix = path.removeprefix('api/backend/account/') if is_account else ''
+        body = bytearray()
+        async for chunk in request.stream():
+            body.extend(chunk)
+            if len(body) > MAX_BODY:
+                return error(413, 'Request exceeds the demo size limit')
+        if request.method == 'POST':
+            try:
+                data = json.loads(body)
+                if not isinstance(data, dict):
+                    raise ValueError()
+            except (ValueError, UnicodeDecodeError):
+                return error(400, 'Expected a JSON object')
         authenticated_user = None
         # Enforce backend policy, not just a separately maintained gateway flag.
         # Mismatched configuration must never make LLM endpoints public.
@@ -111,18 +123,7 @@ def create_app(key, transport=None):
                     return error(403, 'This account cannot access clinical data.')
             except (httpx.HTTPError, ValueError, KeyError):
                 return error(503, 'Account verification is unavailable.')
-        body = bytearray()
-        async for chunk in request.stream():
-            body.extend(chunk)
-            if len(body) > MAX_BODY:
-                return error(413, 'Request exceeds the demo size limit')
         if request.method == 'POST':
-            try:
-                data = json.loads(body)
-                if not isinstance(data, dict):
-                    raise ValueError()
-            except (ValueError, UnicodeDecodeError):
-                return error(400, 'Expected a JSON object')
             if path.endswith(('chat/stream', 'history/clear')):
                 session = data.get('session_id')
                 if not isinstance(session, str) or not 8 <= len(session) <= 200:
