@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { CalendarDays, ChevronRight, Search, UserRound, X } from 'lucide-react'
 import { LABS_URL } from '../constants'
 import { admissionDates } from '../lib/mimicOverview'
@@ -18,34 +17,24 @@ export default function PatientAdmissionPicker({
   const [admissionsError, setAdmissionsError] = useState('')
 
   useEffect(() => {
-    const previousFocus = document.activeElement
+    const previouslyFocused = document.activeElement
     searchRef.current?.focus()
-    return () => previousFocus?.isConnected && previousFocus.focus?.()
-  }, [])
+    const closeOutside = event => {
+      if (dialogRef.current && !dialogRef.current.contains(event.target)
+        && !event.target.closest?.('.composer-patient-button')) onClose()
+    }
+    document.addEventListener('pointerdown', closeOutside)
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside)
+      if (previouslyFocused?.isConnected) previouslyFocused.focus?.()
+    }
+  }, [onClose])
 
-  const handleDialogKeyDown = event => {
+  const handlePanelKeyDown = event => {
     if (event.key === 'Escape') {
       event.preventDefault()
       event.stopPropagation()
       onClose()
-      return
-    }
-    if (event.key !== 'Tab') return
-    const controls = Array.from(dialogRef.current?.querySelectorAll(
-      'button:not([disabled]), input:not([disabled]), [tabindex="0"]'
-    ) || []).filter(element => element.getClientRects().length)
-    if (!controls.length) {
-      event.preventDefault()
-      return
-    }
-    const first = controls[0]
-    const last = controls[controls.length - 1]
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault()
-      last.focus()
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault()
-      first.focus()
     }
   }
 
@@ -105,12 +94,10 @@ export default function PatientAdmissionPicker({
     onClose()
   }
 
-  return createPortal(
-    <div className="patient-admission-overlay"
-      onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
-      <div ref={dialogRef} className="patient-admission-dialog" role="dialog" aria-modal="true"
-        aria-labelledby="patient-admission-title" onKeyDown={handleDialogKeyDown}>
-        <div className="patient-admission-shell">
+  return (
+    <section ref={dialogRef} className="patient-admission-dialog patient-admission-inline"
+      aria-label="Patient and admission picker" onKeyDown={handlePanelKeyDown}>
+      <div className="patient-admission-shell">
         <header className="patient-admission-header">
           <div>
             <h2 id="patient-admission-title">Choose patient & admission</h2>
@@ -184,9 +171,7 @@ export default function PatientAdmissionPicker({
             </>}
           </section>
         </div>
-        </div>
       </div>
-    </div>,
-    document.body,
+    </section>
   )
 }
