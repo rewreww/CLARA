@@ -1,6 +1,7 @@
 /* The standalone hospital-admin app uses a light, clinical palette.
    Scoped to the admin entry only; the doctor workspace keeps CLARA's dark theme. */
 :root { color-scheme: light; }
+html, body, #root { height: auto; min-height: 100%; overflow: visible; }
 body { margin: 0; background: #f4f9fd; color: #153149; }
 .admin-gate { min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 24px; gap: 12px; background: #f4f9fd; color: #2a526d; text-align: center; }
 .admin-gate button { color: #007fbd; text-decoration: underline; }
