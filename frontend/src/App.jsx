@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import TopBar from './components/TopBar'
 import AuthScreen from './components/AuthScreen'
-import AdminConsole from './components/AdminConsole'
 import AccountSettings from './components/AccountSettings'
 import { useAccount } from './hooks/useAccount'
 import WorkspaceSidebar from './components/WorkspaceSidebar'
@@ -36,7 +35,10 @@ export default function App() {
   if (loading) return <div className="clara-auth-loading" role="status">Loading CLARA...</div>
   if (error) return <div className="clara-auth-loading" role="alert">{error}</div>
   if (enabled && !user) return <AuthScreen onLogin={login} />
-  if (enabled && ['admin', 'auditor'].includes(user.role)) return <AdminConsole account={user} onLogout={signOut} />
+  if (enabled && ['admin', 'auditor'].includes(user.role)) return <main className="clara-auth-loading">
+    Administration is available on the separate local Admin Console (port 3001).
+    <button onClick={signOut}>Sign out</button>
+  </main>
   return agreementAccepted
     ? <ClaraWorkspace key={user?.id || 'demo'} account={user} onLogout={enabled ? signOut : null} />
     : <TermsAgreementModal onAccept={() => setAgreementAccepted(true)} />
