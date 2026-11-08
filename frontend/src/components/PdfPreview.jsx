@@ -20,7 +20,10 @@ export default function PdfPreview({ source, patientId }) {
   const canvasHost = useRef(null)
 
   useEffect(() => {
-    const observer = new ResizeObserver(entries => setWidth(Math.max(160, entries[0].contentRect.width - 24)))
+    const observer = new ResizeObserver(entries => {
+      const nextWidth = Math.max(160, Math.floor(entries[0].contentRect.width - 24))
+      setWidth(previous => Math.abs(previous - nextWidth) >= 2 ? nextWidth : previous)
+    })
     if (viewport.current) observer.observe(viewport.current)
     return () => observer.disconnect()
   }, [])
@@ -61,7 +64,7 @@ export default function PdfPreview({ source, patientId }) {
     }
     render()
     return () => { cancelled = true; renderTask?.cancel() }
-  }, [document, page, width, zoom, source])
+  }, [document, page, width, zoom, source?.title, source?.source])
 
   return <div className="pdf-preview">
     <div className="pdf-document-title" title={source.source}>{source.title || source.source}</div>
@@ -83,7 +86,7 @@ export default function PdfPreview({ source, patientId }) {
     <div className="pdf-viewport" ref={viewport} aria-busy={busy}>
       {busy && <div className="pdf-state" role="status"><LoaderCircle size={22} className="spin-icon" />Loading PDF page...</div>}
       {error && <div className="pdf-state" role="alert"><p>{error}</p><button className="text-button" onClick={() => setRetry(value => value + 1)}>Retry</button></div>}
-      <div className="pdf-canvas-host" ref={canvasHost} hidden={busy || !!error} />
+      <div className="pdf-canvas-host" ref={canvasHost} hidden={!!error} />
     </div>
     {url && <a className="open-pdf" href={`${url}#page=${page}`} target="_blank" rel="noopener noreferrer"><ExternalLink size={15} />Open PDF in new tab</a>}
   </div>
