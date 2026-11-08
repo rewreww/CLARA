@@ -41,6 +41,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
             }
             var db = context.HttpContext.RequestServices.GetRequiredService<ClaraDbContext>();
             var a = await db.Accounts.FindAsync(id);
+            if (a?.State == "disabled")
+                context.HttpContext.Items["ClaraAccountDisabled"] = true;
             if (a is null || a.State != "active" || a.SessionVersion != v) context.RejectPrincipal();
         };
     });
