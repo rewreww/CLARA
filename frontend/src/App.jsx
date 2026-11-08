@@ -68,6 +68,20 @@ function ClaraWorkspace() {
     setSidebarOpen(false)
   }, [selectedPatient?.id, reset])
 
+  const handleSelectPatientContext = useCallback((patient, selectedAdmission = '') => {
+    const nextPatient = patient || null
+    const nextAdmission = nextPatient?.id?.startsWith('Patient_') ? selectedAdmission : ''
+    // Keep the existing conversation when the same patient and admission are selected.
+    if ((nextPatient?.id || '') === (selectedPatient?.id || '') && nextAdmission === admission) return
+    setSelectedPatient(nextPatient)
+    setAdmission(nextAdmission)
+    setConversationId(newConversationId())
+    setHistoryNotice('')
+    setActiveSection('overview')
+    reset()
+    setSidebarOpen(false)
+  }, [selectedPatient?.id, admission, reset])
+
   const newChat = useCallback(() => { setConversationId(newConversationId()); setHistoryNotice(''); navigate('home') }, [navigate])
   const openConversation = useCallback(conversation => {
     const patient = patients.find(item => item.id === conversation.patientId)
@@ -136,7 +150,7 @@ function ClaraWorkspace() {
               conversationId={conversationId} initialMessages={conversations.find(item => item.id === conversationId)?.messages}
               onSave={save} onNew={newChat}
               patients={patients} patientsLoading={patientsLoading} patientsError={patientsError}
-              onSelectPatient={handleSelectPatient} activeSection={activeSection}
+              onSelectPatientContext={handleSelectPatientContext} activeSection={activeSection}
               isActive={activeApp === 'home'} onOpenRecord={() => navigate('patients')} />
           </section>
           <section className="view-pane patient-workspace" hidden={activeApp !== 'patients'} aria-label="Patient records">
