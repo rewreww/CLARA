@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { MessageSquarePlus, UsersRound, Search, X, UserRound, Settings, LogOut, ChevronUp } from 'lucide-react'
+import { MessageSquarePlus, UsersRound, Search, X, UserRound, Settings, LogOut, ChevronUp, ArrowLeft, Palette, LockKeyhole } from 'lucide-react'
 import { STATUS_COLOR } from '../constants'
 import ConversationHistory from './ConversationHistory'
 
 export default function WorkspaceSidebar({ activeApp, onChangeApp, selectedPatient, onSelectPatient,
   patients, loading, error, open, onClose,
   conversations, activeConversationId, onOpenConversation, onNewConversation, onRenameConversation, onDeleteConversation, historyError,
-  account, onAccountSettings, onLogout }) {
+  account, onAccountSettings, onLogout, settingsMode = false, settingsSection = 'appearance', onSettingsSection, onSettingsBack }) {
   const [search, setSearch] = useState('')
   const [profileOpen, setProfileOpen] = useState(false)
   const profileRef = useRef(null)
@@ -65,10 +65,27 @@ export default function WorkspaceSidebar({ activeApp, onChangeApp, selectedPatie
       {open && <button className="workspace-backdrop" onClick={onClose} aria-label="Close sidebar" tabIndex={-1} />}
       <aside ref={sidebarRef} className={`workspace-sidebar ${open ? 'is-open' : ''}`} aria-label="CLARA navigation">
         <header className="workspace-sidebar-heading sidebar-clara-brand">
-          <div className="sidebar-brand-identity"><strong>CLARA</strong></div>
+          {settingsMode
+            ? <button type="button" className="clara-settings-back" onClick={onSettingsBack}>
+                <ArrowLeft size={18} aria-hidden="true" /> <span>Back to the app</span>
+              </button>
+            : <div className="sidebar-brand-identity"><strong>CLARA</strong></div>}
           <button ref={closeRef} className="icon-button workspace-sidebar-close" onClick={onClose}
             aria-label="Close navigation"><X size={20} /></button>
         </header>
+        {settingsMode ? <nav className="clara-main-navigation clara-settings-navigation" aria-label="Settings navigation">
+          <div className="clara-settings-nav-title">Settings</div>
+          <button type="button" className={`clara-nav-button ${settingsSection === 'appearance' ? 'is-active' : ''}`}
+            aria-current={settingsSection === 'appearance' ? 'page' : undefined}
+            onClick={() => onSettingsSection?.('appearance')}>
+            <Palette size={19} aria-hidden="true" /><span>Appearance</span>
+          </button>
+          <button type="button" className={`clara-nav-button ${settingsSection === 'security' ? 'is-active' : ''}`}
+            aria-current={settingsSection === 'security' ? 'page' : undefined}
+            onClick={() => onSettingsSection?.('security')}>
+            <LockKeyhole size={19} aria-hidden="true" /><span>Security &amp; Login</span>
+          </button>
+        </nav> : <>
         <nav className="clara-main-navigation" aria-label="Main navigation">
           <button className="clara-nav-button" onClick={onNewConversation}>
             <MessageSquarePlus size={19} aria-hidden="true" /><span>New Chat</span>
@@ -104,6 +121,7 @@ export default function WorkspaceSidebar({ activeApp, onChangeApp, selectedPatie
             </div>
           </section>}
         </div>
+        </>}
         <div className="clara-profile-area" ref={profileRef}>
           {account && profileOpen && <div className="clara-profile-menu" id="clara-profile-menu" role="group" aria-label="Profile options">
             <div className="clara-profile-menu-identity">
