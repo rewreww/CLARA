@@ -325,6 +325,11 @@ def supervise(args):
         if args.with_accounts:
             environment["ClaraAuth__Enabled"] = "true"
             environment["VITE_CLARA_AUTH_ENABLED"] = "true"
+            if name == "backend":
+                # HTTP session cookies are acceptable only for this controlled,
+                # de-identified LAN defense. Real hospitals must deploy HTTPS.
+                environment["ASPNETCORE_ENVIRONMENT"] = "Development"
+                environment["DOTNET_ENVIRONMENT"] = "Development"
         process = subprocess.Popen(command, cwd=cwd, stdin=subprocess.DEVNULL, stdout=stdout, stderr=stderr,
                                    env=environment, creationflags=subprocess.CREATE_NO_WINDOW)
         job.assign(process)
