@@ -4,7 +4,8 @@ import { accountRequest } from '../hooks/useAccount'
 
 const ROLES = ['clinician', 'trainee', 'admin', 'auditor']
 export default function AdminConsole({ account, onLogout }) {
-  const [tab, setTab] = useState('users')
+  const auditOnly = account.role === 'auditor'
+  const [tab, setTab] = useState(account.role === 'auditor' ? 'audit' : 'users')
   const [users, setUsers] = useState([])
   const [audit, setAudit] = useState([])
   const [form, setForm] = useState({ username: '', displayName: '', department: '', role: 'clinician' })
@@ -13,10 +14,15 @@ export default function AdminConsole({ account, onLogout }) {
   const [busy, setBusy] = useState(false)
   const load = useCallback(async () => {
     try {
-      const [accounts, logs] = await Promise.all([accountRequest('/users'), accountRequest('/audit')])
-      setUsers(accounts); setAudit(logs); setError('')
+      if (auditOnly) {
+        const logs = await accountRequest('/audit')
+        setAudit(logs); setError('')
+      } else {
+        const [accounts, logs] = await Promise.all([accountRequest('/users'), accountRequest('/audit')])
+        setUsers(accounts); setAudit(logs); setError('')
+      }
     } catch (e) { setError(e.message) }
-  }, [])
+  }, [auditOnly])
   useEffect(() => { load() }, [load])
   async function action(fn) {
     setBusy(true); setError(''); setIssued(null)
@@ -50,9 +56,9 @@ export default function AdminConsole({ account, onLogout }) {
   return <main className="clara-admin-page">
     <aside className="clara-admin-sidebar">
       <div className="clara-admin-brand"><strong>CLARA</strong><small>Administration</small></div>
-      <button className={tab === 'users' ? 'is-active' : ''} onClick={() => setTab('users')}><UsersRound size={18} /> User Management</button>
+      {!auditOnly && <button className={tab === 'users' ? 'is-active' : ''} onClick={() => setTab('users')}><UsersRound size={18} /> User Management</button>}
       <button className={tab === 'audit' ? 'is-active' : ''} onClick={() => setTab('audit')}><ShieldCheck size={18} /> Security Audit</button>
-      <div className="clara-admin-account"><strong>{account.displayName}</strong><small>{account.username} · Administrator</small><button onClick={onLogout}><LogOut size={16} /> Sign out</button></div>
+      <div className="clara-admin-account"><strong>{account.displayName}</strong><small>{account.username} · {account.role === 'admin' ? 'Administrator' : 'Auditor'}</small><button onClick={onLogout}><LogOut size={16} /> Sign out</button></div>
     </aside>
     <section className="clara-admin-content">
       <header><span className="clara-admin-eyebrow">HOSPITAL CONTROL PANEL</span><h1>{tab === 'users' ? 'User Management' : 'Security Audit'}</h1><p>Authorized administration only. Patient information is not shown here.</p></header>
@@ -63,7 +69,7 @@ export default function AdminConsole({ account, onLogout }) {
         <div className="clara-admin-secret-code"><code>{issued.code}</code><button type="button" onClick={() => navigator.clipboard.writeText(issued.code)} aria-label="Copy one-time code"><ClipboardCopy size={17}/></button></div>
         <button type="button" onClick={() => setIssued(null)}>I've delivered the code securely</button>
       </div>}
-      {tab === 'users' ? <>
+      {!auditOnly && tab === 'users' ? <>
         <form className="clara-admin-invite" onSubmit={invite}>
           <div className="clara-admin-section-title"><UserPlus size={19} /><h2>Invite a staff member</h2></div>
           <div className="clara-admin-invite-fields">
