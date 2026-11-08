@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
-﻿
+
 using CLARA.Backend.Ingestion;
 using CLARA.Backend.Data;
 using Microsoft.EntityFrameworkCore;
