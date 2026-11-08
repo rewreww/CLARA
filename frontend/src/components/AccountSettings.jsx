@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { LockKeyhole, LogOut, X } from 'lucide-react'
 import { accountRequest } from '../hooks/useAccount'
 
-export default function AccountSettings({ account, onClose, onLogout }) {
+export default function AccountSettings({ account, onClose, onLogout, onBeforePasswordChange }) {
   const [current, setCurrent] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -10,6 +10,10 @@ export default function AccountSettings({ account, onClose, onLogout }) {
   const change = async event => {
     event.preventDefault(); setBusy(true); setError('')
     try {
+      if (onBeforePasswordChange && !(await onBeforePasswordChange())) {
+        setError('Your conversation history has not finished saving. Please try again.')
+        return
+      }
       await accountRequest('/change-password', { method: 'POST', data: { oldPassword: current, newPassword: password } })
       await onLogout()
     } catch (e) { setError(e.message) }
