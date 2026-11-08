@@ -955,3 +955,80 @@ svg { flex-shrink: 0; }
 @media (max-width: 760px) {
   .clara-welcome-logo { width: 80px; margin-bottom: 12px; }
 }
+
+
+/* Initial welcome screen: balanced centered brand and compact pill composer.
+   Active conversation composer retains its existing multi-row layout. */
+.chat-page.is-new-chat .chat-welcome {
+  text-align: center;
+}
+.chat-page.is-new-chat .clara-welcome-logo {
+  margin: 0 auto 14px;
+}
+.chat-page.is-new-chat .chat-welcome h1 {
+  text-align: center;
+  margin: 0 0 24px;
+}
+.chat-page.is-new-chat .composer-disclaimer {
+  max-width: 660px;
+  margin: 0 auto 16px;
+  text-align: center;
+  line-height: 1.55;
+}
+.chat-page.is-new-chat .chat-composer {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 36px;
+  align-items: center;
+  column-gap: 8px;
+  min-height: 58px;
+  padding: 8px 12px;
+  border-radius: 999px;
+}
+.chat-page.is-new-chat .chat-composer textarea {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  min-height: 24px;
+  max-height: 112px;
+  padding: 0 4px;
+  margin: 0;
+  line-height: 1.5;
+  text-align: left;
+  overflow-y: auto;
+}
+.chat-page.is-new-chat .chat-composer .composer-controls {
+  display: contents;
+}
+.chat-page.is-new-chat .chat-composer .composer-patient-button {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 36px;
+  padding: 6px;
+  border-radius: 999px;
+}
+.chat-page.is-new-chat .chat-composer .send-button {
+  grid-column: 3;
+  grid-row: 1;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 50%;
+}
+@media (max-width: 760px) {
+  .chat-page.is-new-chat .chat-welcome h1 { margin-bottom: 20px; }
+  .chat-page.is-new-chat .composer-disclaimer { margin-bottom: 12px; }
+  .chat-page.is-new-chat .chat-composer {
+    min-height: 56px;
+    padding: 6px 9px;
+    column-gap: 5px;
+  }
+  .chat-page.is-new-chat .chat-composer textarea {
+    min-height: 24px;
+    font-size: 16px;
+  }
+  .chat-page.is-new-chat .chat-composer .composer-patient-button {
+    min-width: 36px;
+    min-height: 36px;
+  }
+}
