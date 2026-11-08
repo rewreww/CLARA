@@ -26,13 +26,13 @@ function PatientChat(props) {
 }
 
 export default function App() {
-  const { loading, enabled, user, error, login, logout } = useAccount()
+  const { loading, enabled, user, error, login, logout, accountNotice } = useAccount()
   const signOut = useCallback(async () => {
     await logout()
   }, [logout])
   if (loading) return <div className="clara-auth-loading" role="status">Loading CLARA...</div>
   if (error) return <div className="clara-auth-loading" role="alert">{error}</div>
-  if (enabled && !user) return <AuthScreen onLogin={login} />
+  if (enabled && !user) return <AuthScreen onLogin={login} accountNotice={accountNotice} />
   if (enabled && ['admin', 'auditor'].includes(user.role)) return <main className="clara-auth-loading">
     Administration is available on the separate local Admin Console (port 3001).
     <button onClick={signOut}>Sign out</button>
