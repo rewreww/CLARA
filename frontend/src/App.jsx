@@ -52,7 +52,15 @@ function ClaraWorkspace({ account, onLogout }) {
   const [conversationId, setConversationId] = useState(newConversationId)
   const [historyNotice, setHistoryNotice] = useState('')
   const [accountSettingsOpen, setAccountSettingsOpen] = useState(false)
-  const { conversations, storageError, save, rename, remove } = useConversations(account)
+  const { conversations, storageError, save, rename, remove, flush } = useConversations(account)
+  const safeLogout = useCallback(async () => {
+    if (account && !(await flush())) {
+      setHistoryNotice('Your chat history is still saving. Please check your connection and try signing out again.')
+      return false
+    }
+    await onLogout?.()
+    return true
+  }, [account, flush, onLogout])
   const { patients, loading: patientsLoading, error: patientsError } = usePatients()
   const { data: labData, loading: labLoading, error: labError, load, reset } = useLabData()
 
@@ -151,7 +159,7 @@ function ClaraWorkspace({ account, onLogout }) {
         conversations={conversations} activeConversationId={conversationId} onOpenConversation={openConversation}
         onNewConversation={newChat} onRenameConversation={rename} onDeleteConversation={deleteConversation}
         historyError={storageError || historyNotice}
-        account={account} onAccountSettings={() => setAccountSettingsOpen(true)} onLogout={onLogout}
+        account={account} onAccountSettings={() => setAccountSettingsOpen(true)} onLogout={safeLogout}
         open={sidebarOpen} onClose={closeSidebar} />
       <div className="app-main">
         <TopBar activeApp={activeApp} patient={selectedPatient}
@@ -177,7 +185,7 @@ function ClaraWorkspace({ account, onLogout }) {
         </main>
       </div>
       <SyncProgressWatcher />
-      {account && accountSettingsOpen && <AccountSettings account={account} onClose={() => setAccountSettingsOpen(false)} onLogout={onLogout} />}
+      {account && accountSettingsOpen && <AccountSettings account={account} onClose={() => setAccountSettingsOpen(false)} onLogout={safeLogout} onBeforePasswordChange={flush} />}
     </div>
   )
 }
