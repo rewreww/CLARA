@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Check, LockKeyhole, Monitor, ShieldCheck, UserRound } from 'lucide-react'
+import { Check, LockKeyhole, Monitor, ShieldCheck, UserRound, Sun, Moon } from 'lucide-react'
 import { accountRequest } from '../hooks/useAccount'
 
-export default function AccountSettings({ account, section = 'appearance', appearance = 'comfortable', onAppearance, onLogout, onBeforePasswordChange }) {
+export default function AccountSettings({ account, section = 'appearance', appearance = 'comfortable', onAppearance, theme = 'dark', onTheme, onLogout, onBeforePasswordChange }) {
   const [current, setCurrent] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -41,6 +41,29 @@ export default function AccountSettings({ account, section = 'appearance', appea
         <h1>Appearance</h1>
         <p>Personalize how CLARA looks on this device.</p>
       </header>
+      <div className="clara-settings-card">
+        <div className="clara-settings-card-heading"><Sun size={19} aria-hidden="true" /><h2>Color theme</h2></div>
+        <p>Choose a comfortable reading environment. The change applies immediately across your clinical workspace.</p>
+        <div className="clara-theme-options" role="group" aria-label="Color theme">
+          <button type="button" className={theme === 'light' ? 'is-selected' : ''} aria-pressed={theme === 'light'} onClick={() => onTheme?.('light')}>
+            <span className="clara-theme-preview clara-theme-preview-light" aria-hidden="true">
+              <span className="clara-theme-preview-sidebar"><i/><i/><i/></span>
+              <span className="clara-theme-preview-main"><i/><i/><i/><b/></span>
+            </span>
+            <span className="clara-theme-choice"><Sun size={16} aria-hidden="true" /><strong>Light</strong>{theme === 'light' && <Check size={16} aria-label="Selected" />}</span>
+            <small>Bright and clear for daytime work</small>
+          </button>
+          <button type="button" className={theme === 'dark' ? 'is-selected' : ''} aria-pressed={theme === 'dark'} onClick={() => onTheme?.('dark')}>
+            <span className="clara-theme-preview clara-theme-preview-dark" aria-hidden="true">
+              <span className="clara-theme-preview-sidebar"><i/><i/><i/></span>
+              <span className="clara-theme-preview-main"><i/><i/><i/><b/></span>
+            </span>
+            <span className="clara-theme-choice"><Moon size={16} aria-hidden="true" /><strong>Dark</strong>{theme === 'dark' && <Check size={16} aria-label="Selected" />}</span>
+            <small>CLARA's original dark design</small>
+          </button>
+        </div>
+        <p className="clara-theme-help">Your color theme and display density are saved on this browser only.</p>
+      </div>
       <div className="clara-settings-card">
         <div className="clara-settings-card-heading"><Monitor size={19} aria-hidden="true" /><h2>Display density</h2></div>
         <p>Choose the spacing that is most comfortable for you. Your preference is stored only in this browser.</p>
