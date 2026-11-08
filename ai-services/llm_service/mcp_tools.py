@@ -5,6 +5,21 @@ import re
 from urllib.parse import quote
 
 DATA_SERVICE_URL = os.getenv("DATA_SERVICE_URL", "http://localhost:5000/api/patientdata").rstrip("/")
+
+def _patient_headers():
+    """Ephemeral local-only server identity. Never sent to external LLM APIs."""
+    key = os.getenv("CLARA_INTERNAL_KEY", "")
+    return {"X-Clara-Internal-Key": key} if key else {}
+
+def patient_service_get(url, **kwargs):
+    if not url.startswith(DATA_SERVICE_URL + "/"):
+        raise ValueError("Unexpected patient service destination.")
+    return requests.get(url, headers=_patient_headers(), **kwargs)
+
+def patient_service_post(url, **kwargs):
+    if not url.startswith(DATA_SERVICE_URL + "/"):
+        raise ValueError("Unexpected patient service destination.")
+    return requests.post(url, headers=_patient_headers(), **kwargs)
 PATIENT_DATA_CACHE_SECONDS = max(0, int(os.getenv("PATIENT_DATA_CACHE_SECONDS", "5")))
 
 ALL_LAB_TOOL_NAMES = ("get_chemistry", "get_hematology", "get_microscopy")
@@ -207,7 +222,7 @@ def format_lab_results(data: dict, lab_type: str) -> str:
 
 def fetch_patient_context(patient_id: str) -> str:
     patient_path = quote(str(patient_id).strip(), safe="")
-    r = requests.get(f"{DATA_SERVICE_URL}/{patient_path}/rag-context", timeout=30)
+    r = patient_service_get(f"{DATA_SERVICE_URL}/{patient_path}/rag-context", timeout=30)
     r.raise_for_status()
     data = r.json()
     context = str(data.get("context") or "").strip()
@@ -235,7 +250,7 @@ def fetch_mimic_patient_context(
 
     patient_path = quote(patient_id, safe="")
 
-    response = requests.get(
+    response = patient_service_get(
         f"{DATA_SERVICE_URL}/{patient_path}/mimic/context",
         params={
             "admission": admission_id,
@@ -255,7 +270,7 @@ def fetch_mimic_patient_context(
 
 def fetch_patient_document_context(patient_id: str, query: str) -> tuple[str, list[dict]]:
     patient_path = quote(str(patient_id).strip(), safe="")
-    r = requests.get(
+    r = patient_service_get(
         f"{DATA_SERVICE_URL}/{patient_path}/document-context",
         params={"query": query or ""},
         timeout=30,
@@ -340,7 +355,7 @@ def execute_tool(tool_name: str, patient_id: str) -> str:
             ))
 
         elif tool_name == "get_chemistry":
-            r = requests.post(
+            r = patient_service_post(
                 f"{DATA_SERVICE_URL}/chemistry-results",
                 json={"patient": patient_id, "labs": "chemistry"},
                 timeout=30
@@ -349,7 +364,7 @@ def execute_tool(tool_name: str, patient_id: str) -> str:
             return _cache_set(tool_name, patient_id, format_lab_results(r.json(), "chemistry"))
 
         elif tool_name == "get_hematology":
-            r = requests.post(
+            r = patient_service_post(
                 f"{DATA_SERVICE_URL}/hematology-results",
                 json={"patient": patient_id, "labs": "hematology"},
                 timeout=30
@@ -358,7 +373,7 @@ def execute_tool(tool_name: str, patient_id: str) -> str:
             return _cache_set(tool_name, patient_id, format_lab_results(r.json(), "hematology"))
 
         elif tool_name == "get_microscopy":
-            r = requests.post(
+            r = patient_service_post(
                 f"{DATA_SERVICE_URL}/microscopy-results",
                 json={"patient": patient_id, "labs": "microscopy"},
                 timeout=30
@@ -367,7 +382,7 @@ def execute_tool(tool_name: str, patient_id: str) -> str:
             return _cache_set(tool_name, patient_id, format_lab_results(r.json(), "microscopy"))
 
         elif tool_name == "get_discharge":
-            r = requests.post(
+            r = patient_service_post(
                 f"{DATA_SERVICE_URL}/discharge-parsed",
                 json={"patient": patient_id},
                 timeout=30
@@ -394,7 +409,7 @@ def execute_tool(tool_name: str, patient_id: str) -> str:
 
         elif tool_name == "get_trends":
             try:
-                r = requests.post(
+                r = patient_service_post(
                     f"{DATA_SERVICE_URL}/labs-timeline",
                     json={"patient": patient_id, "lab_type": "chemistry"},
                     timeout=30
