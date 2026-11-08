@@ -1,9 +1,10 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
-import { Activity, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, FileText, ShieldCheck, Square, SquarePen, UserRound } from 'lucide-react'
+import { Activity, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, FileText, ShieldCheck, Square, SquarePen, UserRoundPlus } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import ActivityTimeline from './ActivityTimeline'
 import EvidencePanel from './EvidencePanel'
 import { sourceKey } from '../lib/conversations'
+import PatientAdmissionPicker from './PatientAdmissionPicker'
 
 function Message({ msg, onSource, onActivity }) {
   const [copied, setCopied] = useState(false)
@@ -58,9 +59,10 @@ function Message({ msg, onSource, onActivity }) {
   )
 }
 
-export default function ChatPanel({ patient, patients, patientsLoading, patientsError, onSelectPatient,
+export default function ChatPanel({ patient, admission, patients, patientsLoading, patientsError, onSelectPatientContext,
   activeSection, isActive, messages, loading, onSend, onClear, onStop, onOpenRecord }) {
   const [input, setInput] = useState('')
+  const [pickerOpen, setPickerOpen] = useState(false)
   const scrollRef = useRef(null)
   const taRef = useRef(null)
   const followResponse = useRef(true)
@@ -110,18 +112,6 @@ export default function ChatPanel({ patient, patients, patientsLoading, patients
     taRef.current?.focus()
   }
 
-  const patientPicker = placement => (
-          <div className={`patient-picker patient-picker-${placement}`}>
-            <UserRound size={15} />
-            <label className="sr-only" htmlFor={`chat-patient-${placement}`}>Patient for this conversation</label>
-            <select id={`chat-patient-${placement}`} value={patient?.id || ''} disabled={patientsLoading || !!patientsError}
-              onChange={event => onSelectPatient(patients.find(item => item.id === event.target.value) || null)}>
-              <option value="">{patientsLoading ? 'Loading patients...' : 'No patient — General chat'}</option>
-              {patients.map(item => <option key={item.id} value={item.id}>{item.name} / {item.id}</option>)}
-            </select>
-            <ChevronDown size={13} />
-          </div>
-  )
 
   const composer = (
     <div className="composer-area">
@@ -134,17 +124,20 @@ export default function ChatPanel({ patient, patients, patientsLoading, patients
           }}
           placeholder={patient ? 'Ask about this patient...' : 'Ask CLARA...'} aria-label="Message CLARA" rows={2} />
         <div className="composer-controls">
+          <button className="composer-patient-button" type="button" onClick={() => setPickerOpen(true)}
+            title={patient ? 'Change patient or admission' : 'Select a patient'}
+            aria-label={patient ? 'Change patient or admission' : 'Select a patient'}
+            aria-haspopup="dialog" aria-expanded={pickerOpen}>
+            <UserRoundPlus size={19} aria-hidden="true" />
+            {patient && <span className="composer-patient-button-label">{patient.id}{admission ? ` · ${admission}` : ''}</span>}
+          </button>
           {loading ? <button className="send-button stop-button" type="button" onClick={onStop} aria-label="Stop response" title="Stop response"><Square size={16} fill="currentColor" /></button>
             : <button className="send-button" type="submit" disabled={!input.trim()}
                 aria-label="Send message" title="Send message"><ArrowUp size={20} /></button>}
         </div>
       </form>
-      <div className="patient-selection">
-        <label htmlFor="chat-patient-selection">Patient</label>
-        {patientPicker('selection')}
-      </div>
       {patient && <div className="composer-context">
-        <span>Record {patient.id}<span className="context-separator">/</span>{activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}</span>
+        <span>Record {patient.id}<span className="context-separator">/</span>{admission ? `Admission ${admission}` : activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}</span>
         <button onClick={onOpenRecord}>View record<ArrowUpRight size={13} /></button>
       </div>}
       {patientsError && <p className="composer-error" role="alert">Patient records are currently unavailable.</p>}
@@ -183,6 +176,10 @@ export default function ChatPanel({ patient, patients, patientsLoading, patients
         </div>
       )}
     </div>
+    {pickerOpen && <PatientAdmissionPicker
+      patients={patients} patientsLoading={patientsLoading} patientsError={patientsError}
+      selectedPatient={patient} selectedAdmission={admission}
+      onSelect={onSelectPatientContext} onClose={() => setPickerOpen(false)} />}
     {isActive && <EvidencePanel mobileOpen={evidenceOpen} sources={evidenceSources} selectedSource={selectedSource} onSelectSource={setSelectedSource}
       onClose={closeEvidence} patientId={patient?.id} message={evidenceMessage} tab={evidenceTab} onTab={setEvidenceTab} />}
     </div>
