@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { CalendarDays, ChevronRight, Search, UserRound, X } from 'lucide-react'
 import { LABS_URL } from '../constants'
 import { admissionDates } from '../lib/mimicOverview'
@@ -16,12 +17,36 @@ export default function PatientAdmissionPicker({
   const [admissionsError, setAdmissionsError] = useState('')
 
   useEffect(() => {
-    const dialog = dialogRef.current
-    if (!dialog) return
-    dialog.showModal()
+    const previousFocus = document.activeElement
     searchRef.current?.focus()
-    return () => { if (dialog.open) dialog.close() }
+    return () => previousFocus?.isConnected && previousFocus.focus?.()
   }, [])
+
+  const handleDialogKeyDown = event => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      event.stopPropagation()
+      onClose()
+      return
+    }
+    if (event.key !== 'Tab') return
+    const controls = Array.from(dialogRef.current?.querySelectorAll(
+      'button:not([disabled]), input:not([disabled]), [tabindex="0"]'
+    ) || []).filter(element => element.getClientRects().length)
+    if (!controls.length) {
+      event.preventDefault()
+      return
+    }
+    const first = controls[0]
+    const last = controls[controls.length - 1]
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
 
   useEffect(() => {
     setSummary(null)
@@ -79,11 +104,12 @@ export default function PatientAdmissionPicker({
     onClose()
   }
 
-  return (
-    <dialog ref={dialogRef} className="patient-admission-dialog"
-      aria-labelledby="patient-admission-title" onClose={onClose}
-      onClick={event => { if (event.target === dialogRef.current) onClose() }}>
-      <div className="patient-admission-shell">
+  return createPortal(
+    <div className="patient-admission-overlay"
+      onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
+      <div ref={dialogRef} className="patient-admission-dialog" role="dialog" aria-modal="true"
+        aria-labelledby="patient-admission-title" onKeyDown={handleDialogKeyDown}>
+        <div className="patient-admission-shell">
         <header className="patient-admission-header">
           <div>
             <h2 id="patient-admission-title">Choose patient & admission</h2>
@@ -157,7 +183,9 @@ export default function PatientAdmissionPicker({
             </>}
           </section>
         </div>
+        </div>
       </div>
-    </dialog>
+    </div>,
+    document.body,
   )
 }
