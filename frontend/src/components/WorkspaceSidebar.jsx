@@ -36,7 +36,7 @@ export default function WorkspaceSidebar({ activeApp, onChangeApp, selectedPatie
   return (
     <>
       {open && <button className="workspace-backdrop" onClick={onClose} aria-label="Close sidebar" tabIndex={-1} />}
-      <aside ref={sidebarRef} className={`workspace-sidebar ${open ? 'is-open' : ''}`} aria-label={activeApp === 'home' ? 'Conversation history' : 'Patient directory'}>
+      <aside ref={sidebarRef} className={`workspace-sidebar ${open ? 'is-open' : ''}`} aria-label="CLARA navigation">
         <header className="workspace-sidebar-heading sidebar-clara-brand">
           <div className="sidebar-brand-identity"><Activity size={24} aria-hidden="true" /><strong>CLARA</strong></div>
           <button ref={closeRef} className="icon-button workspace-sidebar-close" onClick={onClose}
@@ -51,32 +51,31 @@ export default function WorkspaceSidebar({ activeApp, onChangeApp, selectedPatie
             <UsersRound size={19} aria-hidden="true" /><span>Patients</span>
           </button>
         </nav>
-        <div className="sidebar-content">
-          {activeApp === 'patients' ? (
-            <>
-              <div className="sidebar-section-label">Patient directory</div>
-              <div className="patient-search"><Search size={16} />
-                <input value={search} onChange={event => setSearch(event.target.value)} aria-label="Search patients" placeholder="Search name or ID" />
-                {search && <button className="icon-button" onClick={() => setSearch('')} aria-label="Clear search"><X size={14} /></button>}
-              </div>
-              <div className="patient-directory">
-                {loading && <p className="sidebar-notice" role="status">Loading patients...</p>}
-                {error && <p className="sidebar-notice error-text" role="alert">Patient directory unavailable.</p>}
-                {!loading && !error && !filtered.length && <p className="sidebar-notice">{search ? 'No matching patients' : 'No patient records'}</p>}
-                {filtered.map(patient => (
-                  <button key={patient.id} className={`patient-item ${selectedPatient?.id === patient.id ? 'is-selected' : ''}`}
-                    onClick={() => onSelectPatient(patient)} aria-pressed={selectedPatient?.id === patient.id} title={patient.name}>
-                    <span className="patient-avatar">{patient.name?.charAt(0).toUpperCase() || 'P'}</span>
-                    <span className="patient-item-text"><strong>{patient.name}</strong><span>{patient.id}{patient.age ? ` / ${patient.age}` : ''}{patient.sex ? ` / ${patient.sex}` : ''}</span></span>
-                    {patient.status && <span className="patient-status-dot" style={{ background: STATUS_COLOR[patient.status] || '#92999f' }} title={patient.status} aria-label={patient.status} />}
-                  </button>
-                ))}
-              </div>
-            </>
-          ) : (
-            <ConversationHistory conversations={conversations} activeId={activeConversationId}
-              onOpen={onOpenConversation} onNew={onNewConversation} onRename={onRenameConversation} onDelete={onDeleteConversation} error={historyError} />
-          )}
+        <div className="sidebar-content clara-sidebar-content">
+          <ConversationHistory conversations={conversations} activeId={activeConversationId}
+            onOpen={onOpenConversation} onNew={onNewConversation} onRename={onRenameConversation}
+            onDelete={onDeleteConversation} error={historyError} />
+          {activeApp === 'patients' && <section className="clara-patient-directory-section" aria-label="Patient directory">
+            <div className="sidebar-section-label">Patient directory</div>
+            <div className="patient-search"><Search size={16} />
+              <input value={search} onChange={event => setSearch(event.target.value)} aria-label="Search patients" placeholder="Search name or ID" />
+              {search && <button className="icon-button" onClick={() => setSearch('')} aria-label="Clear search"><X size={14} /></button>}
+            </div>
+            <div className="patient-directory">
+              {loading && <p className="sidebar-notice" role="status">Loading patients...</p>}
+              {error && <p className="sidebar-notice error-text" role="alert">Patient directory unavailable.</p>}
+              {!loading && !error && !filtered.length && <p className="sidebar-notice">{search ? 'No matching patients' : 'No patient records'}</p>}
+              {filtered.map(patient => (
+                <button key={patient.id} className={`patient-item ${selectedPatient?.id === patient.id ? 'is-selected' : ''}`}
+                  onClick={() => onSelectPatient(patient)} aria-pressed={selectedPatient?.id === patient.id} title={patient.name}>
+                  <span className="patient-avatar">{patient.name?.charAt(0).toUpperCase() || 'P'}</span>
+                  <span className="patient-item-text"><strong>{patient.name}</strong>
+                    <span>{patient.id}{patient.age ? ` / ${patient.age}` : ''}{patient.sex ? ` / ${patient.sex}` : ''}</span></span>
+                  {patient.status && <span className="patient-status-dot" style={{ background: STATUS_COLOR[patient.status] || '#92999f' }} title={patient.status} aria-label={patient.status} />}
+                </button>
+              ))}
+            </div>
+          </section>}
         </div>
         <footer className="clara-account-footer" aria-label="Account">
           <span className="clara-account-avatar" aria-hidden="true"><UserRound size={20} /></span>
