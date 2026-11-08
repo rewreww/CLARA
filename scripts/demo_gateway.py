@@ -148,7 +148,12 @@ def create_app(key, transport=None):
                 chat_times.append(now)
             except asyncio.TimeoutError:
                 return error(429, 'Four chats are already running; please try again shortly')
-        headers = {name: request.headers[name] for name in ('accept', 'content-type', 'range', 'if-range', 'cookie') if name in request.headers}
+        headers = {name: request.headers[name] for name in ('accept', 'content-type', 'range', 'if-range') if name in request.headers}
+        # Only an authenticated CLARA session may reach a downstream clinical service.
+        # Keep unrelated browser cookies out of legacy demo requests.
+        if (auth_required and authenticated_user) or (is_account and suffix not in ACCOUNT_PUBLIC):
+            if request.headers.get('cookie'):
+                headers['cookie'] = request.headers['cookie']
         try:
             outgoing = app.state.client.build_request(request.method, target,
                 params=request.query_params.multi_items(), content=bytes(body), headers=headers)
@@ -162,8 +167,12 @@ def create_app(key, transport=None):
             if acquired:
                 chat_slots.release()
             return error(502, 'The CLARA service could not complete this request')
-        response_headers = {name: value for name, value in upstream.headers.items()
-            if name in {'content-type', 'content-range', 'accept-ranges', 'content-disposition', 'content-encoding', 'set-cookie'}}
+        allowed_response = {'content-type', 'content-range', 'accept-ranges', 'content-disposition', 'content-encoding'}
+        # Login/logout/password change can set/clear CLARA's session cookie.
+        # Never expose cookies from unrelated patient or LLM responses.
+        if is_account and suffix in {'login', 'logout', 'change-password'}:
+            allowed_response.add('set-cookie')
+        response_headers = {name: value for name, value in upstream.headers.items() if name in allowed_response}
         response_headers.update(PRIVATE)
 
         async def chunks():
