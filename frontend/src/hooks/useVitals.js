@@ -2,27 +2,56 @@ import { useState, useEffect } from 'react'
 import { LABS_URL } from '../constants'
 
 export function useVitals(patientId, refreshKey = 0) {
-  const [vitals,   setVitals]   = useState(null)
-  const [trends,   setTrends]   = useState(null)
-  const [loading,  setLoading]  = useState(false)
+  const [vitals, setVitals] = useState(null)
+  const [trends, setTrends] = useState(null)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (!patientId) { setVitals(null); setTrends(null); return }
+    setVitals(null)
+    setTrends(null)
+    if (!patientId) {
+      setLoading(false)
+      return
+    }
+
+    let active = true
+    const controller = new AbortController()
     setLoading(true)
 
     const latest = fetch(`${LABS_URL}/vitals`, {
-      method:  'POST',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ patient: patientId }),
-    }).then(r => r.json()).then(d => setVitals(d.found ? d : null)).catch(() => setVitals(null))
+      body: JSON.stringify({ patient: patientId }),
+      signal: controller.signal,
+    })
+      .then(r => {
+        if (!r.ok) throw new Error(`Server error ${r.status}`)
+        return r.json()
+      })
+      .then(d => { if (active) setVitals(d.found ? d : null) })
+      .catch(() => { if (active) setVitals(null) })
 
     const timeline = fetch(`${LABS_URL}/vitals-timeline`, {
-      method:  'POST',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ patient: patientId }),
-    }).then(r => r.json()).then(d => setTrends(d.timeline || [])).catch(() => setTrends(null))
+      body: JSON.stringify({ patient: patientId }),
+      signal: controller.signal,
+    })
+      .then(r => {
+        if (!r.ok) throw new Error(`Server error ${r.status}`)
+        return r.json()
+      })
+      .then(d => { if (active) setTrends(d.timeline || []) })
+      .catch(() => { if (active) setTrends(null) })
 
-    Promise.all([latest, timeline]).finally(() => setLoading(false))
+    Promise.all([latest, timeline]).finally(() => {
+      if (active) setLoading(false)
+    })
+
+    return () => {
+      active = false
+      controller.abort()
+    }
   }, [patientId, refreshKey])
 
   return { vitals, trends, loading }
