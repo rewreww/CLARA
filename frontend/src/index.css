@@ -813,7 +813,27 @@ svg { flex-shrink: 0; }
 /* Home + evidence layout: full-height PDF source panel, no redundant top divider. */
 @media (min-width: 1101px) {
   .topbar-home { display: none; }
-  .evidence-is-open > .evidence-panel { flex: 0 0 clamp(370px, 31vw, 500px); width: clamp(370px, 31vw, 500px); }
+  .evidence-is-open > .evidence-panel {
+    flex: 0 0 152px;
+    width: 152px;
+    min-width: 0;
+    height: calc(100% - 24px);
+    margin: 12px 12px 12px 0;
+    border: 1px solid #353c40;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, .18);
+  }
+  .evidence-is-open > .evidence-panel .evidence-panel-toolbar { padding: 0 5px; }
+  .evidence-is-open > .evidence-panel .evidence-tabs { gap: 7px; padding: 0 3px; }
+  .evidence-is-open > .evidence-panel .evidence-tabs button { font-size: 10px; white-space: nowrap; padding: 12px 1px; }
+  .evidence-is-open > .evidence-panel .source-item { gap: 5px; padding: 10px 1px; }
+  .evidence-is-open > .evidence-panel .source-item > svg { display: none; }
+  .evidence-is-open > .evidence-panel .source-list { padding: 0 7px; }
+  .evidence-is-open > .evidence-panel .source-number { flex-shrink: 0; }
+  .evidence-is-open > .evidence-panel .pdf-toolbar { gap: 2px; }
+  .evidence-is-open > .evidence-panel .pdf-toolbar .icon-button { flex: 0 0 28px; }
+  .evidence-is-open > .evidence-panel .pdf-viewport { overflow: auto; }
 }
 .topbar-home { border-bottom: 0; }
 .evidence-panel { background: #1b1f22; }
