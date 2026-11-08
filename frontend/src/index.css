@@ -1032,3 +1032,64 @@ svg { flex-shrink: 0; }
     min-height: 36px;
   }
 }
+
+
+/* Utility surfaces: neutral graphite, separate from CLARA's blue conversation identity. */
+.workspace-sidebar {
+  background: #191b1e;
+  border-right-color: #303338;
+}
+.workspace-sidebar .sidebar-brand-identity strong { color: #eef0f3; }
+.workspace-sidebar .clara-nav-button { color: #cbd0d5; }
+.workspace-sidebar .clara-nav-button:hover { background: #282b30; color: #f4f6f8; }
+.workspace-sidebar .clara-nav-button.is-active,
+.workspace-sidebar .history-item.is-active,
+.workspace-sidebar .patient-item.is-selected {
+  background: #30343a;
+  color: #eff1f4;
+  border-color: #3b4047;
+}
+.workspace-sidebar .clara-nav-button.is-active svg,
+.workspace-sidebar .history-open > svg { color: #c4cbd3; }
+.workspace-sidebar .clara-nav-button:focus-visible,
+.workspace-sidebar .history-heading:focus-visible { outline-color: #aeb9c6; }
+.workspace-sidebar .clara-account-avatar { background: #393e45; color: #e2e5e9; }
+.workspace-sidebar .clara-account-footer { border-top-color: #303338; }
+
+.evidence-is-open > .evidence-panel {
+  background: #1d2024;
+  border-color: #383c42;
+  box-shadow: none;
+}
+.evidence-panel .evidence-tabs button { color: #a9b0ba; }
+.evidence-panel .evidence-tabs button.is-active {
+  color: #eff1f5;
+  border-bottom-color: #a9b3c1;
+}
+.evidence-panel .source-back,
+.evidence-panel .source-item strong,
+.evidence-panel .source-item:hover strong,
+.evidence-panel .source-number,
+.evidence-panel .pdf-citation-label,
+.evidence-panel .open-pdf { color: #bdc6d0; }
+.evidence-panel .source-item { border-bottom-color: #383c42; }
+.evidence-panel .pdf-toolbar { border-bottom-color: #383c42; }
+.evidence-panel .pdf-viewport { background: #15171a; }
+
+/* A restrained ambient sky-blue glow belongs to the first-chat canvas only. */
+.chat-page.is-new-chat .chat-welcome-scroll {
+  background:
+    radial-gradient(ellipse 65% 48% at 50% 63%, rgba(0, 143, 245, .12) 0%, rgba(0, 143, 245, .045) 43%, transparent 78%),
+    radial-gradient(ellipse 50% 38% at 74% 78%, rgba(48, 217, 237, .06) 0%, transparent 74%);
+}
+.chat-page.has-conversation .conversation-scroll,
+.chat-page.has-conversation {
+  background: transparent;
+}
+@media (max-width: 760px) {
+  .chat-page.is-new-chat .chat-welcome-scroll {
+    background:
+      radial-gradient(ellipse 95% 38% at 50% 54%, rgba(0, 143, 245, .10) 0%, transparent 82%),
+      radial-gradient(ellipse 78% 31% at 76% 78%, rgba(48, 217, 237, .04) 0%, transparent 80%);
+  }
+}
