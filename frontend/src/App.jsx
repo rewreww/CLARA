@@ -1,5 +1,9 @@
 import { useState, useCallback, useEffect } from 'react'
 import TopBar from './components/TopBar'
+import AuthScreen from './components/AuthScreen'
+import AdminConsole from './components/AdminConsole'
+import AccountSettings from './components/AccountSettings'
+import { useAccount } from './hooks/useAccount'
 import WorkspaceSidebar from './components/WorkspaceSidebar'
 import MainContent from './components/MainContent'
 import ChatPanel from './components/ChatPanel'
@@ -23,13 +27,23 @@ function PatientChat(props) {
 }
 
 export default function App() {
+  const { loading, enabled, user, error, login, logout } = useAccount()
   const [agreementAccepted, setAgreementAccepted] = useState(false)
+  const signOut = useCallback(async () => {
+    setAgreementAccepted(false)
+    await logout()
+  }, [logout])
+  if (loading) return <div className="clara-auth-loading" role="status">Loading CLARA...</div>
+  if (error) return <div className="clara-auth-loading" role="alert">{error}</div>
+  if (enabled && !user) return <AuthScreen onLogin={login} />
+  if (enabled && user.role === 'admin') return <AdminConsole account={user} onLogout={signOut} />
+  if (enabled && user.role === 'auditor') return <div className="clara-auth-loading">Auditor clinical access is restricted. <button onClick={signOut}>Sign out</button></div>
   return agreementAccepted
-    ? <ClaraWorkspace />
+    ? <ClaraWorkspace key={user?.id || 'demo'} account={user} onLogout={enabled ? signOut : null} />
     : <TermsAgreementModal onAccept={() => setAgreementAccepted(true)} />
 }
 
-function ClaraWorkspace() {
+function ClaraWorkspace({ account, onLogout }) {
   const [activeApp, setActiveApp] = useState(() => window.location.hash === '#patients' ? 'patients' : 'home')
   const [selectedPatient, setSelectedPatient] = useState(null)
   const [admission, setAdmission] = useState('')
@@ -38,7 +52,8 @@ function ClaraWorkspace() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [conversationId, setConversationId] = useState(newConversationId)
   const [historyNotice, setHistoryNotice] = useState('')
-  const { conversations, storageError, save, rename, remove } = useConversations()
+  const [accountSettingsOpen, setAccountSettingsOpen] = useState(false)
+  const { conversations, storageError, save, rename, remove } = useConversations(account)
   const { patients, loading: patientsLoading, error: patientsError } = usePatients()
   const { data: labData, loading: labLoading, error: labError, load, reset } = useLabData()
 
@@ -137,6 +152,7 @@ function ClaraWorkspace() {
         conversations={conversations} activeConversationId={conversationId} onOpenConversation={openConversation}
         onNewConversation={newChat} onRenameConversation={rename} onDeleteConversation={deleteConversation}
         historyError={storageError || historyNotice}
+        account={account} onAccountSettings={() => setAccountSettingsOpen(true)} onLogout={onLogout}
         open={sidebarOpen} onClose={closeSidebar} />
       <div className="app-main">
         <TopBar activeApp={activeApp} patient={selectedPatient}
@@ -162,6 +178,7 @@ function ClaraWorkspace() {
         </main>
       </div>
       <SyncProgressWatcher />
+      {account && accountSettingsOpen && <AccountSettings account={account} onClose={() => setAccountSettingsOpen(false)} onLogout={onLogout} />}
     </div>
   )
 }
