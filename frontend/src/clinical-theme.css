@@ -367,3 +367,25 @@
   outline: 3px solid #36b1e3;
   outline-offset: 3px;
 }
+
+
+/* The patient Documents preview needs a bounded flex viewport to prevent the
+   PDF canvas from changing the surrounding layout during render/resize. */
+.mimic-preview {
+  display:flex;
+  flex-direction:column;
+  height:calc(100dvh - 100px);
+  max-height:calc(100dvh - 100px);
+  overflow:hidden;
+  box-sizing:border-box;
+}
+.mimic-preview > button:first-child { flex:0 0 auto; align-self:flex-start; margin-bottom:10px; }
+.mimic-preview > .pdf-preview { flex:1 1 auto; min-height:0; min-width:0; }
+.mimic-preview .pdf-viewport { flex:1 1 auto; min-height:0; overflow:auto; scrollbar-gutter:stable; }
+.mimic-preview .pdf-canvas-host { box-sizing:border-box; }
+.clara-theme-light .mimic-preview .pdf-viewport { background:#eef4f8; }
+.clara-theme-light .mimic-preview .pdf-toolbar,
+.clara-theme-light .mimic-preview .open-pdf { border-color:#d1e0ea; color:#265a78; }
+@media(max-width:650px) {
+  .mimic-preview { inset:60px 8px 8px; width:auto; height:calc(100dvh - 68px); max-height:calc(100dvh - 68px); }
+}
