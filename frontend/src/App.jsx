@@ -29,8 +29,8 @@ export default function App() {
   const { loading, enabled, user, error, login, logout } = useAccount()
   const [agreementAccepted, setAgreementAccepted] = useState(false)
   const signOut = useCallback(async () => {
-    setAgreementAccepted(false)
     await logout()
+    setAgreementAccepted(false)
   }, [logout])
   if (loading) return <div className="clara-auth-loading" role="status">Loading CLARA...</div>
   if (error) return <div className="clara-auth-loading" role="alert">{error}</div>
