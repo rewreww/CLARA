@@ -7,7 +7,6 @@ import WorkspaceSidebar from './components/WorkspaceSidebar'
 import MainContent from './components/MainContent'
 import ChatPanel from './components/ChatPanel'
 import SyncProgressWatcher from './components/SyncProgressWatcher'
-import TermsAgreementModal from './components/TermsAgreementModal'
 import { useLabData } from './hooks/useLabData'
 import { useChat } from './hooks/useChat'
 import { usePatients } from './hooks/usePatients'
@@ -28,10 +27,8 @@ function PatientChat(props) {
 
 export default function App() {
   const { loading, enabled, user, error, login, logout } = useAccount()
-  const [agreementAccepted, setAgreementAccepted] = useState(false)
   const signOut = useCallback(async () => {
     await logout()
-    setAgreementAccepted(false)
   }, [logout])
   if (loading) return <div className="clara-auth-loading" role="status">Loading CLARA...</div>
   if (error) return <div className="clara-auth-loading" role="alert">{error}</div>
@@ -40,9 +37,7 @@ export default function App() {
     Administration is available on the separate local Admin Console (port 3001).
     <button onClick={signOut}>Sign out</button>
   </main>
-  return agreementAccepted
-    ? <ClaraWorkspace key={user?.id || 'demo'} account={user} onLogout={enabled ? signOut : null} />
-    : <TermsAgreementModal onAccept={() => setAgreementAccepted(true)} />
+  return <ClaraWorkspace key={user?.id || 'demo'} account={user} onLogout={enabled ? signOut : null} />
 }
 
 function ClaraWorkspace({ account, onLogout }) {
