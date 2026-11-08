@@ -759,3 +759,52 @@ svg { flex-shrink: 0; }
   .sidebar-clara-brand { height: 64px; }
   .clara-nav-button { min-height: 48px; }
 }
+
+
+/* Quiet, compact sidebar: keep separators only where they aid navigation. */
+.workspace-sidebar { flex-basis: 254px; width: 254px; border-right: 1px solid #292f32; }
+.workspace-sidebar-heading.sidebar-clara-brand { height: 62px; padding: 0 16px; border-bottom: 0; }
+.sidebar-brand-identity { gap: 9px; }
+.sidebar-brand-identity strong { font-size: 17px; letter-spacing: .035em; }
+.clara-main-navigation { padding: 4px 8px 9px; gap: 1px; border-bottom: 0; }
+.clara-nav-button { min-height: 40px; padding: 8px 11px; gap: 11px; font-size: 13px; border-radius: 7px; }
+.workspace-sidebar .clara-sidebar-content { padding-top: 3px; }
+.clara-sidebar-content .history-section { flex: 1 1 auto; min-height: 0; }
+.clara-sidebar-content .history-section.is-collapsed { flex: 0 0 auto; }
+.clara-sidebar-content .history-heading {
+  display: flex; justify-content: space-between; width: 100%;
+  gap: 9px; padding: 10px 18px; border: 0;
+  text-align: left; color: #aab5b9; font-size: 12px; font-weight: 500;
+  border-radius: 0;
+}
+.clara-sidebar-content .history-heading:hover { color: #ebf0ef; background: #24292c; }
+.clara-sidebar-content .history-heading:focus-visible { outline: 2px solid #96d9ce; outline-offset: -2px; }
+.recent-chevron { display: inline-block; font-size: 17px; line-height: 1; color: #89969c; transform: rotate(90deg); transition: transform .18s ease; }
+.recent-chevron.is-open { transform: rotate(0); }
+.clara-sidebar-content .history-list { padding: 0 8px 10px; }
+.clara-sidebar-content .history-item { margin-bottom: 1px; border-radius: 7px; }
+.clara-sidebar-content .history-open { padding: 10px 12px; min-height: 36px; align-items: center; }
+.clara-sidebar-content .history-open strong { font-size: 12px; font-weight: 400; padding-right: 48px; }
+.clara-sidebar-content .history-item-actions { top: 50%; bottom: auto; transform: translateY(-50%); gap: 1px; opacity: 0; }
+.clara-sidebar-content .history-item:hover .history-item-actions,
+.clara-sidebar-content .history-item:focus-within .history-item-actions { opacity: 1; }
+.clara-sidebar-content .history-item-actions .icon-button { width: 24px; height: 27px; }
+.clara-account-footer { padding: 11px 14px; border-top: 1px solid #292f32; }
+.clara-account-avatar { flex-basis: 34px; height: 34px; }
+.clara-patient-directory-section { padding-top: 10px; }
+@media (max-width: 1100px) {
+  .workspace-sidebar { width: min(300px, calc(100vw - 32px)); }
+  .clara-sidebar-content .history-item-actions { opacity: 1; }
+}
+@media (max-width: 760px) {
+  .workspace-sidebar { width: min(300px, calc(100vw - 32px)); }
+  .clara-nav-button { min-height: 44px; }
+  .clara-sidebar-content .history-item-actions { position: static; transform: none; padding: 0 8px 4px; justify-content: flex-end; }
+  .clara-sidebar-content .history-item-actions .icon-button { width: 44px; height: 44px; }
+}
+@media (hover: none) {
+  .clara-sidebar-content .history-item-actions { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .recent-chevron { transition: none; }
+}
