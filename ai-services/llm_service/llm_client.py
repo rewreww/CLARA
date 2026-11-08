@@ -36,6 +36,8 @@ from mcp_tools import (
     fetch_all_lab_blocks,
     fetch_patient_context_block,
     fetch_patient_document_context,
+    patient_service_get,
+    patient_service_post,
 )
 from rag.retriever import (
     infer_diagnosis_hint,
@@ -904,7 +906,7 @@ def fetch_patient_lab_results(patient_id: str) -> list[dict]:
     all_results: list = []
     for lab_type in ("chemistry", "hematology", "microscopy"):
         try:
-            r = requests.post(
+            r = patient_service_post(
                 f"{DATA_SERVICE_URL}/{lab_type}-results",
                 json={"patient": patient_id, "labs": lab_type},
                 timeout=30,
@@ -967,7 +969,7 @@ def try_direct_lab_answer(patient_id: str, message: str) -> Optional[tuple[str, 
         return None
 
     try:
-        r = requests.post(
+        r = patient_service_post(
             f"{DATA_SERVICE_URL}/chemistry-results",
             json={"patient": patient_id, "labs": "chemistry"},
             timeout=30,
@@ -1755,7 +1757,7 @@ def build_ml_features(patient_id: str, lab_results: list[dict]) -> dict:
             features[feature] = value
 
     try:
-        vitals = requests.post(
+        vitals = patient_service_post(
             f"{DATA_SERVICE_URL}/vitals",
             json={"patient": patient_id}, timeout=20,
         ).json()
@@ -1774,7 +1776,7 @@ def build_ml_features(patient_id: str, lab_results: list[dict]) -> dict:
         pass
 
     try:
-        parsed = requests.post(
+        parsed = patient_service_post(
             f"{DATA_SERVICE_URL}/discharge-parsed",
             json={"patient": patient_id}, timeout=20,
         ).json()
@@ -2057,7 +2059,7 @@ def mimic_answer(request):
     message = sanitize_name_text(request.message)
     history = [{"role": entry.role, "content": sanitize_name_text(entry.content[:2000])}
                for entry in (request.history or [])[-6:]]
-    response = requests.get(f"{DATA_SERVICE_URL}/{request.patient_id}/mimic/context",
+    response = patient_service_get(f"{DATA_SERVICE_URL}/{request.patient_id}/mimic/context",
         params={"admission": request.admission_id, "query": message, "category": request.active_section or "overview"}, timeout=30)
     response.raise_for_status()
     data = response.json()
