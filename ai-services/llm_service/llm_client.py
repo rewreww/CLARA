@@ -4,6 +4,7 @@ import os
 import time
 import requests
 import json
+import secrets
 from functools import lru_cache
 from dotenv import load_dotenv
 
@@ -2680,6 +2681,10 @@ def evaluate_guideline(request: ChatRequest, http_request: Request):
         raise HTTPException(status_code=404, detail="Evaluation endpoint disabled.")
     if not http_request.client or http_request.client.host not in {"127.0.0.1", "::1"}:
         raise HTTPException(status_code=403, detail="Evaluation is local-only.")
+    secret = os.getenv("CLARA_EVAL_TOKEN", "")
+    supplied = http_request.headers.get("x-clara-eval-token", "")
+    if not secret or not secrets.compare_digest(supplied, secret):
+        raise HTTPException(status_code=403, detail="Evaluation token is missing or incorrect.")
     if request.patient_id or request.admission_id:
         raise HTTPException(status_code=400, detail="Guideline evaluation cannot access patient records.")
     if request.history:
