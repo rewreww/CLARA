@@ -225,7 +225,7 @@ public sealed class AccountController(ClaraDbContext db, IConfiguration config) 
         return Ok(new { recoveryCode = code, expiresInMinutes = 20 });
     }
     [HttpGet("audit")]
-    [Authorize(Roles = "admin")]
+    [Authorize(Roles = "admin,auditor")]
     public async Task<IActionResult> AuditList()
     {
         if (!Enabled) return Disabled();
@@ -251,7 +251,8 @@ public sealed class AccountController(ClaraDbContext db, IConfiguration config) 
         if (Admin || User.IsInRole("auditor")) return Forbid();
         if (id.Length is < 8 or > 200 || value.Id != id || value.Conversation.ValueKind != JsonValueKind.Object
             || value.Conversation.GetRawText().Length > 1000000
-            || !value.Conversation.TryGetProperty("id", out var jsonId) || jsonId.GetString() != id)
+            || !value.Conversation.TryGetProperty("id", out var jsonId) || jsonId.ValueKind != JsonValueKind.String || jsonId.GetString() != id
+            || !value.Conversation.TryGetProperty("messages", out var msgs) || msgs.ValueKind != JsonValueKind.Array)
             return BadRequest(new { error = "Invalid conversation." });
         var item = await db.Conversations.FindAsync(UserId, id);
         if (item is null) {
