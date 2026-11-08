@@ -6,7 +6,7 @@ export default function ConversationHistory({ conversations, activeId, onOpen, o
   const [editing, setEditing] = useState(null)
   const [title, setTitle] = useState('')
   const [deleting, setDeleting] = useState(null)
-  return <div className="history-section">
+  return <div className={`history-section ${expanded ? "is-expanded" : "is-collapsed"}`}>
     <button type="button" className="history-heading" onClick={() => setExpanded(open => !open)}
       aria-expanded={expanded} aria-controls="clara-recent-conversations">
       <span>Recents</span>
