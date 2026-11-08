@@ -14,8 +14,15 @@ This setup needs **no Vercel**, external email, cloud account provider or Ethern
   ```powershell
   cd C:\clara-system
   $env:ClaraAuth__BootstrapUsername = "hospitaladmin"
-  $env:ClaraAuth__BootstrapPassword = Read-Host "Choose first administrator password"
-  .\start-clara.ps1 -WithAccounts
+  $secret = Read-Host "Choose first administrator password" -AsSecureString
+  $pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secret)
+  try {
+    $env:ClaraAuth__BootstrapPassword = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer)
+    .\start-clara.ps1 -WithAccounts
+  } finally {
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer)
+    Remove-Item Env:ClaraAuth__BootstrapPassword -ErrorAction SilentlyContinue
+  }
   ```
 
   The password must be at least 12 characters. The backend stores its *hash* in PostgreSQL. After the first successful bootstrap, remove the bootstrap password from that terminal's environment (`Remove-Item Env:ClaraAuth__BootstrapPassword`); it is no longer needed for subsequent starts. Do not share the password with thesis respondents or paste it in chat.
