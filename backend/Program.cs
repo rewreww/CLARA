@@ -118,12 +118,12 @@ app.Use(async (ctx, next) => {
         if (origin.Length > 0) {
             var allowed = Uri.TryCreate(origin, UriKind.Absolute, out var u)
                 && u.Scheme == "http" && u.UserInfo.Length == 0
-                && ((u.Host is "localhost" or "127.0.0.1") && (u.Port == 3000 || u.Port == 3001))
-                    || u.Port == 3001 && IPAddress.TryParse(u.Host, out var address)
+                && (((u.Host is "localhost" or "127.0.0.1") && (u.Port == 3000 || u.Port == 3001))
+                    || (u.Port == 3001 && IPAddress.TryParse(u.Host, out var address)
                         && address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork
                         && (address.GetAddressBytes()[0] == 10
                             || address.GetAddressBytes()[0] == 192 && address.GetAddressBytes()[1] == 168
-                            || address.GetAddressBytes()[0] == 172 && address.GetAddressBytes()[1] is >= 16 and <= 31));
+                            || address.GetAddressBytes()[0] == 172 && address.GetAddressBytes()[1] is >= 16 and <= 31)));
             if (!allowed) { ctx.Response.StatusCode = 403; return; }
         }
     }
