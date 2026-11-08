@@ -4,7 +4,11 @@ const BASE = '/api/backend/account'
 async function readResponse(response) {
   let body = null
   try { body = await response.json() } catch {}
-  if (!response.ok) throw new Error(body?.error || (response.status === 401 ? 'Invalid credentials or session expired.' : 'Account service unavailable.'))
+  if (!response.ok) {
+    const error = new Error(body?.error || (response.status === 401 ? 'Invalid credentials or session expired.' : 'Account service unavailable.'))
+    error.status = response.status
+    throw error
+  }
   return body
 }
 export async function accountRequest(path, { method = 'GET', data, signal } = {}) {
@@ -51,7 +55,12 @@ export function useAccount() {
   }, [])
   const logout = useCallback(async () => {
     try { await accountRequest('/logout', { method: 'POST' }) }
-    finally { setState({ loading: false, enabled: true, user: null, error: '' }) }
+    catch (error) {
+      // Password change/recovery invalidates the old cookie before a later logout.
+      // Keep the UI signed in when the request fails for any other reason.
+      if (error.status !== 401) throw error
+    }
+    setState({ loading: false, enabled: true, user: null, error: '' })
   }, [])
   return { ...state, login, logout }
 }
