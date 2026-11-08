@@ -36,8 +36,7 @@ export default function App() {
   if (loading) return <div className="clara-auth-loading" role="status">Loading CLARA...</div>
   if (error) return <div className="clara-auth-loading" role="alert">{error}</div>
   if (enabled && !user) return <AuthScreen onLogin={login} />
-  if (enabled && user.role === 'admin') return <AdminConsole account={user} onLogout={signOut} />
-  if (enabled && user.role === 'auditor') return <div className="clara-auth-loading">Auditor clinical access is restricted. <button onClick={signOut}>Sign out</button></div>
+  if (enabled && ['admin', 'auditor'].includes(user.role)) return <AdminConsole account={user} onLogout={signOut} />
   return agreementAccepted
     ? <ClaraWorkspace key={user?.id || 'demo'} account={user} onLogout={enabled ? signOut : null} />
     : <TermsAgreementModal onAccept={() => setAgreementAccepted(true)} />
