@@ -58,6 +58,7 @@ export default function MimicRecordsPanel({ patient, admission, activeSection, o
   const [source, setSource] = useState(null)
   const category = activeSection !== 'overview' && MIMIC_CATEGORIES[activeSection] ? activeSection : 'chemistry'
   const scope = `${patient.id}/${admission}`
+  const requestKey = `${scope}/${category}/${mode}/${page}/${mode === 'records' ? search : ''}`
   const currentVitals = vitals?.scope === scope ? vitals.values : []
   useEffect(() => {
     setVitalError(''); setVitals(null)
@@ -74,10 +75,21 @@ export default function MimicRecordsPanel({ patient, admission, activeSection, o
     setData(null); setError('')
     if (!admission) return
     const controller = new AbortController()
-    const params = new URLSearchParams({ admission, category, page: String(page), search })
+    const params = new URLSearchParams({ admission, category, page: String(page) })
+    if (mode === 'records' && search) params.set('search', search)
     fetch(`${LABS_URL}/${encodeURIComponent(patient.id)}/mimic/${mode}?${params}`, { signal: controller.signal })
-      .then(r => { if (!r.ok) throw new Error('Unable to load records'); return r.json() })
-      .then(result => setData({ ...result, scope })).catch(e => { if (e.name !== 'AbortError') setError(e.message) })
+      .then(async response => {
+        if (!response.ok) throw new Error(`Unable to load ${mode === 'documents' ? 'documents' : 'results'} (HTTP ${response.status}).`)
+        return response.json()
+      })
+      .then(result => {
+        if (controller.signal.aborted) return
+        if (!result || typeof result !== 'object' || !Array.isArray(result[mode === 'documents' ? 'documents' : 'rows'])) {
+          throw new Error(`The server returned an unexpected ${mode === 'documents' ? 'documents' : 'results'} response.`)
+        }
+        setData({ ...result, scope, requestKey: `${scope}/${category}/${mode}/${page}/${mode === 'records' ? search : ''}` })
+      })
+      .catch(e => { if (e.name !== 'AbortError' && !controller.signal.aborted) setError(e.message) })
     return () => controller.abort()
   }, [patient.id, admission, category, mode, page, search, refreshKey])
   function open(source, page = 1) { setSource({ type: 'patient_pdf', source, page, title: source.split('/').pop() }) }
@@ -100,8 +112,8 @@ export default function MimicRecordsPanel({ patient, admission, activeSection, o
           <button type="submit">Search</button>
         </form>}
       </div>
-      {error ? <p role="alert">{error}</p> : !data || data.scope !== scope ? <p role="status">Loading…</p> : <>
-        {mode === 'records' ? <RecordTables rows={data.rows} onOpen={open} groupByTime={category === 'chemistry'} /> : <ul className="mimic-documents">{data.documents.map(doc => <li key={doc.source}><button onClick={() => open(doc.source)}>{doc.source}</button><span>{doc.pages} pages</span></li>)}</ul>}
+      {error ? <p role="alert">{error}</p> : !data || data.requestKey !== requestKey ? <p role="status">Loading…</p> : <>
+        {mode === 'records' ? <RecordTables rows={data.rows} onOpen={open} groupByTime={category === 'chemistry'} /> : <ul className="mimic-documents">{data.documents.map((doc, index) => <li key={`${doc.source || 'document'}-${index}`}><button disabled={!doc.source} onClick={() => open(doc.source)}>{doc.source || 'Unnamed PDF'}</button><span>{doc.pages ?? 'Unknown'} pages</span></li>)}</ul>}
         {data.total === 0 && <p>No extracted {mode === 'records' ? 'rows' : 'PDFs'} in this category and admission.</p>}
         <div className="mimic-toolbar"><button disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Previous</button>
           <span>{data.page} / {Math.max(1, Math.ceil(data.total / 50))}</span>
