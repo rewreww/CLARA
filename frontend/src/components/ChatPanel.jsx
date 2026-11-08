@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import ActivityTimeline from './ActivityTimeline'
 import EvidencePanel from './EvidencePanel'
 import { sourceKey } from '../lib/conversations'
+import { sourceDocumentUrl } from '../lib/sources'
 import PatientAdmissionPicker from './PatientAdmissionPicker'
 
 function Message({ msg, onSource, onActivity }) {
@@ -74,6 +75,8 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
   const [evidenceIndex, setEvidenceIndex] = useState(null)
   const evidenceMessage = evidenceIndex == null ? latestResponse : messages[evidenceIndex]
   const evidenceSources = evidenceMessage?.sources || []
+  const activePdfSource = selectedSource && evidenceSources.find(source => sourceKey(source) === sourceKey(selectedSource))
+  const pdfAvailable = !!sourceDocumentUrl(activePdfSource, patient?.id)
   const closeEvidence = useCallback(() => setEvidenceOpen(false), [])
   useEffect(() => {
     if (evidenceIndex != null) return
@@ -150,7 +153,11 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
     <div className={`chat-page ${hasConversation ? 'has-conversation' : 'is-new-chat'}`}>
       <div className="chat-page-toolbar chat-page-toolbar-minimal">
         <button className="source-preview-tile" aria-label="Open source preview"
-          aria-expanded={evidenceOpen} onClick={() => setEvidenceOpen(true)}
+          aria-expanded={evidenceOpen} onClick={() => {
+            if (evidenceSources.length && !activePdfSource) setSelectedSource(evidenceSources[0])
+            setEvidenceTab('sources')
+            setEvidenceOpen(true)
+          }}
           title="Source preview"><FileText size={18} /><span>Sources
             <small>{evidenceSources.length} document{evidenceSources.length === 1 ? '' : 's'}</small>
           </span><ArrowUpRight size={14} /></button>
@@ -178,7 +185,7 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
         </div>
       )}
     </div>
-    {isActive && <EvidencePanel mobileOpen={evidenceOpen} sources={evidenceSources} selectedSource={selectedSource} onSelectSource={setSelectedSource}
+    {isActive && (pdfAvailable || evidenceOpen) && <EvidencePanel mobileOpen={evidenceOpen} sources={evidenceSources} selectedSource={activePdfSource || null} onSelectSource={setSelectedSource}
       onClose={closeEvidence} patientId={patient?.id} message={evidenceMessage} tab={evidenceTab} onTab={setEvidenceTab} />}
     </div>
   )
