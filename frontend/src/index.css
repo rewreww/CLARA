@@ -1109,3 +1109,23 @@ svg { flex-shrink: 0; }
       radial-gradient(ellipse 78% 31% at 76% 78%, rgba(48, 217, 237, .04) 0%, transparent 80%);
   }
 }
+
+
+/* Chat composer: borderless pill on both the welcome screen and in conversations.
+   Preserve button focus rings, with a subtle fill change for text focus. */
+.chat-page .chat-composer,
+.chat-page .chat-composer:focus-within {
+  border: 1px solid transparent;
+  outline: none;
+  box-shadow: none;
+}
+.chat-page .chat-composer textarea,
+.chat-page .chat-composer textarea:focus,
+.chat-page .chat-composer textarea:focus-visible {
+  border: 0;
+  outline: none;
+  box-shadow: none;
+}
+.chat-page .chat-composer:focus-within {
+  background: #292f36;
+}
