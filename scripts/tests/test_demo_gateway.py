@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import patch
 
 import httpx
 from fastapi.testclient import TestClient
@@ -54,10 +55,11 @@ class GatewayTests(unittest.TestCase):
         response = self.client.get('/api/backend/patientdata/00001/document?source=discharge%2Ffile.pdf',
             headers={**AUTH,'range':'bytes=0-9','authorization':'secret','cookie':'secret'})
         self.assertEqual(response.status_code,206)
-        upstream = self.requests[0]
+        upstream = next(req for req in self.requests if req.url.path == '/api/patientdata/00001/document')
         self.assertEqual(str(upstream.url),'http://127.0.0.1:5000/api/patientdata/00001/document?source=discharge%2Ffile.pdf')
         self.assertEqual(upstream.headers['range'],'bytes=0-9')
         self.assertNotIn('authorization',upstream.headers)
+        self.assertNotIn('cookie',upstream.headers)
         self.assertNotIn('x-clara-gateway-key',upstream.headers)
         self.assertNotIn('set-cookie',response.headers)
         self.assertEqual(response.headers['cache-control'],'private, no-store')
@@ -66,11 +68,13 @@ class GatewayTests(unittest.TestCase):
         response = self.client.post('/api/llm/chat/stream',headers=AUTH,
             json={'patient_id':'00001','session_id':'session-123','message':'demo','history':[]})
         self.assertEqual(response.content,b'data: first\n\ndata: second\n\n')
-        sent = json.loads(self.requests[0].content)
+        upstream_chat = next(req for req in self.requests if req.url.path == '/chat/stream')
+        sent = json.loads(upstream_chat.content)
         self.assertTrue(sent['session_id'].startswith('demo-'))
         self.assertNotEqual(sent['session_id'],'session-123')
         self.client.post('/api/llm/history/clear',headers=AUTH,json={'session_id':'session-123'})
-        self.assertEqual(json.loads(self.requests[1].content)['session_id'],sent['session_id'])
+        upstream_clear = next(req for req in self.requests if req.url.path == '/history/clear')
+        self.assertEqual(json.loads(upstream_clear.content)['session_id'],sent['session_id'])
 
     def test_invalid_or_oversized_json_and_missing_history_are_rejected(self):
         for body in [b'bad',b'[]']:
@@ -93,6 +97,56 @@ class GatewayTests(unittest.TestCase):
         response=self.client.get('/api/backend/pdfingestion/sync/status',headers=AUTH)
         self.assertEqual(response.json(),{'events':[]})
         self.assertEqual(self.requests,[])
+
+    def test_account_allowlist_does_not_open_unrestricted_backend(self):
+        self.assertIsNotNone(route_target('GET', 'api/backend/account/config'))
+        self.assertIsNotNone(route_target('POST', 'api/backend/account/login'))
+        self.assertIsNotNone(route_target('GET', 'api/backend/account/conversations'))
+        self.assertIsNotNone(route_target('PUT', 'api/backend/account/conversations/session_abcdefgh'))
+        self.assertIsNone(route_target('GET', 'api/backend/account/secrets'))
+        self.assertIsNone(route_target('POST', 'api/backend/account/users/any/recovery'))
+
+    def test_auth_enabled_rejects_unauthenticated_clinical_requests_and_preserves_login_cookie(self):
+        paths = []
+        def upstream(request):
+            paths.append(request.url.path)
+            if request.url.path == '/api/account/config':
+                return httpx.Response(200, json={'enabled': True})
+            if request.url.path == '/api/account/me':
+                return httpx.Response(401, json={'error':'Unauthorized'})
+            if request.url.path == '/api/account/login':
+                return httpx.Response(200, json={'id':'test','role':'clinician'},
+                    headers={'set-cookie':'clara_session=test; HttpOnly; Path=/; SameSite=Lax'})
+            return httpx.Response(500)
+        with patch.dict('os.environ', {'CLARA_AUTH_ENABLED':'true'}), TestClient(create_app(KEY,httpx.MockTransport(upstream))) as client:
+            denied=client.get('/api/backend/patientdata/patients',headers=AUTH)
+            self.assertEqual(denied.status_code,401)
+            self.assertNotIn('/api/patientdata/patients',paths)
+            login=client.post('/api/backend/account/login',headers=AUTH,json={'username':'test','password':'test'})
+            self.assertEqual(login.status_code,200)
+            self.assertIn('clara_session=',login.headers.get('set-cookie',''))
+
+    def test_llm_cache_id_is_separated_by_authenticated_account(self):
+        seen = []
+        def upstream(request):
+            if request.url.path == '/api/account/config':
+                return httpx.Response(200,json={'enabled':True})
+            if request.url.path == '/api/account/me':
+                owner = request.headers.get('cookie','').replace('clara_session=','')
+                return httpx.Response(200,json={'id':owner,'role':'clinician'})
+            if request.url.path == '/chat/stream':
+                seen.append(json.loads(request.content)['session_id'])
+                return httpx.Response(200,content=b'data: {"type":"done"}\\n\\n',
+                    headers={'content-type':'text/event-stream'})
+            return httpx.Response(404)
+        with patch.dict('os.environ', {'CLARA_AUTH_ENABLED':'true'}), TestClient(create_app(KEY,httpx.MockTransport(upstream))) as client:
+            for owner in ('staff-a','staff-b'):
+                response=client.post('/api/llm/chat/stream',
+                    headers={**AUTH,'cookie':'clara_session='+owner},
+                    json={'session_id':'session_abcdefgh','message':'hello','history':[]})
+                self.assertEqual(response.status_code,200)
+        self.assertEqual(len(seen),2)
+        self.assertNotEqual(seen[0],seen[1])
 
 if __name__ == '__main__':
     unittest.main()
