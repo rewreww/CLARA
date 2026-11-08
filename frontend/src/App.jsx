@@ -58,8 +58,13 @@ function ClaraWorkspace({ account, onLogout }) {
       setHistoryNotice('Your chat history is still saving. Please check your connection and try signing out again.')
       return false
     }
-    await onLogout?.()
-    return true
+    try {
+      await onLogout?.()
+      return true
+    } catch {
+      setHistoryNotice('Sign-out could not be confirmed. Please check your connection and try again.')
+      return false
+    }
   }, [account, flush, onLogout])
   const { patients, loading: patientsLoading, error: patientsError } = usePatients()
   const { data: labData, loading: labLoading, error: labError, load, reset } = useLabData()
