@@ -177,6 +177,7 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
       ) : (
         <div className="chat-welcome-scroll">
           <div className="chat-welcome">
+            <img className="clara-welcome-logo" src="/clara-mark.svg" alt="CLARA logo" width="108" height="90" />
             <h1>How can I help, Doctor?</h1>
             {composer}
           </div>
