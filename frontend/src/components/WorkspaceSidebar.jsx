@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Activity, MessageSquarePlus, UsersRound, Search, X, UserRound } from 'lucide-react'
+import { MessageSquarePlus, UsersRound, Search, X, UserRound } from 'lucide-react'
 import { STATUS_COLOR } from '../constants'
 import ConversationHistory from './ConversationHistory'
 
@@ -38,7 +38,7 @@ export default function WorkspaceSidebar({ activeApp, onChangeApp, selectedPatie
       {open && <button className="workspace-backdrop" onClick={onClose} aria-label="Close sidebar" tabIndex={-1} />}
       <aside ref={sidebarRef} className={`workspace-sidebar ${open ? 'is-open' : ''}`} aria-label="CLARA navigation">
         <header className="workspace-sidebar-heading sidebar-clara-brand">
-          <div className="sidebar-brand-identity"><Activity size={24} aria-hidden="true" /><strong>CLARA</strong></div>
+          <div className="sidebar-brand-identity"><strong>CLARA</strong></div>
           <button ref={closeRef} className="icon-button workspace-sidebar-close" onClick={onClose}
             aria-label="Close navigation"><X size={20} /></button>
         </header>
