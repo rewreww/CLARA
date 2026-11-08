@@ -40,7 +40,7 @@ export function useAccount() {
           const user = await accountRequest('/me')
           if (!cancelled) setState({ loading: false, enabled: true, user, error: '' })
         } catch (err) {
-          if (!cancelled) setState({ loading: false, enabled: true, user: null, error: '' })
+          if (!cancelled) setState({ loading: false, enabled: true, user: null, error: '', accountNotice: err.status === 423 ? err.message : '' })
         }
       } catch {
         if (!cancelled) setState({ loading: false, enabled: false, user: null, error: 'Could not verify CLARA account configuration. Check backend and gateway before continuing.' })
