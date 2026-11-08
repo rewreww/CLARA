@@ -21,9 +21,20 @@ PRIVATE = {"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosn
 POST_BACKEND = {"chemistry-results", "hematology-results", "microscopy-results",
                 "labs-timeline", "discharge-list", "discharge-parsed", "vitals", "vitals-timeline"}
 POST_LLM = {"chat/stream", "clinical-alerts", "privacy/sanitize-history", "history/clear"}
+ACCOUNT_PUBLIC = {"config", "login", "activate", "reset-password"}
+ACCOUNT_GET = {"config", "me", "users", "audit", "conversations"}
+ACCOUNT_POST = {"login", "logout", "activate", "reset-password", "change-password", "users/invite"}
+
 
 
 def route_target(method, path):
+    if path.startswith("api/backend/account/"):
+        suffix = path.removeprefix("api/backend/account/")
+        if ((method == "GET" and suffix in ACCOUNT_GET)
+            or (method == "POST" and (suffix in ACCOUNT_POST or re.fullmatch(r"users/[0-9a-f-]{36}/(disable|enable|recovery)", suffix)))
+            or (method == "PUT" and re.fullmatch(r"users/[0-9a-f-]{36}/role|conversations/[A-Za-z0-9_-]{8,200}", suffix))
+            or (method == "DELETE" and re.fullmatch(r"conversations/[A-Za-z0-9_-]{8,200}", suffix))):
+            return "http://127.0.0.1:5000/api/account/" + suffix
     if method in {"GET", "HEAD"}:
         if path == "api/backend/patientdata/patients":
             return "http://127.0.0.1:5000/api/patientdata/patients"
@@ -72,6 +83,21 @@ def create_app(key, transport=None):
         target = route_target(request.method, path)
         if not target:
             return error(404, 'This endpoint is not available in the respondent demo')
+        is_account = path.startswith('api/backend/account/')
+        suffix = path.removeprefix('api/backend/account/') if is_account else ''
+        authenticated_user = None
+        # Verify server-side sessions for every clinical/LLM request when auth is on.
+        if os.environ.get('CLARA_AUTH_ENABLED', '').lower() == 'true' and not (is_account and suffix in ACCOUNT_PUBLIC):
+            try:
+                check = await app.state.client.get('http://127.0.0.1:5000/api/account/me',
+                    headers={'cookie': request.headers.get('cookie', '')})
+                if check.status_code != 200:
+                    return error(401, 'Please sign in to CLARA.')
+                authenticated_user = check.json()
+                if not is_account and authenticated_user.get('role') not in ('clinician', 'trainee'):
+                    return error(403, 'This account cannot access clinical data.')
+            except (httpx.HTTPError, ValueError, KeyError):
+                return error(503, 'Account verification is unavailable.')
         body = bytearray()
         async for chunk in request.stream():
             body.extend(chunk)
@@ -89,7 +115,8 @@ def create_app(key, transport=None):
                 if not isinstance(session, str) or not 8 <= len(session) <= 200:
                     return error(400, 'A conversation identifier is required')
                 # Keep demo conversations separate from the local researcher's chats.
-                data['session_id'] = 'demo-' + hmac.new(key.encode(), session.encode(), hashlib.sha256).hexdigest()
+                owner = str(authenticated_user.get('id')) if authenticated_user else 'legacy-demo'
+                data['session_id'] = 'demo-' + hmac.new(key.encode(), (owner + ':' + session).encode(), hashlib.sha256).hexdigest()
             if path.endswith('chat/stream'):
                 if not isinstance(data.get('history'), list):
                     return error(400, 'Explicit conversation history is required')
@@ -108,7 +135,7 @@ def create_app(key, transport=None):
                 chat_times.append(now)
             except asyncio.TimeoutError:
                 return error(429, 'Four chats are already running; please try again shortly')
-        headers = {name: request.headers[name] for name in ('accept', 'content-type', 'range', 'if-range') if name in request.headers}
+        headers = {name: request.headers[name] for name in ('accept', 'content-type', 'range', 'if-range', 'cookie') if name in request.headers}
         try:
             outgoing = app.state.client.build_request(request.method, target,
                 params=request.query_params.multi_items(), content=bytes(body), headers=headers)
@@ -123,7 +150,7 @@ def create_app(key, transport=None):
                 chat_slots.release()
             return error(502, 'The CLARA service could not complete this request')
         response_headers = {name: value for name, value in upstream.headers.items()
-            if name in {'content-type', 'content-range', 'accept-ranges', 'content-disposition', 'content-encoding'}}
+            if name in {'content-type', 'content-range', 'accept-ranges', 'content-disposition', 'content-encoding', 'set-cookie'}}
         response_headers.update(PRIVATE)
 
         async def chunks():
