@@ -957,8 +957,7 @@ svg { flex-shrink: 0; }
 }
 
 
-/* Initial welcome screen: balanced centered brand and compact pill composer.
-   Active conversation composer retains its existing multi-row layout. */
+/* Balanced welcome branding, with a shared compact pill composer for all chat states. */
 .chat-page.is-new-chat .chat-welcome {
   text-align: center;
 }
@@ -975,7 +974,7 @@ svg { flex-shrink: 0; }
   text-align: center;
   line-height: 1.55;
 }
-.chat-page.is-new-chat .chat-composer {
+.chat-page .chat-composer {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) 36px;
   align-items: center;
@@ -984,7 +983,7 @@ svg { flex-shrink: 0; }
   padding: 8px 12px;
   border-radius: 999px;
 }
-.chat-page.is-new-chat .chat-composer textarea {
+.chat-page .chat-composer textarea {
   grid-column: 2;
   grid-row: 1;
   min-width: 0;
@@ -996,17 +995,17 @@ svg { flex-shrink: 0; }
   text-align: left;
   overflow-y: auto;
 }
-.chat-page.is-new-chat .chat-composer .composer-controls {
+.chat-page .chat-composer .composer-controls {
   display: contents;
 }
-.chat-page.is-new-chat .chat-composer .composer-patient-button {
+.chat-page .chat-composer .composer-patient-button {
   grid-column: 1;
   grid-row: 1;
   min-width: 36px;
   padding: 6px;
   border-radius: 999px;
 }
-.chat-page.is-new-chat .chat-composer .send-button {
+.chat-page .chat-composer .send-button {
   grid-column: 3;
   grid-row: 1;
   width: 36px;
@@ -1018,16 +1017,16 @@ svg { flex-shrink: 0; }
 @media (max-width: 760px) {
   .chat-page.is-new-chat .chat-welcome h1 { margin-bottom: 20px; }
   .chat-page.is-new-chat .composer-disclaimer { margin-bottom: 12px; }
-  .chat-page.is-new-chat .chat-composer {
+  .chat-page .chat-composer {
     min-height: 56px;
     padding: 6px 9px;
     column-gap: 5px;
   }
-  .chat-page.is-new-chat .chat-composer textarea {
+  .chat-page .chat-composer textarea {
     min-height: 24px;
     font-size: 16px;
   }
-  .chat-page.is-new-chat .chat-composer .composer-patient-button {
+  .chat-page .chat-composer .composer-patient-button {
     min-width: 36px;
     min-height: 36px;
   }
@@ -1076,18 +1075,19 @@ svg { flex-shrink: 0; }
 .evidence-panel .pdf-toolbar { border-bottom-color: #383c42; }
 .evidence-panel .pdf-viewport { background: #15171a; }
 
-/* A restrained ambient sky-blue glow belongs to the first-chat canvas only. */
-.chat-page.is-new-chat .chat-welcome-scroll {
+/* Welcome-only ambient glow spans the full center-and-PDF workspace without a seam. */
+.chat-workspace.workspace-is-new-chat {
   background:
-    radial-gradient(ellipse 65% 48% at 50% 63%, rgba(0, 143, 245, .12) 0%, rgba(0, 143, 245, .045) 43%, transparent 78%),
-    radial-gradient(ellipse 50% 38% at 74% 78%, rgba(48, 217, 237, .06) 0%, transparent 74%);
+    radial-gradient(ellipse 65% 48% at 57% 63%, rgba(0, 143, 245, .12) 0%, rgba(0, 143, 245, .045) 43%, transparent 78%),
+    radial-gradient(ellipse 50% 38% at 83% 78%, rgba(48, 217, 237, .06) 0%, transparent 74%);
 }
-.chat-page.has-conversation .conversation-scroll,
-.chat-page.has-conversation {
-  background: transparent;
-}
+.chat-workspace.workspace-is-new-chat .chat-welcome-scroll { background: transparent; }
+.chat-workspace.workspace-has-conversation { background: transparent; }
+/* Utility panels are borderless surfaces, but keyboard focus rings remain. */
+.workspace-sidebar { border: 0; border-right: 0; }
+.evidence-is-open > .evidence-panel { border: 0; }
 @media (max-width: 760px) {
-  .chat-page.is-new-chat .chat-welcome-scroll {
+  .chat-workspace.workspace-is-new-chat {
     background:
       radial-gradient(ellipse 95% 38% at 50% 54%, rgba(0, 143, 245, .10) 0%, transparent 82%),
       radial-gradient(ellipse 78% 31% at 76% 78%, rgba(48, 217, 237, .04) 0%, transparent 80%);
