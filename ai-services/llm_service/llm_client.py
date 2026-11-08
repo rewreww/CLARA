@@ -1749,7 +1749,11 @@ def nonprescriptive_evidence_excerpt(question, sources):
     parts = []
     for source, passage in selections:
         # Do not pretend that the judge validated an interpretation.
-        excerpt = passage[:500].rsplit(' ', 1)[0].strip() if len(passage) > 500 else passage
+        hit = re.search(r'interval between BP measurements|preferably without sleeves',
+                        passage, re.I)
+        start = max(0, hit.start() - 160) if hit else 0
+        end = min(len(passage), hit.end() + 220) if hit else min(len(passage), 380)
+        excerpt = ('…' if start else '') + passage[start:end].strip() + ('…' if end < len(passage) else '')
         page_label = ', '.join(str(p) for p in source.get('pages', []))
         parts.append(f"{excerpt} — {source['title']} (PDF pages {page_label})")
         source['_cited'] = True
