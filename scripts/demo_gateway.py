@@ -97,6 +97,12 @@ def create_app(key, transport=None):
                     raise ValueError()
             except (ValueError, UnicodeDecodeError):
                 return error(400, 'Expected a JSON object')
+            if path.endswith(('chat/stream', 'history/clear')):
+                session = data.get('session_id')
+                if not isinstance(session, str) or not 8 <= len(session) <= 200:
+                    return error(400, 'A conversation identifier is required')
+            if path.endswith('chat/stream') and not isinstance(data.get('history'), list):
+                return error(400, 'Explicit conversation history is required')
         authenticated_user = None
         # Enforce backend policy, not just a separately maintained gateway flag.
         # Mismatched configuration must never make LLM endpoints public.
@@ -125,15 +131,9 @@ def create_app(key, transport=None):
                 return error(503, 'Account verification is unavailable.')
         if request.method == 'POST':
             if path.endswith(('chat/stream', 'history/clear')):
-                session = data.get('session_id')
-                if not isinstance(session, str) or not 8 <= len(session) <= 200:
-                    return error(400, 'A conversation identifier is required')
-                # Keep demo conversations separate from the local researcher's chats.
+                # Keep LLM conversation caches keyed to the verified account.
                 owner = str(authenticated_user.get('id')) if authenticated_user else 'legacy-demo'
                 data['session_id'] = 'demo-' + hmac.new(key.encode(), (owner + ':' + session).encode(), hashlib.sha256).hexdigest()
-            if path.endswith('chat/stream'):
-                if not isinstance(data.get('history'), list):
-                    return error(400, 'Explicit conversation history is required')
             body = json.dumps(data).encode()
         is_chat = path.endswith('chat/stream')
         acquired = False
