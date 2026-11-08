@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, MessageSquare, Pencil, Search, SquarePen, Trash2, X } from 'lucide-react'
+import { Check, MessageSquare, Pencil, Search, History, Trash2, X } from 'lucide-react'
 
 export default function ConversationHistory({ conversations, activeId, onOpen, onNew, onRename, onDelete, error }) {
   const [query, setQuery] = useState('')
@@ -8,7 +8,7 @@ export default function ConversationHistory({ conversations, activeId, onOpen, o
   const [deleting, setDeleting] = useState(null)
   const filtered = conversations.filter(item => `${item.title} ${item.patientId} ${item.messages.map(message => message.text).join(' ')}`.toLowerCase().includes(query.toLowerCase()))
   return <div className="history-section">
-    <div className="history-heading"><span>Recent</span><button className="icon-button" title="New conversation" aria-label="New conversation" onClick={onNew}><SquarePen size={16} /></button></div>
+    <div className="history-heading"><History size={17} aria-hidden="true" /><span>Recents</span></div>
     <div className="patient-search"><Search size={15} /><input aria-label="Search conversations" placeholder="Search conversations" value={query} onChange={event => setQuery(event.target.value)} />
       {query && <button className="icon-button" aria-label="Clear conversation search" onClick={() => setQuery('')}><X size={13} /></button>}</div>
     <span className="history-storage">Saved in this browser</span>
