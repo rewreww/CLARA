@@ -54,6 +54,21 @@ function ClaraWorkspace({ account, onLogout }) {
   const [conversationId, setConversationId] = useState(newConversationId)
   const [historyNotice, setHistoryNotice] = useState('')
   const [accountSettingsOpen, setAccountSettingsOpen] = useState(false)
+  const [settingsSection, setSettingsSection] = useState('appearance')
+  const [appearance, setAppearance] = useState(() => {
+    try { return localStorage.getItem('clara:appearance') === 'compact' ? 'compact' : 'comfortable' }
+    catch { return 'comfortable' }
+  })
+  const updateAppearance = useCallback(next => {
+    if (!['compact', 'comfortable'].includes(next)) return
+    setAppearance(next)
+    try { localStorage.setItem('clara:appearance', next) } catch {}
+  }, [])
+  const openSettings = useCallback(() => {
+    setSettingsSection('appearance')
+    setAccountSettingsOpen(true)
+  }, [])
+  const closeSettings = useCallback(() => setAccountSettingsOpen(false), [])
   const { conversations, storageError, save, rename, remove, flush } = useConversations(account)
   const safeLogout = useCallback(async () => {
     if (account && !(await flush())) {
@@ -159,20 +174,25 @@ function ClaraWorkspace({ account, onLogout }) {
   }, [selectedPatient?.id])
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell clara-appearance-${appearance}`}>
       <WorkspaceSidebar activeApp={activeApp} onChangeApp={navigate}
         selectedPatient={selectedPatient} onSelectPatient={handleSelectPatient}
         patients={patients} loading={patientsLoading} error={patientsError}
         conversations={conversations} activeConversationId={conversationId} onOpenConversation={openConversation}
         onNewConversation={newChat} onRenameConversation={rename} onDeleteConversation={deleteConversation}
         historyError={storageError || historyNotice}
-        account={account} onAccountSettings={() => setAccountSettingsOpen(true)} onLogout={safeLogout}
+        account={account} onAccountSettings={openSettings} onLogout={safeLogout}
+        settingsMode={accountSettingsOpen} settingsSection={settingsSection}
+        onSettingsSection={setSettingsSection} onSettingsBack={closeSettings}
         open={sidebarOpen} onClose={closeSidebar} />
       <div className="app-main">
         <TopBar activeApp={activeApp} patient={selectedPatient}
           onMenu={() => setSidebarOpen(true)} onNavigate={navigate} />
         <main className="app-views" id="main-content">
-          <section className="view-pane" hidden={activeApp !== 'home'} aria-label="Home">
+          {account && accountSettingsOpen && <AccountSettings account={account}
+            section={settingsSection} appearance={appearance} onAppearance={updateAppearance}
+            onLogout={safeLogout} onBeforePasswordChange={flush} />}
+          <section className="view-pane" hidden={activeApp !== 'home' || accountSettingsOpen} aria-label="Home">
             <PatientChat key={conversationId} patient={selectedPatient}
               admission={admission}
               conversationId={conversationId} initialMessages={conversations.find(item => item.id === conversationId)?.messages}
@@ -181,7 +201,7 @@ function ClaraWorkspace({ account, onLogout }) {
               onSelectPatientContext={handleSelectPatientContext} activeSection={activeSection}
               isActive={activeApp === 'home'} onOpenRecord={() => navigate('patients')} />
           </section>
-          <section className="view-pane patient-workspace" hidden={activeApp !== 'patients'} aria-label="Patient records">
+          <section className="view-pane patient-workspace" hidden={activeApp !== 'patients' || accountSettingsOpen} aria-label="Patient records">
             <MainContent patient={selectedPatient} activeSection={activeSection}
               admission={admission}
               onAdmissionChange={value => { setAdmission(value); setConversationId(newConversationId()); setHistoryNotice('') }}
@@ -192,7 +212,6 @@ function ClaraWorkspace({ account, onLogout }) {
         </main>
       </div>
       <SyncProgressWatcher />
-      {account && accountSettingsOpen && <AccountSettings account={account} onClose={() => setAccountSettingsOpen(false)} onLogout={safeLogout} onBeforePasswordChange={flush} />}
     </div>
   )
 }
