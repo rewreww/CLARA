@@ -873,7 +873,29 @@ svg { flex-shrink: 0; }
 
 /* Contextual source card: no empty desktop sidebar, fit viewer to document. */
 @media (min-width: 1101px) {
-  .evidence-is-open > .evidence-panel:not(.has-pdf) { display: none; }
+  /* Empty state stays a small card with the same 196px width. */
+  .evidence-is-open > .evidence-panel:not(.has-pdf) { height: auto; }
+  .evidence-is-open > .evidence-panel:not(.has-pdf) .evidence-sources,
+  .evidence-is-open > .evidence-panel:not(.has-pdf) .evidence-activity {
+    flex: 0 1 auto;
+    min-height: 0;
+  }
+  .evidence-is-open > .evidence-panel:not(.has-pdf) .evidence-empty {
+    margin: 0;
+    padding: 13px 9px 18px;
+    gap: 6px;
+    font-size: 11px;
+    text-align: center;
+  }
+  .evidence-is-open > .evidence-panel:not(.has-pdf) .evidence-empty > svg {
+    width: 18px;
+    height: 18px;
+  }
+  .evidence-is-open > .evidence-panel:not(.has-pdf) .source-list,
+  .evidence-is-open > .evidence-panel:not(.has-pdf) .evidence-activity {
+    max-height: 180px;
+    overflow-y: auto;
+  }
   .evidence-is-open > .evidence-panel.has-pdf .evidence-sources { flex: 0 1 auto; min-height: 0; }
   .evidence-is-open > .evidence-panel.has-pdf .pdf-preview { flex: 0 1 auto; min-height: 0; }
   .evidence-is-open > .evidence-panel.has-pdf .pdf-viewport {
