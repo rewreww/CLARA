@@ -63,6 +63,7 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
   activeSection, isActive, messages, loading, onSend, onClear, onStop, onOpenRecord }) {
   const [input, setInput] = useState('')
   const [pickerOpen, setPickerOpen] = useState(false)
+  const closePicker = useCallback(() => setPickerOpen(false), [])
   const scrollRef = useRef(null)
   const taRef = useRef(null)
   const followResponse = useRef(true)
@@ -113,8 +114,14 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
   }
 
 
+  const picker = pickerOpen ? <PatientAdmissionPicker
+    patients={patients} patientsLoading={patientsLoading} patientsError={patientsError}
+    selectedPatient={patient} selectedAdmission={admission}
+    onSelect={onSelectPatientContext} onClose={closePicker} /> : null
+
   const composer = (
-    <div className="composer-area">
+    <div className={`composer-area ${pickerOpen ? 'picker-is-open' : ''} ${hasConversation ? 'picker-above' : 'picker-below'}`}>
+      {hasConversation && picker}
       <p id="composer-disclaimer" className="composer-disclaimer">CLARA provides information only and makes mistakes. It does not replace a physician’s clinical judgment.</p>
       <form className="chat-composer" onSubmit={handleSend}>
         <textarea ref={taRef} value={input} onChange={event => setInput(event.target.value)}
@@ -141,6 +148,7 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
         <button onClick={onOpenRecord}>View record<ArrowUpRight size={13} /></button>
       </div>}
       {patientsError && <p className="composer-error" role="alert">Patient records are currently unavailable.</p>}
+      {!hasConversation && picker}
     </div>
   )
 
@@ -176,10 +184,6 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
         </div>
       )}
     </div>
-    {pickerOpen && <PatientAdmissionPicker
-      patients={patients} patientsLoading={patientsLoading} patientsError={patientsError}
-      selectedPatient={patient} selectedAdmission={admission}
-      onSelect={onSelectPatientContext} onClose={() => setPickerOpen(false)} />}
     {isActive && <EvidencePanel mobileOpen={evidenceOpen} sources={evidenceSources} selectedSource={selectedSource} onSelectSource={setSelectedSource}
       onClose={closeEvidence} patientId={patient?.id} message={evidenceMessage} tab={evidenceTab} onTab={setEvidenceTab} />}
     </div>
