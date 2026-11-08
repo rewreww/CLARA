@@ -657,3 +657,65 @@ svg { flex-shrink: 0; }
   .patient-admission-overlay { padding: 8px; }
   .patient-admission-overlay > .patient-admission-dialog { max-height: calc(100dvh - 20px); }
 }
+
+
+/* Composer-attached patient browser: no viewport overlay or floating modal. */
+.composer-area .patient-admission-inline {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  max-height: min(46dvh, 390px);
+  overflow: hidden;
+  border: 1px solid #465159;
+  border-radius: 11px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .18);
+  background: #20252a;
+}
+.composer-area .patient-admission-inline .patient-admission-shell {
+  max-height: min(46dvh, 390px);
+  min-height: 0;
+}
+.composer-area .patient-admission-inline .patient-admission-columns {
+  min-height: 100px;
+  overflow: hidden;
+}
+.composer-area .patient-admission-inline .patient-admission-header {
+  padding: 12px 16px 8px;
+}
+.composer-area .patient-admission-inline .patient-admission-header h2 {
+  font-size: 15px;
+}
+.composer-area .patient-admission-inline .patient-admission-search {
+  margin: 0 16px 10px;
+  padding: 8px 10px;
+}
+.composer-area.picker-above .patient-admission-inline {
+  margin-bottom: 10px;
+  transform-origin: bottom center;
+  animation: patient-browser-from-bottom 180ms ease-out both;
+}
+.composer-area.picker-below .patient-admission-inline {
+  margin-top: 10px;
+  transform-origin: top center;
+  animation: patient-browser-from-top 180ms ease-out both;
+}
+@keyframes patient-browser-from-top {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes patient-browser-from-bottom {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .composer-area .patient-admission-inline { animation: none; }
+}
+@media (max-width: 600px) {
+  .composer-area .patient-admission-inline,
+  .composer-area .patient-admission-inline .patient-admission-shell { max-height: min(46dvh, 340px); }
+  .composer-area .patient-admission-inline .patient-admission-header { padding: 10px; }
+  .composer-area .patient-admission-inline .patient-admission-search { margin: 0 10px 8px; }
+  .composer-area .patient-admission-inline .patient-admission-columns { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
