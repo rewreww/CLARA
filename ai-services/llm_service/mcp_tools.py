@@ -1,6 +1,7 @@
 import requests
 import os
 import time
+import re
 from urllib.parse import quote
 
 DATA_SERVICE_URL = os.getenv("DATA_SERVICE_URL", "http://localhost:5000/api/patientdata").rstrip("/")
@@ -213,6 +214,45 @@ def fetch_patient_context(patient_id: str) -> str:
     return context if context else "No patient context found."
 
 
+def fetch_mimic_patient_context(
+    patient_id: str,
+    admission_id: str,
+    query: str = ""
+) -> str:
+    """Retrieve admission-scoped MIMIC-IV clinical context."""
+
+    patient_id = str(patient_id or "").strip()
+    admission_id = str(admission_id or "").strip()
+
+    if not re.fullmatch(r"Patient_\d{8}", patient_id):
+        raise ValueError("Invalid MIMIC patient ID.")
+
+    if not (
+        admission_id == "unlinked"
+        or re.fullmatch(r"\d{8}", admission_id)
+    ):
+        raise ValueError("A valid MIMIC admission ID is required.")
+
+    patient_path = quote(patient_id, safe="")
+
+    response = requests.get(
+        f"{DATA_SERVICE_URL}/{patient_path}/mimic/context",
+        params={
+            "admission": admission_id,
+            "query": query
+        },
+        timeout=30
+    )
+
+    response.raise_for_status()
+
+    data = response.json()
+    context = str(data.get("context") or "").strip()
+
+    return context or "No MIMIC clinical context found."
+
+
+
 def fetch_patient_document_context(patient_id: str, query: str) -> tuple[str, list[dict]]:
     patient_path = quote(str(patient_id).strip(), safe="")
     r = requests.get(
@@ -422,3 +462,125 @@ def fetch_all_lab_blocks(patient_id: str) -> list[tuple[str, str]]:
 
 def fetch_patient_context_block(patient_id: str) -> tuple[str, str]:
     return PATIENT_CONTEXT_TOOL_NAME, execute_tool(PATIENT_CONTEXT_TOOL_NAME, patient_id)
+
+
+
+MIMIC_TOOL_DEFINITIONS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_selected_patient_context",
+            "description": (
+                "Retrieve clinical information for the patient "
+                "and hospital admission currently selected by "
+                "the user. Use when answering questions about "
+                "the selected patient's medical history, "
+                "laboratory findings, diagnoses, medications, "
+                "or clinical records. Do not call this tool "
+                "for ordinary conversation or general medical "
+                "knowledge questions."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": (
+                            "The clinical information needed "
+                            "from the selected patient's records."
+                        )
+                    }
+                },
+                "required": ["query"],
+                "additionalProperties": False
+            }
+        }
+    }
+]
+
+
+
+GUIDELINE_TOOL_DEFINITIONS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "search_clinical_guidelines",
+            "description": (
+                "Search CLARA's ingested cardiovascular clinical "
+                "guideline PDFs for evidence-based recommendations, "
+                "clinical management, treatments, diagnostic "
+                "criteria, medication selection, clinical targets, "
+                "monitoring, and guideline-specific information. "
+                "Call this tool whenever the user's question "
+                "requires clinical guideline evidence. "
+                "Do not call it for casual conversation."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": (
+                            "The clinical question or information "
+                            "to search for in the guideline PDFs."
+                        )
+                    }
+                },
+                "required": ["query"],
+                "additionalProperties": False
+            }
+        }
+    }
+]
+
+
+CLARA_TOOL_DEFINITIONS = (
+    GUIDELINE_TOOL_DEFINITIONS
+    + MIMIC_TOOL_DEFINITIONS
+)
+
+
+def execute_mimic_tool(
+    tool_name: str,
+    arguments: dict,
+    selected_patient_id: str | None,
+    selected_admission_id: str | None,
+) -> str:
+    """
+    Execute an approved MIMIC tool using the patient
+    and admission selected in CLARA's interface.
+
+    The LLM cannot override either identifier.
+    """
+
+    if tool_name != "get_selected_patient_context":
+        raise ValueError("Unknown or unauthorized tool.")
+
+    if not selected_patient_id:
+        return (
+            "No patient is selected. Ask the user to "
+            "select a patient from the dropdown."
+        )
+
+    if not selected_admission_id:
+        return (
+            "No admission is selected. Ask the user to "
+            "select an admission before accessing records."
+        )
+
+    if not isinstance(arguments, dict):
+        raise ValueError("Invalid tool arguments.")
+
+    if set(arguments) != {"query"}:
+        raise ValueError("Unexpected tool arguments.")
+
+    query = arguments["query"]
+
+    if not isinstance(query, str) or len(query) > 1000:
+        raise ValueError("Invalid patient-context query.")
+
+    return fetch_mimic_patient_context(
+        patient_id=selected_patient_id,
+        admission_id=selected_admission_id,
+        query=query,
+    )
