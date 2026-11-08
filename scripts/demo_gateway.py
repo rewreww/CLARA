@@ -86,14 +86,27 @@ def create_app(key, transport=None):
         is_account = path.startswith('api/backend/account/')
         suffix = path.removeprefix('api/backend/account/') if is_account else ''
         authenticated_user = None
-        # Verify server-side sessions for every clinical/LLM request when auth is on.
-        if os.environ.get('CLARA_AUTH_ENABLED', '').lower() == 'true' and not (is_account and suffix in ACCOUNT_PUBLIC):
+        # Enforce backend policy, not just a separately maintained gateway flag.
+        # Mismatched configuration must never make LLM endpoints public.
+        auth_required = os.environ.get('CLARA_AUTH_ENABLED', '').lower() == 'true'
+        try:
+            auth_config = await app.state.client.get('http://127.0.0.1:5000/api/account/config')
+            if auth_config.status_code == 200:
+                auth_required = bool(auth_config.json().get('enabled')) or auth_required
+            elif auth_required:
+                return error(503, 'Account verification is unavailable.')
+        except (httpx.HTTPError, ValueError):
+            if auth_required:
+                return error(503, 'Account verification is unavailable.')
+        if auth_required and not (is_account and suffix in ACCOUNT_PUBLIC):
             try:
                 check = await app.state.client.get('http://127.0.0.1:5000/api/account/me',
                     headers={'cookie': request.headers.get('cookie', '')})
                 if check.status_code != 200:
                     return error(401, 'Please sign in to CLARA.')
                 authenticated_user = check.json()
+                if not isinstance(authenticated_user, dict) or not authenticated_user.get('id'):
+                    return error(503, 'Invalid session verification response.')
                 if not is_account and authenticated_user.get('role') not in ('clinician', 'trainee'):
                     return error(403, 'This account cannot access clinical data.')
             except (httpx.HTTPError, ValueError, KeyError):
