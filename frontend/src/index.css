@@ -600,3 +600,49 @@ svg { flex-shrink: 0; }
 .source-support { margin: 8px 12px; font-size: 12px; line-height: 1.5; }
 .source-support summary { cursor: pointer; font-weight: 600; }
 .source-support blockquote { margin: 8px 0; padding-left: 10px; border-left: 2px solid currentColor; }
+
+
+/* Patient + admission picker from the chat composer. */
+.composer-patient-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 36px; min-height: 36px; padding: 6px 9px; border: 1px solid transparent; border-radius: 8px; color: #bdc8ce; background: transparent; text-align: left; }
+.composer-patient-button:hover, .composer-patient-button[aria-expanded="true"] { background: #343b42; border-color: #53636c; color: #f0f4f5; }
+.composer-patient-button:focus-visible { outline: 2px solid #96d9ce; outline-offset: 2px; }
+.composer-patient-button-label { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.patient-admission-dialog { width: min(800px, calc(100vw - 32px)); max-width: none; max-height: min(82dvh, 680px); margin: auto; padding: 0; color: #edf1f3; background: #20252a; border: 1px solid #4a525a; border-radius: 14px; box-shadow: 0 28px 90px rgba(0,0,0,.55); overflow: hidden; }
+.patient-admission-dialog::backdrop { background: rgba(0,0,0,.68); }
+.patient-admission-shell { display: flex; flex-direction: column; min-height: 0; max-height: min(82dvh, 680px); }
+.patient-admission-header { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; padding: 20px 22px 14px; }
+.patient-admission-header h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.patient-admission-header p { margin: 6px 0 0; font-size: 12px; color: #acb7bf; }
+.patient-admission-close { display: grid; place-items: center; flex: 0 0 34px; height: 34px; border-radius: 8px; color: #c7d0d5; }
+.patient-admission-close:hover { background: #373e45; }
+.patient-admission-search { display: flex; align-items: center; gap: 10px; margin: 0 22px 16px; padding: 10px 12px; color: #a9b8c0; background: #2c3238; border: 1px solid #444e56; border-radius: 9px; }
+.patient-admission-search:focus-within { border-color: #96d9ce; }
+.patient-admission-search input { width: 100%; min-width: 0; background: transparent; outline: none; border: 0; color: #edf1f3; font-size: 14px; }
+.patient-admission-search input::placeholder { color: #98a5ae; }
+.patient-admission-columns { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); min-height: 220px; flex: 1; overflow: hidden; border-top: 1px solid #39424a; }
+.patient-admission-patients, .patient-admission-dates { min-width: 0; overflow-y: auto; padding: 12px; scrollbar-width: thin; }
+.patient-admission-patients { border-right: 1px solid #39424a; }
+.patient-admission-column-label { padding: 4px 10px 11px; color: #9eacb6; font-size: 11px; font-weight: 600; letter-spacing: .09em; }
+.patient-admission-row, .patient-admission-date-row { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; padding: 11px; color: #dae4e9; text-align: left; border-radius: 9px; }
+.patient-admission-row:hover, .patient-admission-date-row:hover { background: #323b42; }
+.patient-admission-row.is-selected, .patient-admission-date-row.is-selected { background: #25423f; color: #e1fffa; }
+.patient-admission-row-main, .patient-admission-date-row > span { display: grid; min-width: 0; flex: 1; gap: 3px; }
+.patient-admission-row-main strong, .patient-admission-date-row strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; font-size: 13px; }
+.patient-admission-row-main small, .patient-admission-date-row small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; color: #a6b2bc; }
+.patient-admission-info, .patient-admission-empty, .patient-admission-legacy { margin: 12px 8px; font-size: 13px; line-height: 1.5; color: #b3c0c8; }
+.patient-admission-empty { display: grid; gap: 8px; justify-items: center; text-align: center; margin-top: 48px; }
+.patient-admission-scope { margin: 4px 10px; font-size: 12px; color: #d9e4e8; overflow-wrap: anywhere; }
+.patient-admission-note { margin: 5px 10px 13px; font-size: 11px; color: #a8b4bc; }
+.patient-admission-primary { padding: 9px 12px; margin-top: 12px; color: #132523; background: #96d9ce; border-radius: 7px; font-size: 13px; font-weight: 600; }
+.patient-admission-dialog button:focus-visible { outline: 2px solid #96d9ce; outline-offset: 2px; }
+@media (max-width: 600px) {
+  .patient-admission-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 20px); }
+  .patient-admission-shell { max-height: calc(100dvh - 20px); }
+  .patient-admission-header { padding: 14px 14px 10px; }
+  .patient-admission-search { margin: 0 14px 12px; }
+  .patient-admission-columns { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .patient-admission-patients, .patient-admission-dates { padding: 7px; }
+  .patient-admission-row, .patient-admission-date-row { padding: 10px 6px; gap: 6px; }
+  .patient-admission-row > svg:first-child, .patient-admission-date-row > svg:first-child { display: none; }
+  .composer-patient-button-label { max-width: 130px; }
+}
