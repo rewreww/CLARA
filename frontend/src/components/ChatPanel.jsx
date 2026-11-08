@@ -123,7 +123,7 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
           onKeyDown={event => {
             if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) handleSend(event)
           }}
-          placeholder={patient ? 'Ask about this patient...' : 'Ask CLARA...'} aria-label="Message CLARA" rows={hasConversation ? 2 : 1} />
+          placeholder={patient ? 'Ask about this patient...' : 'Ask CLARA...'} aria-label="Message CLARA" rows={1} />
         <div className="composer-controls">
           <button className="composer-patient-button" type="button" onClick={() => setPickerOpen(true)}
             title={patient ? 'Change patient or admission' : 'Select a patient'}
@@ -147,7 +147,7 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
   )
 
   return (
-    <div className="chat-workspace evidence-is-open">
+    <div className={`chat-workspace evidence-is-open ${hasConversation ? "workspace-has-conversation" : "workspace-is-new-chat"}`}>
     <div className={`chat-page ${hasConversation ? 'has-conversation' : 'is-new-chat'}`}>
       <div className="chat-page-toolbar chat-page-toolbar-minimal">
         <button className="source-preview-tile" aria-label="Open source preview"
