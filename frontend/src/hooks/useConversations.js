@@ -1,55 +1,102 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { HISTORY_KEY, readConversations, mergeConversationChanges, loadPrivateConversations } from '../lib/conversations'
+import { HISTORY_KEY, readConversations, mergeConversationChanges, loadPrivateConversations, restoreMessages } from '../lib/conversations'
+import { accountRequest } from './useAccount'
 
-export function useConversations() {
+const normalize = items => items.filter(item => item && typeof item.id === 'string' && Array.isArray(item.messages))
+  .map(item => ({
+    ...item, patientId: item.patientId || '', admissionId: item.admissionId || '',
+    title: typeof item.title === 'string' ? item.title : 'Conversation',
+    updatedAt: Number.isFinite(item.updatedAt) ? item.updatedAt : 0,
+    messages: restoreMessages(item.messages),
+  }))
+
+// Authenticated history lives in PostgreSQL, always keyed to the server-authenticated account.
+// Legacy demo history remains separate in browser storage and is never silently linked to a user.
+export function useConversations(account = null) {
+  const ownerId = account?.id || null
   const [conversations, setConversations] = useState([])
   const [storageError, setStorageError] = useState('')
   const [historyReady, setHistoryReady] = useState(false)
   const changedIds = useRef(new Set())
   const latest = useRef(conversations)
   latest.current = conversations
-  const persist = useCallback(() => {
-    if (!changedIds.current.size || !historyReady) return
+  const saving = useRef(false)
+
+  const persist = useCallback(async () => {
+    if (!changedIds.current.size || !historyReady || saving.current) return
+    saving.current = true
     try {
-      const merged = mergeConversationChanges(readConversations(localStorage), latest.current, changedIds.current)
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(merged))
-      latest.current = merged
-      setConversations(merged)
+      if (ownerId) {
+        const changed = [...changedIds.current]
+        for (const id of changed) {
+          const item = latest.current.find(value => value.id === id)
+          if (item) {
+            await accountRequest('/conversations/' + encodeURIComponent(id), {
+              method: 'PUT', data: { id, title: item.title, conversation: item },
+            })
+          } else {
+            await accountRequest('/conversations/' + encodeURIComponent(id), { method: 'DELETE' })
+          }
+          // If a streamed response changed while a request was pending, save it again.
+          if (latest.current.find(value => value.id === id) === item) changedIds.current.delete(id)
+        }
+      } else {
+        const merged = mergeConversationChanges(readConversations(localStorage), latest.current, changedIds.current)
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(merged))
+        latest.current = merged
+        setConversations(merged)
+        changedIds.current.clear()
+      }
       setStorageError('')
-      changedIds.current.clear()
-    } catch { setStorageError('History is not saved. Browser storage is unavailable or full.') }
-  }, [historyReady])
+    } catch {
+      setStorageError(ownerId ? 'Your account chat history could not be saved. Check the connection before signing out.'
+        : 'History is not saved. Browser storage is unavailable or full.')
+    } finally { saving.current = false }
+  }, [historyReady, ownerId])
 
   useEffect(() => {
-    const timer = setTimeout(persist, 300)
+    const timer = setTimeout(persist, 700)
     window.addEventListener('pagehide', persist)
     return () => { clearTimeout(timer); window.removeEventListener('pagehide', persist) }
   }, [conversations, persist])
 
   useEffect(() => {
-    let cancelled = false, retry, generation = 0
+    let cancelled = false
+    let retry
+    changedIds.current.clear()
+    setConversations([])
+    setHistoryReady(false)
     const restore = async () => {
-      const current = ++generation
       clearTimeout(retry)
       try {
-        const stored = await loadPrivateConversations(localStorage)
-        if (cancelled || current !== generation) return
-        setConversations(items => mergeConversationChanges(stored, items, changedIds.current))
+        const items = ownerId
+          ? normalize(await accountRequest('/conversations'))
+          : await loadPrivateConversations(localStorage)
+        if (cancelled) return
+        setConversations(local => mergeConversationChanges(items, local, changedIds.current))
         setHistoryReady(true)
         setStorageError('')
       } catch {
-        if (cancelled || current !== generation) return
+        if (cancelled) return
         setHistoryReady(false)
-        setStorageError('Saved chats are waiting for name cleanup. Start CLARA to restore them; existing history is preserved.')
+        setStorageError(ownerId ? 'Could not load private account chats. Retrying while preserving current messages.'
+          : 'Saved chats are waiting for name cleanup. Start CLARA to restore them; existing history is preserved.')
         retry = setTimeout(restore, 5000)
       }
     }
-    const sync = event => { if (event.key === HISTORY_KEY) restore() }
+    const sync = event => { if (!ownerId && event.key === HISTORY_KEY) restore() }
     restore()
     window.addEventListener('storage', sync)
     window.addEventListener('online', restore)
     return () => { cancelled = true; clearTimeout(retry); window.removeEventListener('storage', sync); window.removeEventListener('online', restore) }
-  }, [])
+  }, [ownerId])
+
+  // Failed writes must be retried without switching accounts or discarding draft messages.
+  useEffect(() => {
+    if (!ownerId || !historyReady || !storageError) return
+    const timer = setTimeout(persist, 5000)
+    return () => clearTimeout(timer)
+  }, [ownerId, historyReady, storageError, persist])
 
   const save = useCallback(conversation => {
     if (!conversation.messages.some(message => message.role === 'doctor')) return
@@ -70,5 +117,5 @@ export function useConversations() {
     setConversations(items => items.filter(item => item.id !== id))
   }, [])
 
-  return { conversations, storageError, save, rename, remove }
+  return { conversations, storageError, save, rename, remove, historyReady }
 }
