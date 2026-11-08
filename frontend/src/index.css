@@ -1369,3 +1369,22 @@ svg { flex-shrink: 0; }
   .clara-auth-page { padding: 14px; }
   .clara-auth-card { padding: 24px 18px; }
 }
+
+
+/* Doctor account popover: matches the sidebar width and opens above the profile. */
+.workspace-sidebar .clara-profile-area { position: relative; flex: 0 0 auto; }
+.workspace-sidebar .clara-account-footer { border-top: 0; padding: 10px 12px 14px; }
+.clara-account-profile-trigger { width: 100%; display: flex; align-items: center; gap: 11px; padding: 7px 8px; border-radius: 9px; text-align: left; min-width: 0; color: #e5eeeb; }
+.clara-account-profile-trigger:hover, .clara-account-profile-trigger[aria-expanded="true"] { background: #30343a; }
+.clara-account-profile-trigger .clara-account-label { flex: 1; }
+.clara-account-profile-trigger .clara-account-label strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.clara-account-profile-trigger > svg:last-child { flex-shrink: 0; color: #aab6c2; transition: transform .16s ease; }
+.clara-account-profile-trigger > svg.is-open { transform: rotate(180deg); }
+.clara-profile-menu { position: absolute; z-index: 70; bottom: calc(100% + 5px); left: 0; width: 100%; box-sizing: border-box; padding: 7px; background: #23282f; border: 1px solid #3b444e; border-radius: 11px; color: #e8edf2; box-shadow: 0 12px 32px #0007; }
+.clara-profile-menu-identity { display: grid; gap: 4px; padding: 11px 11px 10px; min-width: 0; }
+.clara-profile-menu-identity strong { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.clara-profile-menu-identity small { color: #aebbc7; font-size: 11px; text-transform: capitalize; overflow-wrap: anywhere; }
+.clara-profile-menu-divider { height: 1px; margin: 4px 5px; background: #3b444e; }
+.clara-profile-menu-action { display: flex; align-items: center; width: 100%; gap: 11px; border-radius: 7px; padding: 11px; color: #e1e9f0; text-align: left; font-size: 13px; }
+.clara-profile-menu-action:hover { background: #343b45; }
+.clara-profile-menu-action:focus-visible { outline: 2px solid #86dbfa; outline-offset: -2px; }
