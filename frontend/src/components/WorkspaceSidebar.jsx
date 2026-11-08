@@ -5,7 +5,8 @@ import ConversationHistory from './ConversationHistory'
 
 export default function WorkspaceSidebar({ activeApp, onChangeApp, selectedPatient, onSelectPatient,
   patients, loading, error, open, onClose,
-  conversations, activeConversationId, onOpenConversation, onNewConversation, onRenameConversation, onDeleteConversation, historyError }) {
+  conversations, activeConversationId, onOpenConversation, onNewConversation, onRenameConversation, onDeleteConversation, historyError,
+  account, onAccountSettings, onLogout }) {
   const [search, setSearch] = useState('')
   const sidebarRef = useRef(null)
   const closeRef = useRef(null)
@@ -79,7 +80,9 @@ export default function WorkspaceSidebar({ activeApp, onChangeApp, selectedPatie
         </div>
         <footer className="clara-account-footer" aria-label="Account">
           <span className="clara-account-avatar" aria-hidden="true"><UserRound size={20} /></span>
-          <span className="clara-account-label"><strong>Dr. Aves</strong><small>Account placeholder</small></span>
+          {account ? <button className="clara-account-footer-button" type="button" onClick={onAccountSettings} title="Account settings">
+            <span className="clara-account-label"><strong>{account.displayName}</strong><small>{account.role} · Account settings</small></span>
+          </button> : <span className="clara-account-label"><strong>CLARA demo</strong><small>Local demonstration</small></span>}
         </footer>
       </aside>
     </>
