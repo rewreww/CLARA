@@ -327,3 +327,43 @@
 .clara-theme-light .mimic-workspace .mimic-vital :is(small,time),
 .clara-theme-light .mimic-notice { color:#627c8f; }
 .clara-theme-light .mimic-preview { background:#fff; color:#234259; border-color:#ccdee9; }
+
+/* Light theme polish: readable active Results/Documents segmented controls. */
+.clara-theme-light .mimic-workspace .mimic-toolbar > button[aria-pressed="true"] {
+  color: #ffffff;
+  background: #075f91;
+  border-color: #075f91;
+  font-weight: 650;
+}
+.clara-theme-light .mimic-workspace .mimic-toolbar > button[aria-pressed="false"] {
+  color: #31576e;
+  background: #eef5fa;
+  border-color: #c3d7e4;
+}
+.clara-theme-light .mimic-workspace .mimic-toolbar > button[aria-pressed="false"]:hover {
+  color: #124667;
+  background: #dcedf8;
+  border-color: #a3cce1;
+}
+/* Send action: use a strongly contrasting clinical-blue action on white composer. */
+.clara-theme-light .chat-page .chat-composer .send-button:not(:disabled) {
+  color: #ffffff;
+  background: #0879b2;
+  border: 1px solid #0879b2;
+  box-shadow: 0 2px 7px rgba(16,89,129,.13);
+}
+.clara-theme-light .chat-page .chat-composer .send-button:not(:disabled):hover {
+  background: #065e8b;
+  border-color: #065e8b;
+  box-shadow: 0 3px 10px rgba(16,89,129,.18);
+}
+.clara-theme-light .chat-page .chat-composer .send-button:disabled {
+  color: #8598a6;
+  background: #e3eaf0;
+  border: 1px solid #d0dce5;
+  box-shadow: none;
+}
+.clara-theme-light .chat-page .chat-composer .send-button:focus-visible {
+  outline: 3px solid #36b1e3;
+  outline-offset: 3px;
+}
