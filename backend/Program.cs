@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
 using System.Net;
+using System.Security.Cryptography;
+using System.Text;
 
 using CLARA.Backend.Ingestion;
 using CLARA.Backend.Data;
@@ -112,7 +114,7 @@ app.Use(async (ctx, next) => {
         && ctx.Request.Path.StartsWithSegments("/api/account")
         && (HttpMethods.IsPost(ctx.Request.Method) || HttpMethods.IsPut(ctx.Request.Method)
             || HttpMethods.IsDelete(ctx.Request.Method))) {
-        var origin = ctx.Request.Headers.Origin.ToString();
+        var origin = ctx.Request.Headers["Origin"].ToString();
         var fetchSite = ctx.Request.Headers["Sec-Fetch-Site"].ToString();
         if (fetchSite == "cross-site") { ctx.Response.StatusCode = 403; return; }
         if (origin.Length > 0) {
@@ -135,9 +137,21 @@ app.UseAuthentication();
 app.Use(async (ctx, next) => {
     if (builder.Configuration.GetValue<bool>("ClaraAuth:Enabled")
         && ctx.Request.Path.StartsWithSegments("/api/patientdata")) {
-        if (ctx.User.Identity?.IsAuthenticated != true) { ctx.Response.StatusCode = 401; return; }
-        if (!ctx.User.IsInRole("clinician") && !ctx.User.IsInRole("trainee")) {
-            ctx.Response.StatusCode = 403; return;
+        // The AI process may call these routes using a short-lived secret created
+        // by the local launcher. Browser sessions never receive this secret.
+        var key = builder.Configuration["ClaraAuth:InternalServiceKey"];
+        var supplied = ctx.Request.Headers["X-Clara-Internal-Key"].ToString();
+        var trustedLocalService = ctx.Connection.RemoteIpAddress is not null
+            && IPAddress.IsLoopback(ctx.Connection.RemoteIpAddress)
+            && !string.IsNullOrEmpty(key) && key.Length >= 32
+            && supplied.Length == key.Length
+            && CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(supplied), Encoding.UTF8.GetBytes(key));
+        if (!trustedLocalService) {
+            if (ctx.User.Identity?.IsAuthenticated != true) { ctx.Response.StatusCode = 401; return; }
+            if (!ctx.User.IsInRole("clinician") && !ctx.User.IsInRole("trainee")) {
+                ctx.Response.StatusCode = 403; return;
+            }
         }
     }
     await next();
