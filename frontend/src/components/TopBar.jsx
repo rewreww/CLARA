@@ -5,8 +5,7 @@ export default function TopBar({ activeApp, patient, onMenu, onNavigate }) {
     <header className="topbar">
       <div className="topbar-heading">
         <button className="icon-button mobile-menu" onClick={onMenu} aria-label={activeApp === 'home' ? 'Open conversation history' : 'Open patient directory'} title={activeApp === 'home' ? 'Conversation history' : 'Patient directory'}><Menu size={21} /></button>
-        <span>{activeApp === 'home' ? 'CLARA Assistant' : 'Patients'}</span>
-        <span className="workspace-label">Clinical workspace</span>
+        {activeApp === 'patients' && <><span>Patients</span><span className="workspace-label">Clinical workspace</span></>}
       </div>
       {activeApp === 'patients' ? (
         <button className="text-button" onClick={() => onNavigate('home')}><MessageSquare size={16} />Ask CLARA<ArrowUpRight size={15} /></button>
