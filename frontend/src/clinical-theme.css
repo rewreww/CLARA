@@ -207,3 +207,123 @@
   .clara-theme-choice { gap:5px; }
   .clara-theme-options > button > small { font-size:10px; }
 }
+
+
+/* Light theme QA pass: glow, recent-row interactions, inline patient picker,
+   admission tabs, category navigation and MIMIC table hierarchy. */
+.clara-theme-light .chat-workspace.workspace-is-new-chat {
+  background:
+    radial-gradient(ellipse 68% 51% at 53% 60%, rgba(0,118,235,.19) 0%,rgba(0,143,245,.085) 43%,transparent 81%),
+    radial-gradient(ellipse 49% 39% at 83% 79%,rgba(23,192,225,.13) 0%,transparent 77%),
+    #f7fafc;
+}
+.clara-theme-light .chat-workspace.workspace-is-new-chat .chat-page,
+.clara-theme-light .chat-workspace.workspace-is-new-chat .chat-welcome-scroll {
+  background:transparent;
+}
+@media (max-width:760px) {
+  .clara-theme-light .chat-workspace.workspace-is-new-chat {
+    background:
+      radial-gradient(ellipse 95% 42% at 50% 53%, rgba(0,118,235,.16), transparent 83%),
+      radial-gradient(ellipse 74% 35% at 76% 79%, rgba(23,192,225,.09), transparent 80%),
+      #f7fafc;
+  }
+}
+/* Recent chats use the same sky-blue hover surface as the navigation. */
+.clara-theme-light .workspace-sidebar .clara-sidebar-content .history-item:hover,
+.clara-theme-light .workspace-sidebar .clara-sidebar-content .history-heading:hover,
+.clara-theme-light .workspace-sidebar .clara-sidebar-content .history-item:focus-within {
+  background:#dceefb;
+  color:#075e87;
+}
+.clara-theme-light .workspace-sidebar .history-item:hover .history-open strong,
+.clara-theme-light .workspace-sidebar .history-item:focus-within .history-open strong {
+  color:#075e87;
+}
+/* The patient selector anchored beneath the composer is not a floating dark dialog in Light mode. */
+.clara-theme-light .patient-admission-dialog,
+.clara-theme-light .composer-area .patient-admission-inline {
+  background:#fff;
+  color:#213f55;
+  border-color:#cbdae6;
+  box-shadow:0 18px 46px rgba(23,67,99,.16);
+}
+.clara-theme-light .patient-admission-header h2,
+.clara-theme-light .patient-admission-scope { color:#193b54; }
+.clara-theme-light .patient-admission-header p,
+.clara-theme-light .patient-admission-column-label,
+.clara-theme-light .patient-admission-info,
+.clara-theme-light .patient-admission-note,
+.clara-theme-light .patient-admission-empty,
+.clara-theme-light .patient-admission-legacy { color:#60798b; }
+.clara-theme-light .patient-admission-search {
+  color:#567287;
+  background:#f8fbfd;
+  border-color:#cbdae6;
+}
+.clara-theme-light .patient-admission-search input { color:#19384f; }
+.clara-theme-light .patient-admission-search input::placeholder { color:#728697; }
+.clara-theme-light .patient-admission-columns,
+.clara-theme-light .patient-admission-patients { border-color:#dce6ef; }
+.clara-theme-light .patient-admission-close { color:#47677d; }
+.clara-theme-light .patient-admission-close:hover { background:#eaf4fb; }
+.clara-theme-light .patient-admission-row,
+.clara-theme-light .patient-admission-date-row { color:#34566b; }
+.clara-theme-light .patient-admission-row:hover,
+.clara-theme-light .patient-admission-date-row:hover { background:#edf5fa; }
+.clara-theme-light .patient-admission-row.is-selected,
+.clara-theme-light .patient-admission-date-row.is-selected {
+  color:#fff; background:#086d9b;
+}
+.clara-theme-light .patient-admission-row.is-selected small,
+.clara-theme-light .patient-admission-date-row.is-selected small { color:#e9f7ff; }
+.clara-theme-light .patient-admission-row:not(.is-selected) small,
+.clara-theme-light .patient-admission-date-row:not(.is-selected) small { color:#73889b; }
+
+/* Main MIMIC admission strip: the selected date is deep navy; unselected dates stay gray. */
+.clara-theme-light .mimic-date-strip button { color:#8b9baa; border-bottom-color:transparent; }
+.clara-theme-light .mimic-date-strip button:hover { color:#35516a; }
+.clara-theme-light .mimic-date-strip button[aria-pressed="true"] {
+  color:#153a56; border-bottom-color:#0986bf;
+}
+.clara-theme-light .mimic-date-navigation > button { color:#526e81; }
+
+/* Selected category pills keep white text against a sufficiently dark blue fill. */
+.clara-theme-light .mimic-workspace .mimic-categories button {
+  color:#426176; background:#f0f6fa; border-color:#cbdce8;
+}
+.clara-theme-light .mimic-workspace .mimic-categories button:hover {
+  color:#174461; background:#e2f2fc; border-color:#91c8e4;
+}
+.clara-theme-light .mimic-workspace .mimic-categories button[aria-pressed="true"] {
+  color:#fff; background:#075f91; border-color:#075f91;
+}
+.clara-theme-light .mimic-workspace .mimic-categories { border-bottom-color:#d9e5ee; }
+/* Category search field: white surface, dark input text for readable contrast. */
+.clara-theme-light .mimic-workspace .mimic-toolbar input,
+.clara-theme-light .mimic-scope select {
+  color:#1c3b52; background:#fff; border-color:#b8cedc;
+}
+.clara-theme-light .mimic-workspace .mimic-toolbar input::placeholder { color:#71889b; }
+.clara-theme-light .mimic-workspace .mimic-toolbar input:focus-visible {
+  outline:2px solid #1e9cce; outline-offset:2px;
+}
+/* Grouped record headings such as '2180-05-07 10:11:00'. */
+.clara-theme-light .mimic-table-scroll { background:#fff; border-color:#cedde8; }
+.clara-theme-light .mimic-table-scroll .mimic-time-heading {
+  color:#153a54;
+  background:#e8f1f7;
+  border-bottom-color:#c6d9e7;
+  font-weight:700;
+}
+.clara-theme-light .mimic-table-scroll th {
+  color:#274c66; background:#f0f5f9; font-weight:650;
+}
+.clara-theme-light .mimic-table-scroll td,
+.clara-theme-light .mimic-table-scroll th { border-bottom-color:#dce7ee; }
+.clara-theme-light .mimic-workspace { color:#234259; }
+.clara-theme-light .mimic-workspace .mimic-vital { background:#fff; border-color:#d5e3ed; }
+.clara-theme-light .mimic-workspace .mimic-vital h3,
+.clara-theme-light .mimic-workspace .mimic-vital :is(small,time),
+.clara-theme-light .mimic-notice { color:#627c8f; }
+.clara-theme-light .mimic-preview { background:#fff; color:#234259; border-color:#ccdee9; }
