@@ -1111,8 +1111,8 @@ svg { flex-shrink: 0; }
 }
 
 
-/* Chat composer: borderless pill on both the welcome screen and in conversations.
-   Preserve button focus rings, with a subtle fill change for text focus. */
+/* Chat composer: borderless pill on welcome and ongoing chats.
+   Keep the same background when focused; preserve button keyboard focus rings. */
 .chat-page .chat-composer,
 .chat-page .chat-composer:focus-within {
   border: 1px solid transparent;
@@ -1126,6 +1126,4 @@ svg { flex-shrink: 0; }
   outline: none;
   box-shadow: none;
 }
-.chat-page .chat-composer:focus-within {
-  background: #292f36;
-}
+
