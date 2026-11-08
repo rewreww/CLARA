@@ -31,6 +31,16 @@ public sealed class AccountController(ClaraDbContext db, IConfiguration config) 
     private static string HashToken(string token) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
     private static string GenerateToken() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).Replace('+', '-').Replace('/', '_').TrimEnd('=');
     private static object Profile(ClaraAccount a) => new { id = a.Id, username = a.Username, displayName = a.DisplayName, role = a.Role, department = a.Department, state = a.State };
+    private static readonly TimeSpan ReenableCooldown = TimeSpan.FromMinutes(1);
+    private async Task<DateTimeOffset?> ReenableAt(Guid id)
+    {
+        var lastDisabled = await db.SecurityEvents.AsNoTracking()
+            .Where(x => x.SubjectId == id && x.Action == "disabled")
+            .OrderByDescending(x => x.CreatedAt)
+            .Select(x => (DateTimeOffset?)x.CreatedAt)
+            .FirstOrDefaultAsync();
+        return lastDisabled?.Add(ReenableCooldown);
+    }
     private static bool ValidPassword(string password) => !string.IsNullOrWhiteSpace(password) && password.Length >= 12 && password.Length <= 256;
     private async Task IssueCookie(ClaraAccount a)
     {
@@ -49,10 +59,15 @@ public sealed class AccountController(ClaraDbContext db, IConfiguration config) 
     public IActionResult Config() => Ok(new { enabled = Enabled });
 
     [HttpGet("me")]
-    [Authorize]
+    [AllowAnonymous]
     public async Task<IActionResult> Me()
     {
         if (!Enabled) return Disabled();
+        // The cookie validator rejects disabled sessions before authorization; preserve
+        // only the disabled status for this response, never an authenticated principal.
+        if (HttpContext.Items.ContainsKey("ClaraAccountDisabled"))
+            return StatusCode(423, new { code = "ACCOUNT_DISABLED", error = "Your CLARA account has been disabled. Please contact your hospital IT administrator for assistance." });
+        if (User.Identity?.IsAuthenticated != true) return Unauthorized();
         var a = await db.Accounts.AsNoTracking().FirstOrDefaultAsync(x => x.Id == UserId && x.State == "active");
         return a is null ? Unauthorized() : Ok(Profile(a));
     }
@@ -65,7 +80,7 @@ public sealed class AccountController(ClaraDbContext db, IConfiguration config) 
         if (!Enabled) return Disabled();
         var username = (value.Username ?? "").Trim().ToLowerInvariant();
         var a = await db.Accounts.FirstOrDefaultAsync(x => x.Username == username);
-        if (a is null || a.State != "active" || a.LockedUntil > DateTimeOffset.UtcNow)
+        if (a is null || a.LockedUntil > DateTimeOffset.UtcNow)
             return Unauthorized(new { error = "Invalid credentials or account unavailable." });
         var checkedPassword = hasher.VerifyHashedPassword(a, a.PasswordHash, value.Password ?? "");
         if (checkedPassword == PasswordVerificationResult.Failed) {
@@ -74,6 +89,9 @@ public sealed class AccountController(ClaraDbContext db, IConfiguration config) 
             await db.SaveChangesAsync();
             return Unauthorized(new { error = "Invalid credentials or account unavailable." });
         }
+        if (a.State == "disabled")
+            return StatusCode(423, new { code = "ACCOUNT_DISABLED", error = "Your CLARA account has been disabled. Please contact your hospital IT administrator for assistance." });
+        if (a.State != "active") return Unauthorized(new { error = "Invalid credentials or account unavailable." });
         if (checkedPassword == PasswordVerificationResult.SuccessRehashNeeded)
             a.PasswordHash = hasher.HashPassword(a, value.Password);
         a.FailedLoginCount = 0; a.LockedUntil = null; a.LastLoginAt = DateTimeOffset.UtcNow;
@@ -150,7 +168,18 @@ public sealed class AccountController(ClaraDbContext db, IConfiguration config) 
     {
         if (!Enabled) return Disabled();
         var users = await db.Accounts.AsNoTracking().OrderBy(x => x.Username).ToListAsync();
-        return Ok(users.Select(Profile));
+        var latestDisables = await db.SecurityEvents.AsNoTracking()
+            .Where(x => x.Action == "disabled" && x.SubjectId != null)
+            .GroupBy(x => x.SubjectId)
+            .Select(g => new { subjectId = g.Key, at = g.Max(x => x.CreatedAt) })
+            .ToListAsync();
+        var times = latestDisables.ToDictionary(x => x.subjectId!.Value, x => x.at);
+        return Ok(users.Select(a => new {
+            id = a.Id, username = a.Username, displayName = a.DisplayName,
+            role = a.Role, department = a.Department, state = a.State,
+            reenableAt = a.State == "disabled" && times.TryGetValue(a.Id, out var at)
+                ? (DateTimeOffset?)at.Add(ReenableCooldown) : null
+        }));
     }
     public record InviteRequest(string Username, string DisplayName, string Department, string Role);
     [HttpPost("users/invite")]
@@ -194,8 +223,10 @@ public sealed class AccountController(ClaraDbContext db, IConfiguration config) 
         if (id == UserId) return BadRequest(new { error = "Cannot disable your own administrator account." });
         var a = await db.Accounts.FindAsync(id);
         if (a is null) return NotFound();
+        if (a.State != "active") return Conflict(new { error = "Only active accounts can be disabled." });
         a.State = "disabled"; a.SessionVersion++;
-        await db.SaveChangesAsync(); await Audit("disabled", id);
+        db.SecurityEvents.Add(new ClaraSecurityEvent { ActorId = UserId, SubjectId = id, Action = "disabled" });
+        await db.SaveChangesAsync();
         return Ok(Profile(a));
     }
     [HttpPost("users/{id:guid}/enable")]
@@ -205,6 +236,14 @@ public sealed class AccountController(ClaraDbContext db, IConfiguration config) 
         if (!Enabled) return Disabled();
         var a = await db.Accounts.FindAsync(id);
         if (a is null || a.State == "pending") return NotFound();
+        if (a.State != "disabled") return Conflict(new { error = "This account is not disabled." });
+        var reenableAt = await ReenableAt(id);
+        if (reenableAt > DateTimeOffset.UtcNow)
+            return StatusCode(409, new {
+                error = "This account cannot be re-enabled until the 60-second security hold has elapsed.",
+                reenableAt,
+                remainingSeconds = (int)Math.Ceiling((reenableAt.Value - DateTimeOffset.UtcNow).TotalSeconds)
+            });
         a.State = "active"; a.SessionVersion++;
         await db.SaveChangesAsync(); await Audit("enabled", id);
         return Ok(Profile(a));
