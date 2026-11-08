@@ -14,6 +14,7 @@ import { usePatients } from './hooks/usePatients'
 import { useConversations } from './hooks/useConversations'
 import { newConversationId } from './lib/conversations'
 import { LABS_URL, LLM_URL } from './constants'
+import './clinical-theme.css'
 
 function PatientChat(props) {
   const { messages, loading, send, stop } = useChat(props.conversationId, props.initialMessages)
@@ -59,6 +60,15 @@ function ClaraWorkspace({ account, onLogout }) {
     try { return localStorage.getItem('clara:appearance') === 'compact' ? 'compact' : 'comfortable' }
     catch { return 'comfortable' }
   })
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('clara:clinical-theme') === 'light' ? 'light' : 'dark' }
+    catch { return 'dark' }
+  })
+  const updateTheme = useCallback(next => {
+    if (next !== 'dark' && next !== 'light') return
+    setTheme(next)
+    try { localStorage.setItem('clara:clinical-theme', next) } catch {}
+  }, [])
   const updateAppearance = useCallback(next => {
     if (!['compact', 'comfortable'].includes(next)) return
     setAppearance(next)
@@ -174,7 +184,7 @@ function ClaraWorkspace({ account, onLogout }) {
   }, [selectedPatient?.id])
 
   return (
-    <div className={`app-shell clara-appearance-${appearance}`}>
+    <div className={`app-shell clara-theme-${theme} clara-appearance-${appearance}`}>
       <WorkspaceSidebar activeApp={activeApp} onChangeApp={navigate}
         selectedPatient={selectedPatient} onSelectPatient={handleSelectPatient}
         patients={patients} loading={patientsLoading} error={patientsError}
@@ -191,6 +201,7 @@ function ClaraWorkspace({ account, onLogout }) {
         <main className="app-views" id="main-content">
           {account && accountSettingsOpen && <AccountSettings account={account}
             section={settingsSection} appearance={appearance} onAppearance={updateAppearance}
+            theme={theme} onTheme={updateTheme}
             onLogout={safeLogout} onBeforePasswordChange={flush} />}
           <section className="view-pane" hidden={activeApp !== 'home' || accountSettingsOpen} aria-label="Home">
             <PatientChat key={conversationId} patient={selectedPatient}
