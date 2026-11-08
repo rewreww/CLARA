@@ -133,5 +133,11 @@ export function useConversations(account = null) {
     setConversations(items => items.filter(item => item.id !== id))
   }, [])
 
-  return { conversations, storageError, save, rename, remove, historyReady }
+  const flush = useCallback(async () => {
+    if (!historyReady || saving.current) return changedIds.current.size === 0
+    await persist()
+    return changedIds.current.size === 0
+  }, [historyReady, persist])
+
+  return { conversations, storageError, save, rename, remove, historyReady, flush }
 }
