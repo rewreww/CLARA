@@ -2,24 +2,29 @@ import requests
 import os
 import time
 import re
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 DATA_SERVICE_URL = os.getenv("DATA_SERVICE_URL", "http://localhost:5000/api/patientdata").rstrip("/")
 
-def _patient_headers():
-    """Ephemeral local-only server identity. Never sent to external LLM APIs."""
+def _patient_headers(url):
+    """Use the per-start service credential only for a loopback backend URL."""
     key = os.getenv("CLARA_INTERNAL_KEY", "")
-    return {"X-Clara-Internal-Key": key} if key else {}
+    if not key:
+        return {}
+    target = urlsplit(url)
+    if target.scheme != "http" or target.hostname not in ("localhost", "127.0.0.1", "::1"):
+        raise ValueError("Internal patient credential cannot be sent to a nonlocal endpoint.")
+    return {"X-Clara-Internal-Key": key}
 
 def patient_service_get(url, **kwargs):
     if not url.startswith(DATA_SERVICE_URL + "/"):
         raise ValueError("Unexpected patient service destination.")
-    return requests.get(url, headers=_patient_headers(), **kwargs)
+    return requests.get(url, headers=_patient_headers(url), **kwargs)
 
 def patient_service_post(url, **kwargs):
     if not url.startswith(DATA_SERVICE_URL + "/"):
         raise ValueError("Unexpected patient service destination.")
-    return requests.post(url, headers=_patient_headers(), **kwargs)
+    return requests.post(url, headers=_patient_headers(url), **kwargs)
 PATIENT_DATA_CACHE_SECONDS = max(0, int(os.getenv("PATIENT_DATA_CACHE_SECONDS", "5")))
 
 ALL_LAB_TOOL_NAMES = ("get_chemistry", "get_hematology", "get_microscopy")
