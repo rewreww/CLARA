@@ -970,7 +970,7 @@ svg { flex-shrink: 0; }
 }
 .chat-page.is-new-chat .composer-disclaimer {
   max-width: 660px;
-  margin: 0 auto 16px;
+  margin: 12px auto 0;
   text-align: center;
   line-height: 1.55;
 }
@@ -1016,7 +1016,7 @@ svg { flex-shrink: 0; }
 }
 @media (max-width: 760px) {
   .chat-page.is-new-chat .chat-welcome h1 { margin-bottom: 20px; }
-  .chat-page.is-new-chat .composer-disclaimer { margin-bottom: 12px; }
+  .chat-page.is-new-chat .composer-disclaimer { margin: 10px auto 0; }
   .chat-page .chat-composer {
     min-height: 56px;
     padding: 6px 9px;
