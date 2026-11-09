@@ -564,6 +564,31 @@ svg { flex-shrink: 0; }
 .mimic-table-scroll td, .mimic-table-scroll th { padding: 12px 14px; border-bottom: 1px solid #333c45; min-width: 100px; max-width: 280px; }
 .mimic-table-scroll td { white-space: pre-line; }
 .mimic-table-scroll td:last-child button { white-space: nowrap; border: 0; color: #38bdf4; }
+/* Contextual reference-range warnings; never infer normality from missing flags. */
+.mimic-ref-warning {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  margin-left: 6px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #facc15;
+  color: #422006;
+  font: 800 11px/1 system-ui, sans-serif;
+  vertical-align: middle;
+  box-shadow: 0 0 0 1px rgba(250, 204, 21, .18);
+}
+.mimic-categories button .mimic-ref-warning { margin-left: 7px; }
+.mimic-ref-row { background: rgba(250, 204, 21, .035); }
+.mimic-table-scroll td.mimic-ref-cell {
+  color: #fde68a;
+  background: rgba(250, 204, 21, .09);
+  font-weight: 650;
+}
+.mimic-ref-cell .mimic-ref-warning { margin-left: 8px; }
+
 .mimic-workspace button:focus-visible { outline: 2px solid #38bdf4; outline-offset: 3px; }
 @media (max-width: 1200px) { .mimic-vitals { grid-template-columns: repeat(3,minmax(0,1fr)); } }
 .mimic-trend { min-width: 0; }
