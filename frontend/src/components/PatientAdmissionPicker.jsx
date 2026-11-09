@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { CalendarDays, ChevronRight, Search, UserRound, X } from 'lucide-react'
 import { LABS_URL } from '../constants'
 import { admissionDates } from '../lib/mimicOverview'
+import { demoDateText } from '../lib/mimicDemoDates'
 import { currentAdmissionSummary } from '../lib/patientAdmissionState'
 
 export default function PatientAdmissionPicker({
@@ -173,7 +174,7 @@ export default function PatientAdmissionPicker({
                   className={`patient-admission-date-row ${selectedPatient?.id === focusedPatient.id && selectedAdmission === item.id ? 'is-selected' : ''}`}
                   onClick={() => choose(focusedPatient, item.id)}>
                   <CalendarDays size={18} aria-hidden="true" />
-                  <span><strong>{item.date || (item.id === 'unlinked' ? 'Unlinked records' : 'Date unavailable')}</strong>
+                  <span><strong>{demoDateText(item.date, currentSummary?.demo_date_offset_days) || (item.id === 'unlinked' ? 'Unlinked records' : 'Date unavailable')}</strong>
                     <small>{item.id === 'unlinked' ? 'Records without admission ID' : `Admission ${item.id}`}</small></span>
                   <ChevronRight size={16} aria-hidden="true" />
                 </button>
