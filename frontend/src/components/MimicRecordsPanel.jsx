@@ -3,6 +3,7 @@ import MimicOverview from './MimicOverview'
 import { admissionDates, admissionDemographics, dateParts } from '../lib/mimicOverview'
 import { LABS_URL } from '../constants'
 import { demoDateText } from '../lib/mimicDemoDates'
+import { recordTableLabel } from '../lib/mimicTableLabels'
 import PdfPreview from './PdfPreview'
 
 export const MIMIC_CATEGORIES = {
@@ -181,7 +182,7 @@ export default function MimicRecordsPanel({ patient, admission, activeSection, o
         </form>}
       </div>
       {error ? <p role="alert">{error}</p> : !data || data.requestKey !== requestKey ? <p role="status">Loading…</p> : <>
-        {mode === 'records' ? <RecordTables rows={data.rows} onOpen={open} offsetDays={offsetDays} groupByTime={category === 'chemistry'} /> : <ul className="mimic-documents">{data.documents.map((doc, index) => <li key={`${doc.source || 'document'}-${index}`}><button disabled={!doc.source} onClick={() => open(doc.source)}>{doc.source || 'Unnamed PDF'}</button><span>{doc.pages ?? 'Unknown'} pages</span></li>)}</ul>}
+        {mode === 'records' ? <RecordTables rows={data.rows} category={category} onOpen={open} offsetDays={offsetDays} groupByTime={category === 'chemistry'} /> : <ul className="mimic-documents">{data.documents.map((doc, index) => <li key={`${doc.source || 'document'}-${index}`}><button disabled={!doc.source} onClick={() => open(doc.source)}>{doc.source || 'Unnamed PDF'}</button><span>{doc.pages ?? 'Unknown'} pages</span></li>)}</ul>}
         {data.total === 0 && <p>No extracted {mode === 'records' ? 'rows' : 'PDFs'} in this category and admission.</p>}
         <div className="mimic-toolbar"><button disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Previous</button>
           <span>{data.page} / {Math.max(1, Math.ceil(data.total / 50))}</span>
@@ -193,26 +194,30 @@ export default function MimicRecordsPanel({ patient, admission, activeSection, o
   </div>
 }
 
-function RecordTables({ rows, onOpen, offsetDays, groupByTime = false }) {
+function RecordTables({ rows, category, onOpen, offsetDays, groupByTime = false }) {
   const groups = new Map()
   for (const row of rows) {
     const cells = JSON.parse(row.cells)
     // Keep unknown timestamps separate by document instead of implying that
     // undated results were recorded together.
-    const id = JSON.stringify([groupByTime ? row.observed_at || row.source : null, Object.keys(cells)])
+    const id = JSON.stringify([row.source, row.record_type, groupByTime ? row.observed_at || null : null, Object.keys(cells)])
     if (!groups.has(id)) groups.set(id, { headers: Object.keys(cells), rows: [],
       timestamp: row.observed_at,
       hasDate: groupByTime || Object.keys(cells).some(h => /date|time/i.test(h)) })
     groups.get(id).rows.push({ ...row, cells })
   }
-  return <div className="mimic-tables">{[...groups.entries()].map(([key, group]) => <div key={key} className="mimic-table-scroll" tabIndex={0} aria-label="Patient results">
+  return <div className="mimic-tables">{[...groups.entries()].map(([key, group]) => <section key={key} className="mimic-table-group" aria-label={recordTableLabel(group.rows, category)}>
+    <div className="mimic-table-heading"><h3>{recordTableLabel(group.rows, category)}</h3>
+      {groupByTime && <time>{group.timestamp ? demoDateText(group.timestamp, offsetDays).replace('T', ' ') : 'Time not recorded'}</time>}
+    </div>
+    <div className="mimic-table-scroll" tabIndex={0} aria-label={`${recordTableLabel(group.rows, category)} table`}>
     <table>
-      {groupByTime && <caption className="mimic-time-heading">{group.timestamp ? <time dateTime={demoDateText(group.timestamp, offsetDays)}>{demoDateText(group.timestamp, offsetDays).replace('T', ' ')}</time> : 'Time not recorded'}</caption>}
       <thead><tr>{!group.hasDate && <th>Date</th>}{group.headers.map(header => <th key={header}>{header.replaceAll('\n', ' ')}</th>)}<th>Source</th></tr></thead>
       <tbody>{group.rows.map(row => <tr key={row.id}>
         {!group.hasDate && <td>{demoDateText(row.observed_at, offsetDays)?.replace('T', ' ') || '—'}</td>}
         {group.headers.map(header => <td key={header}>{demoDateText(row.cells[header], offsetDays) || '—'}</td>)}
         <td><button onClick={() => onOpen(row.source, row.page)} aria-label={`Open source PDF, page ${row.page}`}>PDF ↗</button></td>
       </tr>)}</tbody></table>
-  </div>)}</div>
+    </div>
+  </section>)}</div>
 }
