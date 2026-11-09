@@ -57,3 +57,9 @@ backend/appsettings.Development.local.json
 
 # Local launcher process state and logs (may contain patient data)
 .clara/
+
+# RAGAS local captures, evaluator scores and summaries (may contain clinical guideline text)
+tools/ragas/*.jsonl
+tools/ragas/*.csv
+tools/ragas/*.json
+tools/ragas/*.sqlite
