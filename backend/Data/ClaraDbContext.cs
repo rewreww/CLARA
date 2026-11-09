@@ -4,6 +4,10 @@ namespace CLARA.Backend.Data;
 
 public sealed class ClaraDbContext(DbContextOptions<ClaraDbContext> options) : DbContext(options)
 {
+    public DbSet<ClaraAccount> Accounts => Set<ClaraAccount>();
+    public DbSet<ClaraAccountToken> AccountTokens => Set<ClaraAccountToken>();
+    public DbSet<ClaraConversation> Conversations => Set<ClaraConversation>();
+    public DbSet<ClaraSecurityEvent> SecurityEvents => Set<ClaraSecurityEvent>();
     public DbSet<PatientRecord> Patients => Set<PatientRecord>();
     public DbSet<MimicDocumentInfo> MimicDocuments => Set<MimicDocumentInfo>();
     public DbSet<MimicPdfRow> MimicRows => Set<MimicPdfRow>();
@@ -15,6 +19,7 @@ public sealed class ClaraDbContext(DbContextOptions<ClaraDbContext> options) : D
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.ConfigureAccounts();
         modelBuilder.Entity<MimicDocumentInfo>(entity =>
         {
             entity.ToTable("mimic_documents");

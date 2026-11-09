@@ -1,28 +1,28 @@
 import { useState } from 'react'
-import { Check, MessageSquare, Pencil, Search, SquarePen, Trash2, X } from 'lucide-react'
+import { Check, ChevronDown, Pencil, Trash2, X } from 'lucide-react'
 
-export default function ConversationHistory({ conversations, activeId, onOpen, onNew, onRename, onDelete, error }) {
-  const [query, setQuery] = useState('')
+export default function ConversationHistory({ conversations, activeId, onOpen, onRename, onDelete, error }) {
+  const [expanded, setExpanded] = useState(true)
   const [editing, setEditing] = useState(null)
   const [title, setTitle] = useState('')
   const [deleting, setDeleting] = useState(null)
-  const filtered = conversations.filter(item => `${item.title} ${item.patientId} ${item.messages.map(message => message.text).join(' ')}`.toLowerCase().includes(query.toLowerCase()))
-  return <div className="history-section">
-    <div className="history-heading"><span>Recent</span><button className="icon-button" title="New conversation" aria-label="New conversation" onClick={onNew}><SquarePen size={16} /></button></div>
-    <div className="patient-search"><Search size={15} /><input aria-label="Search conversations" placeholder="Search conversations" value={query} onChange={event => setQuery(event.target.value)} />
-      {query && <button className="icon-button" aria-label="Clear conversation search" onClick={() => setQuery('')}><X size={13} /></button>}</div>
-    <span className="history-storage">Saved in this browser</span>
+  return <div className={`history-section ${expanded ? "is-expanded" : "is-collapsed"}`}>
+    <button type="button" className="history-heading" onClick={() => setExpanded(open => !open)}
+      aria-expanded={expanded} aria-controls="clara-recent-conversations">
+      <span>Recents</span>
+      <ChevronDown className={`recent-chevron ${expanded ? 'is-open' : ''}`} size={16} aria-hidden="true" />
+    </button>
     {error && <p className="sidebar-notice error-text" role="alert">{error}</p>}
-    <div className="history-list">
-      {!filtered.length && <p className="sidebar-notice">{query ? 'No matching conversations' : 'No conversations yet'}</p>}
-      {filtered.map(item => <div className={`history-item ${item.id === activeId ? 'is-active' : ''}`} key={item.id}>
+    {expanded && <div className="history-list" id="clara-recent-conversations">
+      {!conversations.length && <p className="sidebar-notice">No conversations yet</p>}
+      {conversations.map(item => <div className={`history-item ${item.id === activeId ? 'is-active' : ''}`} key={item.id}>
         {editing === item.id ? <form className="history-edit" onSubmit={event => { event.preventDefault(); onRename(item.id, title); setEditing(null) }}>
           <input aria-label="Conversation title" value={title} maxLength={100} onChange={event => setTitle(event.target.value)} autoFocus onKeyDown={event => { if (event.key === 'Escape') setEditing(null) }} />
           <button className="icon-button" aria-label="Save title" title="Save title" disabled={!title.trim()}><Check size={14} /></button>
           <button className="icon-button" type="button" aria-label="Cancel rename" onClick={() => setEditing(null)}><X size={14} /></button>
         </form> : <>
           <button className="history-open" onClick={() => onOpen(item)} aria-current={item.id === activeId ? 'page' : undefined} title={item.title}>
-            <MessageSquare size={14} /><span><strong>{item.title}</strong><small>{item.patientId ? `Patient ${item.patientId}` : 'General chat'} <span>/ {new Date(item.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span></small></span>
+            <span><strong>{item.title}</strong></span>
           </button>
           <div className="history-item-actions">
             <button className="icon-button" title="Rename conversation" aria-label={`Rename ${item.title}`} onClick={() => { setEditing(item.id); setTitle(item.title) }}><Pencil size={13} /></button>
@@ -31,6 +31,6 @@ export default function ConversationHistory({ conversations, activeId, onOpen, o
         </>}
         {deleting === item.id && <div className="history-confirm" role="group" aria-label="Confirm deletion"><span>Delete this conversation?</span><button onClick={() => { onDelete(item.id); setDeleting(null) }}>Delete</button><button onClick={() => setDeleting(null)}>Cancel</button></div>}
       </div>)}
-    </div>
+    </div>}
   </div>
 }

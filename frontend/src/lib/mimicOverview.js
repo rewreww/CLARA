@@ -33,3 +33,48 @@ export function vitalSeries(values = []) {
   ]
   return series.map(series => ({ ...series, points: series.points.sort((a, b) => a.at.localeCompare(b.at)) }))
 }
+
+
+/**
+ * Only read demographic cells from overview PDFs belonging to this admission.
+ * Never infer values from admission IDs, shifted dates, or another admission.
+ * Disagreeing overview PDFs leave the corresponding field unavailable.
+ */
+export function admissionDemographics(summary, patientId, admissionId) {
+  if (!patientId || !admissionId || summary?.patient !== patientId) return null
+  const overview = (summary.overview || []).filter(row =>
+    row.admission === (admissionId === 'unlinked' ? null : admissionId))
+  const definitions = [
+    { label: 'Age (reference year)', keys: ['anchorage', 'ageatreferenceyear', 'ageinreferenceyear', 'patientage', 'age'] },
+    { label: 'Sex', keys: ['sex', 'gender', 'patientsex', 'patientgender'] },
+    { label: 'Race / ethnicity', keys: ['race', 'ethnicity', 'raceethnicity', 'patientrace'] },
+    { label: 'Insurance', keys: ['insurance', 'insurancetype', 'insuranceprovider'] },
+    { label: 'Marital status', keys: ['maritalstatus'] },
+    { label: 'Language', keys: ['language', 'preferredlanguage'] },
+  ]
+  const data = new Map()
+  for (const row of overview) {
+    let metadata
+    try { metadata = typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata }
+    catch { continue }
+    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) continue
+    const normalized = new Map(Object.entries(metadata).filter(([, value]) => typeof value === 'string')
+      .map(([name, value]) => [key(name), value.trim()]))
+    for (const definition of definitions) {
+      const value = definition.keys.map(name => normalized.get(name))
+        .find(value => value && !/^(?:unknown|not recorded|n\/a|na|null|none|-)$/i.test(value))
+      if (!value) continue
+      const values = data.get(definition.label) || new Set()
+      values.add(value)
+      data.set(definition.label, values)
+    }
+  }
+  return {
+    admission: admissionId,
+    fields: definitions.map(({ label }) => ({
+      label,
+      value: data.get(label)?.size === 1 ? [...data.get(label)][0] : null,
+    })),
+    sources: overview.map(row => row.source).filter(Boolean),
+  }
+}

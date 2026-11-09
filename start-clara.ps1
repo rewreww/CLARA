@@ -3,6 +3,7 @@ param(
     [switch]$NoBrowser,
     [switch]$LegacyParser,
     [switch]$WithOllama,
+    [switch]$WithAccounts,
     [switch]$Check,
     [ValidateRange(15, 900)][int]$TimeoutSeconds = 180
 )
@@ -15,6 +16,7 @@ $launcherArguments = @((Join-Path $PSScriptRoot 'scripts\clara_launcher.py'), 's
 if ($NoBrowser) { $launcherArguments += '--no-browser' }
 if ($LegacyParser) { $launcherArguments += '--legacy-parser' }
 if ($WithOllama) { $launcherArguments += '--with-ollama' }
+if ($WithAccounts) { $launcherArguments += '--with-accounts' }
 if ($Check) { $launcherArguments += '--check' }
 & $pythonPath @launcherArguments
 exit $LASTEXITCODE

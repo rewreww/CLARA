@@ -22,6 +22,47 @@ namespace CLARA.Backend.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            // Stable account schema snapshot. Kept independent of runtime model configuration
+            // so future EF migrations correctly detect account table changes.
+            modelBuilder.Entity<ClaraAccount>(b =>
+            {
+                b.ToTable("clara_accounts");
+                b.HasKey(x => x.Id);
+                b.Property(x => x.Username).HasMaxLength(120);
+                b.HasIndex(x => x.Username).IsUnique();
+                b.Property(x => x.Role).HasMaxLength(30);
+                b.Property(x => x.State).HasMaxLength(20);
+                b.Property(x => x.PasswordHash).HasMaxLength(1024);
+            });
+            modelBuilder.Entity<ClaraAccountToken>(b =>
+            {
+                b.ToTable("clara_account_tokens");
+                b.HasKey(x => x.Id);
+                b.Property(x => x.TokenHash).HasMaxLength(64);
+                b.HasIndex(x => x.TokenHash).IsUnique();
+                b.HasOne(x => x.Account).WithMany().HasForeignKey(x => x.AccountId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+            modelBuilder.Entity<ClaraConversation>(b =>
+            {
+                b.ToTable("clara_conversations");
+                b.HasKey(x => new { x.AccountId, x.Id });
+                b.Property(x => x.Id).HasMaxLength(200);
+                b.Property(x => x.Title).HasMaxLength(120);
+                b.Property(x => x.Payload).HasColumnType("jsonb");
+                b.HasIndex(x => new { x.AccountId, x.UpdatedAt });
+                b.HasOne(x => x.Account).WithMany().HasForeignKey(x => x.AccountId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+            modelBuilder.Entity<ClaraSecurityEvent>(b =>
+            {
+                b.ToTable("clara_security_events");
+                b.HasKey(x => x.Id);
+                b.Property(x => x.Action).HasMaxLength(100);
+                b.HasIndex(x => x.CreatedAt);
+            });
+
+
             modelBuilder.Entity("CLARA.Backend.Data.DiagnosisRecord", b =>
                 {
                     b.Property<Guid>("Id")

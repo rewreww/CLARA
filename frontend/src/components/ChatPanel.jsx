@@ -1,9 +1,10 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
-import { Activity, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, FileText, ShieldCheck, Square, SquarePen, UserRound } from 'lucide-react'
+import { Activity, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, FileText, ShieldCheck, Square, Search, ClipboardList, UserRoundPlus } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import ActivityTimeline from './ActivityTimeline'
 import EvidencePanel from './EvidencePanel'
 import { sourceKey } from '../lib/conversations'
+import PatientAdmissionPicker from './PatientAdmissionPicker'
 
 function Message({ msg, onSource, onActivity }) {
   const [copied, setCopied] = useState(false)
@@ -23,7 +24,6 @@ function Message({ msg, onSource, onActivity }) {
 
   return (
     <article className={`chat-message ${isDoctor ? 'from-doctor' : 'from-clara'}`} aria-label={isDoctor ? 'Your message' : 'CLARA response'}>
-      {!isDoctor && <span className="message-avatar"><Activity size={18} /></span>}
       <div className="message-content">
         {!isDoctor && <div className="message-author">CLARA</div>}
         {!isDoctor && (msg.streaming || msg.actions?.length > 0 || msg.error || msg.interrupted) && <ActivityTimeline message={msg} />}
@@ -58,9 +58,22 @@ function Message({ msg, onSource, onActivity }) {
   )
 }
 
-export default function ChatPanel({ patient, patients, patientsLoading, patientsError, onSelectPatient,
-  activeSection, isActive, messages, loading, onSend, onClear, onStop, onOpenRecord }) {
+export default function ChatPanel({ patient, admission, patients, patientsLoading, patientsError, onSelectPatientContext,
+  activeSection, isActive, messages, loading, onSend, onStop, onOpenRecord }) {
   const [input, setInput] = useState('')
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const closePicker = useCallback(() => setPickerOpen(false), [])
+  const useQuickPrompt = prompt => {
+    // Populate, but never send: doctors review/edit the question first.
+    setInput(prompt)
+    taRef.current?.focus()
+  }
+  const promptGuideline = () => useQuickPrompt(
+    'According to the available clinical guidelines, what are the recommendations for [condition or clinical question]? Summarize the key guidance and cite the supporting guideline and page.'
+  )
+  const promptPatientData = () => useQuickPrompt(
+    'Review the selected patient\'s available records for the selected admission. Summarize the key clinical findings, latest vital signs, abnormal laboratory results, and important trends. Cite the patient record sources and clearly identify any missing information. Do not assume unavailable data.'
+  )
   const scrollRef = useRef(null)
   const taRef = useRef(null)
   const followResponse = useRef(true)
@@ -71,6 +84,7 @@ export default function ChatPanel({ patient, patients, patientsLoading, patients
   const [evidenceIndex, setEvidenceIndex] = useState(null)
   const evidenceMessage = evidenceIndex == null ? latestResponse : messages[evidenceIndex]
   const evidenceSources = evidenceMessage?.sources || []
+  const activePdfSource = selectedSource && evidenceSources.find(source => sourceKey(source) === sourceKey(selectedSource))
   const closeEvidence = useCallback(() => setEvidenceOpen(false), [])
   useEffect(() => {
     if (evidenceIndex != null) return
@@ -91,7 +105,7 @@ export default function ChatPanel({ patient, patients, patientsLoading, patients
     if (!taRef.current) return
     taRef.current.style.height = 'auto'
     taRef.current.style.height = Math.min(taRef.current.scrollHeight, 180) + 'px'
-  }, [input, isActive])
+  }, [input, isActive, hasConversation])
 
   const handleSend = event => {
     event?.preventDefault()
@@ -103,61 +117,58 @@ export default function ChatPanel({ patient, patients, patientsLoading, patients
     setInput('')
   }
 
-  const newChat = () => {
-    onClear()
-    setInput('')
-    followResponse.current = true
-    taRef.current?.focus()
-  }
 
-  const patientPicker = placement => (
-          <div className={`patient-picker patient-picker-${placement}`}>
-            <UserRound size={15} />
-            <label className="sr-only" htmlFor={`chat-patient-${placement}`}>Patient for this conversation</label>
-            <select id={`chat-patient-${placement}`} value={patient?.id || ''} disabled={patientsLoading || !!patientsError}
-              onChange={event => onSelectPatient(patients.find(item => item.id === event.target.value) || null)}>
-              <option value="">{patientsLoading ? 'Loading patients...' : 'No patient — General chat'}</option>
-              {patients.map(item => <option key={item.id} value={item.id}>{item.name} / {item.id}</option>)}
-            </select>
-            <ChevronDown size={13} />
-          </div>
-  )
+  const picker = pickerOpen ? <PatientAdmissionPicker
+    patients={patients} patientsLoading={patientsLoading} patientsError={patientsError}
+    selectedPatient={patient} selectedAdmission={admission}
+    onSelect={onSelectPatientContext} onClose={closePicker} /> : null
 
   const composer = (
-    <div className="composer-area">
-      <p id="composer-disclaimer" className="composer-disclaimer">CLARA provides information only and makes mistakes. It does not replace a physician’s clinical judgment.</p>
+    <div className={`composer-area ${pickerOpen ? 'picker-is-open' : ''} ${hasConversation ? 'picker-above' : 'picker-below'}`}>
+      {hasConversation && picker}
       <form className="chat-composer" onSubmit={handleSend}>
         <textarea ref={taRef} value={input} onChange={event => setInput(event.target.value)}
-          aria-describedby="composer-disclaimer"
+          aria-describedby={hasConversation ? "composer-disclaimer" : undefined}
           onKeyDown={event => {
             if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) handleSend(event)
           }}
-          placeholder={patient ? 'Ask about this patient...' : 'Ask CLARA...'} aria-label="Message CLARA" rows={2} />
+          placeholder={patient ? 'Ask about this patient...' : 'Ask CLARA...'} aria-label="Message CLARA" rows={1} />
         <div className="composer-controls">
+          <button className="composer-patient-button" type="button" onClick={() => setPickerOpen(true)}
+            title={patient ? 'Change patient or admission' : 'Select a patient'}
+            aria-label={patient ? 'Change patient or admission' : 'Select a patient'}
+            aria-haspopup="dialog" aria-expanded={pickerOpen}>
+            <UserRoundPlus size={19} aria-hidden="true" />
+            {patient && <span className="composer-patient-button-label">{patient.id}{admission ? ` · ${admission}` : ''}</span>}
+          </button>
           {loading ? <button className="send-button stop-button" type="button" onClick={onStop} aria-label="Stop response" title="Stop response"><Square size={16} fill="currentColor" /></button>
             : <button className="send-button" type="submit" disabled={!input.trim()}
                 aria-label="Send message" title="Send message"><ArrowUp size={20} /></button>}
         </div>
       </form>
-      <div className="patient-selection">
-        <label htmlFor="chat-patient-selection">Patient</label>
-        {patientPicker('selection')}
-      </div>
+      {hasConversation && <p id="composer-disclaimer" className="composer-disclaimer">CLARA provides information only and makes mistakes. It does not replace a physician’s clinical judgment.</p>}
       {patient && <div className="composer-context">
-        <span>Record {patient.id}<span className="context-separator">/</span>{activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}</span>
+        <span>Record {patient.id}<span className="context-separator">/</span>{admission ? `Admission ${admission}` : activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}</span>
         <button onClick={onOpenRecord}>View record<ArrowUpRight size={13} /></button>
       </div>}
       {patientsError && <p className="composer-error" role="alert">Patient records are currently unavailable.</p>}
+      {!hasConversation && picker}
     </div>
   )
 
   return (
-    <div className="chat-workspace evidence-is-open">
+    <div className={`chat-workspace evidence-is-open ${hasConversation ? "workspace-has-conversation" : "workspace-is-new-chat"}`}>
     <div className={`chat-page ${hasConversation ? 'has-conversation' : 'is-new-chat'}`}>
-      <div className="chat-page-toolbar">
-        <span className="chat-context-label">{patient ? `Patient ${patient.id}` : 'General chat · No patient selected'}</span>
-        <div className="chat-toolbar-actions"><button className="text-button" onClick={newChat} title="New chat"><SquarePen size={16} />New chat</button>
-          <button className="source-preview-tile" aria-label="Open source preview" aria-expanded={evidenceOpen} onClick={() => setEvidenceOpen(true)} title="Source preview"><FileText size={18} /><span>Sources<small>{evidenceSources.length} document{evidenceSources.length === 1 ? '' : 's'}</small></span><ArrowUpRight size={14} /></button></div>
+      <div className="chat-page-toolbar chat-page-toolbar-minimal">
+        <button className="source-preview-tile" aria-label="Open source preview"
+          aria-expanded={evidenceOpen} onClick={() => {
+            if (evidenceSources.length && !activePdfSource) setSelectedSource(evidenceSources[0])
+            setEvidenceTab('sources')
+            setEvidenceOpen(true)
+          }}
+          title="Source preview"><FileText size={18} /><span>Sources
+            <small>{evidenceSources.length} document{evidenceSources.length === 1 ? '' : 's'}</small>
+          </span><ArrowUpRight size={14} /></button>
       </div>
       {hasConversation ? (
         <>
@@ -176,14 +187,34 @@ export default function ChatPanel({ patient, patients, patientsLoading, patients
       ) : (
         <div className="chat-welcome-scroll">
           <div className="chat-welcome">
-            <div className="welcome-brand"><Activity size={30} strokeWidth={1.8} /><span>CLARA</span></div>
+            <img className="clara-welcome-logo" src="/clara-mark.svg" alt="CLARA logo" width="108" height="90" />
             <h1>How can I help, Doctor?</h1>
             {composer}
+            <div className="clara-quick-actions" aria-label="Quick actions">
+              <button type="button" className="clara-quick-action" onClick={promptGuideline}
+                aria-label="Insert guideline search prompt">
+                <span className="clara-quick-action-icon"><Search size={19} aria-hidden="true" /></span>
+                <span className="clara-quick-action-copy">
+                  <strong>Search Guideline</strong>
+                  <small>Ask a clinical question using the ingested guidelines.</small>
+                </span>
+                <ArrowUpRight size={17} className="clara-quick-action-arrow" aria-hidden="true" />
+              </button>
+              <button type="button" className="clara-quick-action" onClick={promptPatientData}
+                aria-label="Insert patient data review prompt">
+                <span className="clara-quick-action-icon"><ClipboardList size={19} aria-hidden="true" /></span>
+                <span className="clara-quick-action-copy">
+                  <strong>Check Patient Data</strong>
+                  <small>Prepare a summary of findings, vitals, labs, and trends.</small>
+                </span>
+                <ArrowUpRight size={17} className="clara-quick-action-arrow" aria-hidden="true" />
+              </button>
+            </div>
           </div>
         </div>
       )}
     </div>
-    {isActive && <EvidencePanel mobileOpen={evidenceOpen} sources={evidenceSources} selectedSource={selectedSource} onSelectSource={setSelectedSource}
+    {isActive && <EvidencePanel mobileOpen={evidenceOpen} sources={evidenceSources} selectedSource={activePdfSource || null} onSelectSource={setSelectedSource}
       onClose={closeEvidence} patientId={patient?.id} message={evidenceMessage} tab={evidenceTab} onTab={setEvidenceTab} />}
     </div>
   )

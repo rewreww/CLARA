@@ -3,12 +3,13 @@ using System.Text.RegularExpressions;
 using CLARA.Backend.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.VisualBasic.FileIO;
 
 namespace CLARA.Backend.Controllers;
 
 [ApiController]
 [Route("api/patientdata/{patientId}/mimic")]
-public sealed class MimicRecordsController(ClaraDbContext db) : ControllerBase
+public sealed class MimicRecordsController(ClaraDbContext db, IConfiguration configuration) : ControllerBase
 {
     private static bool ValidPatient(string patientId) => Regex.IsMatch(patientId, @"^Patient_\d{8}$");
     private static bool ValidAdmission(string? admission) => admission == "unlinked" || Regex.IsMatch(admission ?? "", @"^\d{8}$");
@@ -27,10 +28,51 @@ public sealed class MimicRecordsController(ClaraDbContext db) : ControllerBase
         var admissions = await docs.GroupBy(x => x.AdmissionId).Select(g => new { id = g.Key ?? "unlinked", documents = g.Count() }).OrderBy(x => x.id).ToListAsync(token);
         var overview = await docs.Where(x => x.Category == "overview").OrderBy(x => x.AdmissionId)
             .Select(x => new { admission = x.AdmissionId, source = x.Document.RelativePath, metadata = x.MetadataJson }).ToListAsync(token);
+        MimicDemographicsCsv.Timeline? timeline = null;
+        try { timeline = MimicDemographicsCsv.ReadTimeline(configuration, patientId); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or MalformedLineException) { }
         return Ok(new { patient = patientId, admissions, overview,
+            demo_date_offset_days = timeline?.OffsetDays,
+            demo_year_group = timeline?.YearGroup,
             rows = await db.MimicRows.CountAsync(x => x.PatientId == patientId && x.Document.ExtractionStatus == "completed", token),
             failed_documents = await db.PatientDocuments.CountAsync(x => x.PatientId == patientId && x.ExtractionStatus == "failed", token),
             notice = "Historical MIMIC-IV Demo 2.2. Dates are shifted. No physician-written discharge summaries. Clinical alerts and ML predictions have not been validated for this dataset." });
+    }
+
+    [HttpGet("demographics")]
+    public async Task<IActionResult> Demographics(string patientId, string admission, CancellationToken token)
+    {
+        if (!ValidPatient(patientId) || !Regex.IsMatch(admission ?? "", @"^\d{8}$"))
+            return BadRequest(new { error = "Select a valid MIMIC admission." });
+        // A CSV entry alone cannot authorize access to an unimported patient/admission.
+        if (!await db.MimicDocuments.AsNoTracking().AnyAsync(x =>
+                x.Document.PatientId == patientId && x.AdmissionId == admission
+                && x.Document.ExtractionStatus == "completed", token))
+            return NotFound(new { error = "This patient/admission has no imported records." });
+        try
+        {
+            return Ok(MimicDemographicsCsv.Read(configuration, patientId, admission));
+        }
+        catch (FileNotFoundException)
+        {
+            return NotFound(new { error = "Matching local CSV demographics are unavailable." });
+        }
+        catch (InvalidDataException)
+        {
+            return StatusCode(422, new { error = "The local CSV demographics failed validation." });
+        }
+        catch (MalformedLineException)
+        {
+            return StatusCode(422, new { error = "The local CSV format is malformed." });
+        }
+        catch (IOException)
+        {
+            return StatusCode(422, new { error = "The local CSV demographics could not be verified." });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return StatusCode(422, new { error = "The CSV demographics are inaccessible." });
+        }
     }
 
     [HttpGet("vitals")]
@@ -105,14 +147,57 @@ public sealed class MimicRecordsController(ClaraDbContext db) : ControllerBase
             $"Matched {matched} of {total} scoped PDF rows; showing at most 40. This is a subset, not the full record.",
             "Dates are shifted. Orders are not proof of administration. Missing values are unknown, not normal.",
             "No physician-written discharge summaries exist. No validated automated clinical alerts or ML assessment is available." };
+        // Supplement the admission-scoped PDF subset with verified LOCAL CSV demographics.
+        // Missing or invalid CSV exports must never be interpreted as negative findings.
+        var demographicsAvailable = false;
+        if (admission != "unlinked")
+        {
+            try
+            {
+                var demographicsJson = JsonSerializer.Serialize(MimicDemographicsCsv.Read(configuration, patientId, admission));
+                using var demographics = JsonDocument.Parse(demographicsJson);
+                lines.Add("[VERIFIED MIMIC-IV CSV DEMOGRAPHICS — SELECTED PATIENT AND ADMISSION]");
+                lines.Add("Source: local patient-specific Source_CSV/hosp_patients.csv and Source_CSV/hosp_admissions.csv; verified subject_id and hadm_id.");
+                lines.Add("Age is anchor_age in the dataset reference year, NOT age today or necessarily age at this admission.");
+                foreach (var field in demographics.RootElement.GetProperty("fields").EnumerateArray())
+                {
+                    var label = field.GetProperty("label").GetString();
+                    var value = field.GetProperty("value");
+                    var text = value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+                    lines.Add($"{label}: {(string.IsNullOrWhiteSpace(text) ? "Not recorded" : text)}");
+                }
+                demographicsAvailable = true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or MalformedLineException)
+            {
+                lines.Add("CSV demographics are unavailable or could not be verified for this admission. Do not infer missing demographic fields.");
+            }
+        }
+        else
+        {
+            lines.Add("No admission-linked CSV demographics for unlinked records.");
+        }
+        // The same validated patient-specific offset is returned to the UI and used here
+        // for every retrieved timestamp, regardless of record category.
+        MimicDemographicsCsv.Timeline? timeline = null;
+        try { timeline = MimicDemographicsCsv.ReadTimeline(configuration, patientId); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or MalformedLineException) { }
+        if (timeline is not null)
+        {
+            lines.Add($"[ESTIMATED DEMONSTRATION DATES] Fixed patient-specific offset: {timeline.OffsetDays} days. Anchor year group: {timeline.YearGroup}.");
+            lines.Add("All dates below are converted display dates, not actual historical dates. Original source PDFs and database retain shifted MIMIC dates. Do not combine converted and original shifted dates in calculations.");
+        }
+        else lines.Add("No verified timeline anchor; dates remain original privacy-shifted MIMIC timestamps.");
         var chars = 0;
         foreach (var row in selected)
         {
-            var line = $"Source {row.source}, PDF page {row.page}; {row.Category}/{row.RecordType}; recorded {row.ObservedAt?.ToString("s") ?? "time not supplied"}: {row.CellsJson}";
+            var when = row.ObservedAt?.ToString("s") ?? "time not supplied";
+            var line = $"Source {row.source}, PDF page {row.page}; {row.Category}/{row.RecordType}; recorded {MimicDemoDates.Convert(when, timeline)}: {MimicDemoDates.Convert(row.CellsJson, timeline)}";
             if (chars + line.Length > 24000) { lines.Add("Context truncated to fit the model budget."); break; }
             lines.Add(line); chars += line.Length; included.Add(row);
         }
         var sources = included.Select(x => new { type = "patient_pdf", source = x.source, page = x.page, title = Path.GetFileName(x.source) }).Distinct().ToList();
-        return Ok(new { context = string.Join('\n', lines), sources, matched, total });
+        return Ok(new { context = string.Join('\n', lines), sources, matched, total, demographics_available = demographicsAvailable,
+            demo_date_offset_days = timeline?.OffsetDays, demo_year_group = timeline?.YearGroup });
     }
 }

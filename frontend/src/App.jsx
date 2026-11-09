@@ -1,17 +1,19 @@
 import { useState, useCallback, useEffect } from 'react'
 import TopBar from './components/TopBar'
-import Sidebar from './components/SideBar'
+import AuthScreen from './components/AuthScreen'
+import AccountSettings from './components/AccountSettings'
+import { useAccount } from './hooks/useAccount'
 import WorkspaceSidebar from './components/WorkspaceSidebar'
 import MainContent from './components/MainContent'
 import ChatPanel from './components/ChatPanel'
 import SyncProgressWatcher from './components/SyncProgressWatcher'
-import TermsAgreementModal from './components/TermsAgreementModal'
 import { useLabData } from './hooks/useLabData'
 import { useChat } from './hooks/useChat'
 import { usePatients } from './hooks/usePatients'
 import { useConversations } from './hooks/useConversations'
 import { newConversationId } from './lib/conversations'
 import { LABS_URL, LLM_URL } from './constants'
+import './clinical-theme.css'
 
 function PatientChat(props) {
   const { messages, loading, send, stop } = useChat(props.conversationId, props.initialMessages)
@@ -24,13 +26,21 @@ function PatientChat(props) {
 }
 
 export default function App() {
-  const [agreementAccepted, setAgreementAccepted] = useState(false)
-  return agreementAccepted
-    ? <ClaraWorkspace />
-    : <TermsAgreementModal onAccept={() => setAgreementAccepted(true)} />
+  const { loading, enabled, user, error, login, logout, accountNotice } = useAccount()
+  const signOut = useCallback(async () => {
+    await logout()
+  }, [logout])
+  if (loading) return <div className="clara-auth-loading" role="status">Loading CLARA...</div>
+  if (error) return <div className="clara-auth-loading" role="alert">{error}</div>
+  if (enabled && !user) return <AuthScreen onLogin={login} accountNotice={accountNotice} />
+  if (enabled && ['admin', 'auditor'].includes(user.role)) return <main className="clara-auth-loading">
+    Administration is available on the separate local Admin Console (port 3001).
+    <button onClick={signOut}>Sign out</button>
+  </main>
+  return <ClaraWorkspace key={user?.id || 'demo'} account={user} onLogout={enabled ? signOut : null} />
 }
 
-function ClaraWorkspace() {
+function ClaraWorkspace({ account, onLogout }) {
   const [activeApp, setActiveApp] = useState(() => window.location.hash === '#patients' ? 'patients' : 'home')
   const [selectedPatient, setSelectedPatient] = useState(null)
   const [admission, setAdmission] = useState('')
@@ -39,7 +49,45 @@ function ClaraWorkspace() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [conversationId, setConversationId] = useState(newConversationId)
   const [historyNotice, setHistoryNotice] = useState('')
-  const { conversations, storageError, save, rename, remove } = useConversations()
+  const [accountSettingsOpen, setAccountSettingsOpen] = useState(false)
+  const [settingsSection, setSettingsSection] = useState('appearance')
+  const [appearance, setAppearance] = useState(() => {
+    try { return localStorage.getItem('clara:appearance') === 'compact' ? 'compact' : 'comfortable' }
+    catch { return 'comfortable' }
+  })
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('clara:clinical-theme') === 'light' ? 'light' : 'dark' }
+    catch { return 'dark' }
+  })
+  const updateTheme = useCallback(next => {
+    if (next !== 'dark' && next !== 'light') return
+    setTheme(next)
+    try { localStorage.setItem('clara:clinical-theme', next) } catch {}
+  }, [])
+  const updateAppearance = useCallback(next => {
+    if (!['compact', 'comfortable'].includes(next)) return
+    setAppearance(next)
+    try { localStorage.setItem('clara:appearance', next) } catch {}
+  }, [])
+  const openSettings = useCallback(() => {
+    setSettingsSection('appearance')
+    setAccountSettingsOpen(true)
+  }, [])
+  const closeSettings = useCallback(() => setAccountSettingsOpen(false), [])
+  const { conversations, storageError, save, rename, remove, flush } = useConversations(account)
+  const safeLogout = useCallback(async () => {
+    if (account && !(await flush())) {
+      setHistoryNotice('Your chat history is still saving. Please check your connection and try signing out again.')
+      return false
+    }
+    try {
+      await onLogout?.()
+      return true
+    } catch {
+      setHistoryNotice('Sign-out could not be confirmed. Please check your connection and try again.')
+      return false
+    }
+  }, [account, flush, onLogout])
   const { patients, loading: patientsLoading, error: patientsError } = usePatients()
   const { data: labData, loading: labLoading, error: labError, load, reset } = useLabData()
 
@@ -67,6 +115,20 @@ function ClaraWorkspace() {
     }
     setSidebarOpen(false)
   }, [selectedPatient?.id, reset])
+
+  const handleSelectPatientContext = useCallback((patient, selectedAdmission = '') => {
+    const nextPatient = patient || null
+    const nextAdmission = nextPatient?.id?.startsWith('Patient_') ? selectedAdmission : ''
+    // Keep the existing conversation when the same patient and admission are selected.
+    if ((nextPatient?.id || '') === (selectedPatient?.id || '') && nextAdmission === admission) return
+    setSelectedPatient(nextPatient)
+    setAdmission(nextAdmission)
+    setConversationId(newConversationId())
+    setHistoryNotice('')
+    setActiveSection('overview')
+    reset()
+    setSidebarOpen(false)
+  }, [selectedPatient?.id, admission, reset])
 
   const newChat = useCallback(() => { setConversationId(newConversationId()); setHistoryNotice(''); navigate('home') }, [navigate])
   const openConversation = useCallback(conversation => {
@@ -117,29 +179,35 @@ function ClaraWorkspace() {
   }, [selectedPatient?.id])
 
   return (
-    <div className="app-shell">
-      <Sidebar activeApp={activeApp} onChangeApp={navigate} />
+    <div className={`app-shell clara-theme-${theme} clara-appearance-${appearance}`}>
       <WorkspaceSidebar activeApp={activeApp} onChangeApp={navigate}
         selectedPatient={selectedPatient} onSelectPatient={handleSelectPatient}
         patients={patients} loading={patientsLoading} error={patientsError}
         conversations={conversations} activeConversationId={conversationId} onOpenConversation={openConversation}
         onNewConversation={newChat} onRenameConversation={rename} onDeleteConversation={deleteConversation}
         historyError={storageError || historyNotice}
+        account={account} onAccountSettings={openSettings} onLogout={safeLogout}
+        settingsMode={accountSettingsOpen} settingsSection={settingsSection}
+        onSettingsSection={setSettingsSection} onSettingsBack={closeSettings}
         open={sidebarOpen} onClose={closeSidebar} />
       <div className="app-main">
         <TopBar activeApp={activeApp} patient={selectedPatient}
           onMenu={() => setSidebarOpen(true)} onNavigate={navigate} />
         <main className="app-views" id="main-content">
-          <section className="view-pane" hidden={activeApp !== 'home'} aria-label="Home">
+          {account && accountSettingsOpen && <AccountSettings account={account}
+            section={settingsSection} appearance={appearance} onAppearance={updateAppearance}
+            theme={theme} onTheme={updateTheme}
+            onLogout={safeLogout} onBeforePasswordChange={flush} />}
+          <section className="view-pane" hidden={activeApp !== 'home' || accountSettingsOpen} aria-label="Home">
             <PatientChat key={conversationId} patient={selectedPatient}
               admission={admission}
               conversationId={conversationId} initialMessages={conversations.find(item => item.id === conversationId)?.messages}
               onSave={save} onNew={newChat}
               patients={patients} patientsLoading={patientsLoading} patientsError={patientsError}
-              onSelectPatient={handleSelectPatient} activeSection={activeSection}
+              onSelectPatientContext={handleSelectPatientContext} activeSection={activeSection}
               isActive={activeApp === 'home'} onOpenRecord={() => navigate('patients')} />
           </section>
-          <section className="view-pane patient-workspace" hidden={activeApp !== 'patients'} aria-label="Patient records">
+          <section className="view-pane patient-workspace" hidden={activeApp !== 'patients' || accountSettingsOpen} aria-label="Patient records">
             <MainContent patient={selectedPatient} activeSection={activeSection}
               admission={admission}
               onAdmissionChange={value => { setAdmission(value); setConversationId(newConversationId()); setHistoryNotice('') }}
