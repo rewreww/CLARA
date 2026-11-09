@@ -34,7 +34,13 @@ export function mergeConversationChanges(stored, local, changedIds) {
     if (item) merged.set(id, item)
     else merged.delete(id)
   }
-  return [...merged.values()].sort((a, b) => b.updatedAt - a.updatedAt)
+  // Honor the current sidebar order during persistence. Updating/opening an
+  // existing conversation must not move it to the top of Recents.
+  const localIds = new Set(local.map(item => item.id))
+  return [
+    ...local.filter(item => merged.has(item.id)).map(item => merged.get(item.id)),
+    ...[...merged.values()].filter(item => !localIds.has(item.id)),
+  ]
 }
 
 export function newConversationId() {
