@@ -71,10 +71,6 @@ export function MimicAdmissionSelector({ patient, admission, onChange, refreshKe
     <div className="mimic-patient-identity">
       <h1>{patient.name}</h1>
       <div className="mimic-patient-inline-details" aria-label="Selected admission demographics">
-        {admission && <span className="mimic-header-admission">
-          <strong>{admission === 'unlinked' ? 'Unlinked' : admission}</strong>
-          <small>Admission</small>
-        </span>}
         {admission && demographics?.fields?.map(field => (
           <div className="mimic-header-detail" key={field.label}>
             <strong>{field.value || '—'}</strong>
