@@ -1516,3 +1516,37 @@ svg { flex-shrink: 0; }
   .clara-quick-actions { grid-template-columns: minmax(0, 1fr); gap: 9px; margin-top: 16px; }
   .clara-quick-action { min-height: 80px; padding: 13px; }
 }
+
+
+/* Give New Chat / Patients room to breathe; position Recents just above the sidebar midpoint. */
+.workspace-sidebar .clara-sidebar-content::before {
+  content: "";
+  display: block;
+  flex: 0 1 clamp(84px, 21vh, 190px);
+  min-height: 28px;
+}
+.workspace-sidebar .clara-sidebar-content .history-section {
+  overflow: hidden;
+}
+.workspace-sidebar .clara-sidebar-content .history-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* Match the account chevron: the actual SVG rotates by 180 degrees on expansion. */
+.workspace-sidebar .recent-chevron {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  transform: rotate(0deg);
+  transition: transform .16s ease;
+}
+.workspace-sidebar .recent-chevron.is-open {
+  transform: rotate(180deg);
+}
+@media (max-height: 620px) {
+  .workspace-sidebar .clara-sidebar-content::before { flex-basis: 48px; min-height: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-sidebar .recent-chevron { transition: none; }
+}
