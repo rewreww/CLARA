@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
-import { Activity, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, FileText, ShieldCheck, Square, UserRoundPlus } from 'lucide-react'
+import { Activity, ArrowUp, ArrowUpRight, Check, ChevronDown, Copy, FileText, ShieldCheck, Square, Search, ClipboardList, UserRoundPlus } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import ActivityTimeline from './ActivityTimeline'
 import EvidencePanel from './EvidencePanel'
@@ -63,7 +63,28 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
   activeSection, isActive, messages, loading, onSend, onStop, onOpenRecord }) {
   const [input, setInput] = useState('')
   const [pickerOpen, setPickerOpen] = useState(false)
-  const closePicker = useCallback(() => setPickerOpen(false), [])
+  const [checkRecordAfterSelection, setCheckRecordAfterSelection] = useState(false)
+  const closePicker = useCallback(() => {
+    setPickerOpen(false)
+    setCheckRecordAfterSelection(false)
+  }, [])
+  const openSearchPatient = () => {
+    setCheckRecordAfterSelection(false)
+    setPickerOpen(true)
+  }
+  const openCheckPatientData = () => {
+    if (patient) {
+      onOpenRecord()
+      return
+    }
+    setCheckRecordAfterSelection(true)
+    setPickerOpen(true)
+  }
+  const selectFromQuickStart = (selectedPatient, selectedAdmission) => {
+    onSelectPatientContext(selectedPatient, selectedAdmission)
+    if (checkRecordAfterSelection && selectedPatient) onOpenRecord()
+    setCheckRecordAfterSelection(false)
+  }
   const scrollRef = useRef(null)
   const taRef = useRef(null)
   const followResponse = useRef(true)
@@ -111,7 +132,7 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
   const picker = pickerOpen ? <PatientAdmissionPicker
     patients={patients} patientsLoading={patientsLoading} patientsError={patientsError}
     selectedPatient={patient} selectedAdmission={admission}
-    onSelect={onSelectPatientContext} onClose={closePicker} /> : null
+    onSelect={selectFromQuickStart} onClose={closePicker} /> : null
 
   const composer = (
     <div className={`composer-area ${pickerOpen ? 'picker-is-open' : ''} ${hasConversation ? 'picker-above' : 'picker-below'}`}>
@@ -124,7 +145,7 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
           }}
           placeholder={patient ? 'Ask about this patient...' : 'Ask CLARA...'} aria-label="Message CLARA" rows={1} />
         <div className="composer-controls">
-          <button className="composer-patient-button" type="button" onClick={() => setPickerOpen(true)}
+          <button className="composer-patient-button" type="button" onClick={openSearchPatient}
             title={patient ? 'Change patient or admission' : 'Select a patient'}
             aria-label={patient ? 'Change patient or admission' : 'Select a patient'}
             aria-haspopup="dialog" aria-expanded={pickerOpen}>
@@ -180,6 +201,26 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
             <img className="clara-welcome-logo" src="/clara-mark.svg" alt="CLARA logo" width="108" height="90" />
             <h1>How can I help, Doctor?</h1>
             {composer}
+            <div className="clara-quick-actions" aria-label="Quick actions">
+              <button type="button" className="clara-quick-action" onClick={openSearchPatient}
+                aria-label="Search patient records">
+                <span className="clara-quick-action-icon"><Search size={19} aria-hidden="true" /></span>
+                <span className="clara-quick-action-copy">
+                  <strong>Search Patient</strong>
+                  <small>Find a patient by name or ID and select an admission.</small>
+                </span>
+                <ArrowUpRight size={17} className="clara-quick-action-arrow" aria-hidden="true" />
+              </button>
+              <button type="button" className="clara-quick-action" onClick={openCheckPatientData}
+                aria-label="Check patient data">
+                <span className="clara-quick-action-icon"><ClipboardList size={19} aria-hidden="true" /></span>
+                <span className="clara-quick-action-copy">
+                  <strong>Check Patient Data</strong>
+                  <small>Review the selected patient's available clinical records.</small>
+                </span>
+                <ArrowUpRight size={17} className="clara-quick-action-arrow" aria-hidden="true" />
+              </button>
+            </div>
           </div>
         </div>
       )}
