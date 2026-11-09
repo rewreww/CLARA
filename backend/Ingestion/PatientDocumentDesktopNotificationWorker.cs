@@ -59,7 +59,8 @@ public sealed class PatientDocumentDesktopNotificationWorker(
 
     private static bool ShouldNotify(PatientDocumentSyncEvent syncEvent)
     {
-        return syncEvent.Level == "error" || (syncEvent.Level == "success"\n            && syncEvent.Message.StartsWith("New chemistry lab test added", StringComparison.Ordinal));
+        return syncEvent.Level == "error" || (syncEvent.Level == "success"
+            && syncEvent.Message.StartsWith("New chemistry lab test added", StringComparison.Ordinal));
     }
 
     private void ShowDesktopNotification(PatientDocumentSyncEvent syncEvent)
