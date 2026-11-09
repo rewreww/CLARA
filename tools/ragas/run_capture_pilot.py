@@ -24,11 +24,11 @@ def main():
     p.add_argument("--max-questions", type=int, default=1)
     p.add_argument("--live", action="store_true")
     a = p.parse_args()
-    if not 1 <= a.max_questions <= 5:
-        p.error("Pilot supports 1 to 5 questions.")
-    sample = read_rows(a.dataset)[:5]
-    if [row.get("id") for row in sample] != [f"Q{i:03d}" for i in range(1, 6)]:
-        raise SystemExit("Expected first five records Q001 through Q005.")
+    if not 1 <= a.max_questions <= 100:
+        p.error("Batch supports 1 to 100 questions.")
+    sample = read_rows(a.dataset)
+    if len(sample) != 100 or [row.get("id") for row in sample] != [f"Q{i:03d}" for i in range(1, 101)]:
+        raise SystemExit("Expected exactly 100 ordered records Q001 through Q100.")
     completed = {r.get("id") for r in read_rows(a.out) if r.get("status") == "completed" and r.get("ragas_ready") and r.get("retrieved_contexts")}
     todo = [r for r in sample if r["id"] not in completed][:a.max_questions]
     print("Capture ready; requests planned:", len(todo) if a.live else 0, "previously completed:", sorted(completed))
