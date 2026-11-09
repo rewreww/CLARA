@@ -1,4 +1,6 @@
 using Microsoft.VisualBasic.FileIO;
+using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace CLARA.Backend.Controllers;
 
@@ -35,6 +37,36 @@ internal static class MimicDemographicsCsv
             matched = row;
         }
         return matched;
+    }
+
+    // A single day offset per patient is deliberately used instead of rewriting year digits:
+    // it preserves exact intervals between chart events, including leap-day boundaries.
+    internal sealed record Timeline(int OffsetDays, string YearGroup);
+
+    internal static Timeline? ReadTimeline(IConfiguration configuration, string patientId)
+    {
+        if (!Regex.IsMatch(patientId, @"^Patient_\d{8}$")) return null;
+        var root = CLARA.Backend.Ingestion.PatientDocumentSyncService.ResolvePatientsFolderPath(configuration);
+        var patientDir = Path.Combine(root, patientId);
+        var csvDir = Path.Combine(patientDir, "Source_CSV");
+        foreach (var dir in new[] { root, patientDir, csvDir })
+        {
+            if (!Directory.Exists(dir)) return null;
+            if ((File.GetAttributes(dir) & FileAttributes.ReparsePoint) != 0) return null;
+        }
+        var path = Path.Combine(csvDir, "hosp_patients.csv");
+        if (!File.Exists(path) || (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0) return null;
+        var id = patientId["Patient_".Length..];
+        var row = ReadMatchingRow(path, ["subject_id", "anchor_year", "anchor_year_group"], r => r["subject_id"] == id);
+        if (row is null || !int.TryParse(row["anchor_year"], NumberStyles.None, CultureInfo.InvariantCulture, out var anchor)
+            || anchor is < 2100 or > 2200) return null;
+        var group = Regex.Match(row["anchor_year_group"], @"^(\d{4})\s*-\s*(\d{4})$");
+        if (!group.Success || !int.TryParse(group.Groups[1].Value, out var first)
+            || !int.TryParse(group.Groups[2].Value, out var last)
+            || first < 1900 || last > 2100 || last < first || last - first > 9) return null;
+        var midpoint = first + (last - first) / 2;
+        var offsetDays = new DateOnly(midpoint, 1, 1).DayNumber - new DateOnly(anchor, 1, 1).DayNumber;
+        return new Timeline(offsetDays, $"{first}-{last}");
     }
 
     public static object Read(IConfiguration configuration, string patientId, string admissionId)
