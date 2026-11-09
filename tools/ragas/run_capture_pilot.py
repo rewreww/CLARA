@@ -22,6 +22,7 @@ def main():
     p.add_argument("--out", default="captured_pilot.jsonl")
     p.add_argument("--url", default="http://127.0.0.1:8001/evaluation/guideline")
     p.add_argument("--max-questions", type=int, default=1)
+    p.add_argument("--question-id", default="", help="Capture only this Q001-Q100 ID")
     p.add_argument("--live", action="store_true")
     a = p.parse_args()
     if not 1 <= a.max_questions <= 100:
@@ -29,8 +30,10 @@ def main():
     sample = read_rows(a.dataset)
     if len(sample) != 100 or [row.get("id") for row in sample] != [f"Q{i:03d}" for i in range(1, 101)]:
         raise SystemExit("Expected exactly 100 ordered records Q001 through Q100.")
+    if a.question_id and a.question_id not in {row["id"] for row in sample}:
+        p.error("Unknown question ID")
     completed = {r.get("id") for r in read_rows(a.out) if r.get("status") == "completed" and r.get("ragas_ready") and r.get("retrieved_contexts")}
-    todo = [r for r in sample if r["id"] not in completed][:a.max_questions]
+    todo = [r for r in sample if r["id"] not in completed and (not a.question_id or r["id"] == a.question_id)][:a.max_questions]
     print("Capture ready; requests planned:", len(todo) if a.live else 0, "previously completed:", sorted(completed))
     if not a.live:
         print("DRY RUN: no API calls")
