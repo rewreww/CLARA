@@ -223,7 +223,8 @@ public sealed class PatientDocumentDesktopNotificationWorker(
 
     private static string BuildTitle(PatientDocumentSyncEvent syncEvent)
     {
-        if (syncEvent.Level == "error") return "CLARA sync needs attention";\n        if (syncEvent.Message.StartsWith("New chemistry lab test added", StringComparison.Ordinal)) return "CLARA: New lab test added";
+        if (syncEvent.Level == "error") return "CLARA sync needs attention";
+        if (syncEvent.Message.StartsWith("New chemistry lab test added", StringComparison.Ordinal)) return "CLARA: New lab test added";
         if (syncEvent.Message.Contains("Deleted PDF data removed", StringComparison.OrdinalIgnoreCase)) return "CLARA PDF removed";
         if (syncEvent.Message.Contains("successfully saved", StringComparison.OrdinalIgnoreCase)) return "CLARA PDF saved";
         return "CLARA PDF sync";
