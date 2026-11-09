@@ -35,17 +35,28 @@ export function MimicAdmissionSelector({ patient, admission, onChange, refreshKe
     const controller = new AbortController()
     fetch(`${LABS_URL}/${encodeURIComponent(patient.id)}/mimic/demographics?${new URLSearchParams({ admission })}`,
       { signal: controller.signal })
-      .then(response => {
-        if (!response.ok) throw new Error('Matching CSV demographics unavailable')
+      .then(async response => {
+        if (!response.ok) {
+          const body = await response.json().catch(() => null)
+          const reason = typeof body?.error === 'string' ? body.error : 'Unable to load CSV demographics.'
+          throw new Error(`${reason} (HTTP ${response.status})`)
+        }
         return response.json()
       })
       .then(result => {
-        if (!controller.signal.aborted && result.patient === patient.id && result.admission === admission
-          && Array.isArray(result.fields)) {
-          setCsvDemographics({ scope: `${patient.id}/${admission}`, fields: result.fields })
+        if (controller.signal.aborted) return
+        if (result.patient !== patient.id || result.admission !== admission || !Array.isArray(result.fields)) {
+          throw new Error('Demographics response does not match the selected patient and admission.')
+        }
+        setCsvDemographics({ scope: `${patient.id}/${admission}`, fields: result.fields })
+      })
+      .catch(e => {
+        if (!controller.signal.aborted) {
+          setDemographicsError(e.message === 'Failed to fetch'
+            ? 'Cannot reach the demographics backend. Restart CLARA after pulling backend updates.'
+            : e.message)
         }
       })
-      .catch(e => { if (!controller.signal.aborted) setDemographicsError(e.message) })
     return () => controller.abort()
   }, [patient.id, admission, refreshKey])
   const strip = useRef(null)
@@ -91,8 +102,9 @@ export function MimicAdmissionSelector({ patient, admission, onChange, refreshKe
         </dl>
         <p className="mimic-demographics-note">{csvCurrent
           ? 'Source: patient-specific MIMIC-IV CSV exports, matched by subject ID and admission ID. Age is the reference-year age.'
-          : 'Source: selected admission overview PDF only. CSV demographics are not loaded for this admission.'}
-          {demographicsError && ' Matching local CSV demographics were unavailable.'}</p>
+          : 'Source: selected admission overview PDF only. CSV demographics have not been loaded.'}</p>
+        {demographicsError && admission !== 'unlinked' &&
+          <p className="mimic-demographics-error" role="alert">CSV demographics unavailable: {demographicsError}</p>}
       </> : <p>No demographic information available for this admission.</p>}
   </section>}
   </>
