@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using CLARA.Backend.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.VisualBasic.FileIO;
 
 namespace CLARA.Backend.Controllers;
 
@@ -29,7 +30,7 @@ public sealed class MimicRecordsController(ClaraDbContext db, IConfiguration con
             .Select(x => new { admission = x.AdmissionId, source = x.Document.RelativePath, metadata = x.MetadataJson }).ToListAsync(token);
         MimicDemographicsCsv.Timeline? timeline = null;
         try { timeline = MimicDemographicsCsv.ReadTimeline(configuration, patientId); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or MalformedLineException) { }
         return Ok(new { patient = patientId, admissions, overview,
             demo_date_offset_days = timeline?.OffsetDays,
             demo_year_group = timeline?.YearGroup,
@@ -59,6 +60,10 @@ public sealed class MimicRecordsController(ClaraDbContext db, IConfiguration con
         catch (InvalidDataException)
         {
             return StatusCode(422, new { error = "The local CSV demographics failed validation." });
+        }
+        catch (MalformedLineException)
+        {
+            return StatusCode(422, new { error = "The local CSV format is malformed." });
         }
         catch (IOException)
         {
@@ -163,7 +168,7 @@ public sealed class MimicRecordsController(ClaraDbContext db, IConfiguration con
                 }
                 demographicsAvailable = true;
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or MalformedLineException)
             {
                 lines.Add("CSV demographics are unavailable or could not be verified for this admission. Do not infer missing demographic fields.");
             }
@@ -176,7 +181,7 @@ public sealed class MimicRecordsController(ClaraDbContext db, IConfiguration con
         // for every retrieved timestamp, regardless of record category.
         MimicDemographicsCsv.Timeline? timeline = null;
         try { timeline = MimicDemographicsCsv.ReadTimeline(configuration, patientId); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException) { }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or MalformedLineException) { }
         if (timeline is not null)
         {
             lines.Add($"[ESTIMATED DEMONSTRATION DATES] Fixed patient-specific offset: {timeline.OffsetDays} days. Anchor year group: {timeline.YearGroup}.");
