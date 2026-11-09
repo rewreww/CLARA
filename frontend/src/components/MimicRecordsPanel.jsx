@@ -117,6 +117,7 @@ export default function MimicRecordsPanel({ patient, admission, activeSection, o
   const [data, setData] = useState(null)
   const [timeline, setTimeline] = useState(null)
   const [vitals, setVitals] = useState(null)
+  const [categoryFlags, setCategoryFlags] = useState(null)
   const [vitalError, setVitalError] = useState('')
   const [error, setError] = useState('')
   const [page, setPage] = useState(1)
@@ -128,8 +129,26 @@ export default function MimicRecordsPanel({ patient, admission, activeSection, o
   const scope = `${patient.id}/${admission}`
   const requestKey = `${scope}/${category}/${mode}/${page}/${mode === 'records' ? search : ''}`
   const offsetDays = timeline?.patient === patient.id ? timeline.offsetDays : null
+  const scopedFlags = categoryFlags?.scope === scope ? categoryFlags.counts : {}
   const currentVitals = vitals?.scope === scope
     ? vitals.values.map(row => ({ ...row, at: demoDateText(row.at, offsetDays) })) : []
+  useEffect(() => {
+    setCategoryFlags(null)
+    if (!admission) return
+    const controller = new AbortController()
+    fetch(`${LABS_URL}/${encodeURIComponent(patient.id)}/mimic/flags?${new URLSearchParams({ admission })}`, { signal: controller.signal })
+      .then(response => { if (!response.ok) throw new Error('Reference-range flags unavailable'); return response.json() })
+      .then(result => {
+        if (controller.signal.aborted || result.patient !== patient.id || result.admission !== admission || !Array.isArray(result.categories)) return
+        const counts = Object.fromEntries(result.categories
+          .filter(item => MIMIC_CATEGORIES[item.category] && Number.isInteger(item.count) && item.count > 0)
+          .map(item => [item.category, item.count]))
+        setCategoryFlags({ scope, counts })
+      })
+      // A missing summary must never imply that values are normal.
+      .catch(() => { if (!controller.signal.aborted) setCategoryFlags(null) })
+    return () => controller.abort()
+  }, [patient.id, admission, refreshKey])
   useEffect(() => {
     setVitalError(''); setVitals(null)
     if (!admission) return
@@ -169,8 +188,14 @@ export default function MimicRecordsPanel({ patient, admission, activeSection, o
     <MimicOverview values={currentVitals} onOpen={open} />
     {vitalError && <p role="alert">{vitalError}</p>}
     <nav className="mimic-categories" aria-label="MIMIC record categories">
-      {Object.entries(MIMIC_CATEGORIES).filter(([key]) => key !== 'overview').map(([key, title]) => <button key={key} aria-pressed={category === key}
-        onClick={() => { setPage(1); onSelectSection(key) }}>{title}</button>)}
+      {Object.entries(MIMIC_CATEGORIES).filter(([key]) => key !== 'overview').map(([key, title]) => {
+        const count = scopedFlags[key] || 0
+        return <button key={key} aria-pressed={category === key}
+          aria-label={count ? `${title}, ${count} results outside recorded reference ranges` : title}
+          onClick={() => { setPage(1); onSelectSection(key) }}>
+          {title}{count > 0 && <ReferenceRangeWarning title={`${count} extracted results outside recorded reference ranges; review required`} />}
+        </button>
+      })}
     </nav>
     {!admission ? <p>Choose a date to view the record.</p> : <>
       <div className="mimic-toolbar">
@@ -194,6 +219,26 @@ export default function MimicRecordsPanel({ patient, admission, activeSection, o
   </div>
 }
 
+// A reference-range comparison is an attention marker, not a diagnosis or
+// an output of the legacy clinical risk rule engine.
+function ReferenceRangeWarning({ title }) {
+  return <span className="mimic-ref-warning" role="img" aria-label={title} title={title}>!</span>
+}
+
+function rowReferenceFlag(row) {
+  return row.flag === 'high' || row.flag === 'low' ? row.flag : null
+}
+
+function referenceFlagDescription(row) {
+  const direction = row.flag === 'high' ? 'above' : 'below'
+  const bound = row.flag === 'high' ? row.reference_high : row.reference_low
+  return `Extracted result ${direction} recorded reference range${bound == null ? '' : ` (boundary: ${bound}${row.unit ? ` ${row.unit}` : ''})`}. Clinical review required.`
+}
+
+function resultColumn(header) {
+  return /^(result|value|recorded value|recorded result)$/i.test(header.replace(/\\s+/g, ' ').trim())
+}
+
 function RecordTables({ rows, category, onOpen, offsetDays, groupByTime = false }) {
   const groups = new Map()
   for (const row of rows) {
@@ -208,16 +253,25 @@ function RecordTables({ rows, category, onOpen, offsetDays, groupByTime = false 
   }
   return <div className="mimic-tables">{[...groups.entries()].map(([key, group]) => <section key={key} className="mimic-table-group" aria-label={recordTableLabel(group.rows, category)}>
     <div className="mimic-table-heading"><h3>{recordTableLabel(group.rows, category)}</h3>
+      {group.rows.some(row => rowReferenceFlag(row)) && <ReferenceRangeWarning title="This table contains results outside recorded reference ranges" />}
       {groupByTime && <time>{group.timestamp ? demoDateText(group.timestamp, offsetDays).replace('T', ' ') : 'Time not recorded'}</time>}
     </div>
     <div className="mimic-table-scroll" tabIndex={0} aria-label={`${recordTableLabel(group.rows, category)} table`}>
     <table>
       <thead><tr>{!group.hasDate && <th>Date</th>}{group.headers.map(header => <th key={header}>{header.replaceAll('\n', ' ')}</th>)}<th>Source</th></tr></thead>
-      <tbody>{group.rows.map(row => <tr key={row.id}>
-        {!group.hasDate && <td>{demoDateText(row.observed_at, offsetDays)?.replace('T', ' ') || '—'}</td>}
-        {group.headers.map(header => <td key={header}>{demoDateText(row.cells[header], offsetDays) || '—'}</td>)}
-        <td><button onClick={() => onOpen(row.source, row.page)} aria-label={`Open source PDF, page ${row.page}`}>PDF ↗</button></td>
-      </tr>)}</tbody></table>
+      <tbody>{group.rows.map(row => {
+        const abnormal = rowReferenceFlag(row)
+        const valueColumns = group.headers.filter(resultColumn)
+        const warningColumn = valueColumns[0] || group.headers[0]
+        return <tr key={row.id} className={abnormal ? 'mimic-ref-row' : undefined}>
+          {!group.hasDate && <td>{demoDateText(row.observed_at, offsetDays)?.replace('T', ' ') || '—'}</td>}
+          {group.headers.map(header => <td key={header} className={abnormal && header === warningColumn ? 'mimic-ref-cell' : undefined}>
+            {demoDateText(row.cells[header], offsetDays) || '—'}
+            {abnormal && header === warningColumn && <ReferenceRangeWarning title={referenceFlagDescription(row)} />}
+          </td>)}
+          <td><button onClick={() => onOpen(row.source, row.page)} aria-label={`Open source PDF, page ${row.page}`}>PDF ↗</button></td>
+        </tr>
+      })}</tbody></table>
     </div>
   </section>)}</div>
 }
