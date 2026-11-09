@@ -51,6 +51,10 @@ public sealed class MimicRecordsController(ClaraDbContext db, IConfiguration con
         {
             return NotFound(new { error = "Matching local CSV demographics are unavailable." });
         }
+        catch (InvalidDataException)
+        {
+            return StatusCode(422, new { error = "The local CSV demographics failed validation." });
+        }
         catch (IOException)
         {
             return StatusCode(422, new { error = "The local CSV demographics could not be verified." });
