@@ -1651,3 +1651,22 @@ svg { flex-shrink: 0; }
   .mimic-demographics { margin: 10px 12px; padding: 13px; }
   .mimic-demographics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 }
+
+
+/* The Patients view replaces the Recents section in the same sidebar slot. */
+.workspace-sidebar .clara-sidebar-content .clara-patient-directory-section {
+  flex: 1 1 auto;
+  min-height: 0;
+  border-top: 0;
+  padding-top: 0;
+}
+.workspace-sidebar .clara-sidebar-content .clara-patient-directory-section .sidebar-section-label {
+  padding: 10px 20px 14px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.workspace-sidebar .clara-sidebar-content .clara-patient-directory-section .patient-directory {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
