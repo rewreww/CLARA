@@ -43,10 +43,12 @@ async def run():
     p.add_argument("--allow-unverified-pilot", action="store_true")
     p.add_argument("--delay-seconds", type=float, default=20.0)
     p.add_argument("--live", action="store_true")
+    p.add_argument("--max-output-tokens", type=int, default=0,
+                   help="Judge output token ceiling; Groq default 3072, OpenRouter 8192")
     p.add_argument("--rate-limit-retries", type=int, default=6,
                    help="Retry temporary token-per-minute 429 errors; never retry daily quota exhaustion")
     args = p.parse_args()
-    if args.delay_seconds < 0 or args.rate_limit_retries < 0:
+    if args.delay_seconds < 0 or args.rate_limit_retries < 0 or args.max_output_tokens < 0:
         p.error("delay-seconds and rate-limit-retries must be nonnegative")
     if not 1 <= args.max_questions <= 100:
         p.error("Batch max-questions must be between 1 and 100")
@@ -82,7 +84,9 @@ async def run():
     from ragas.metrics.collections import ContextPrecisionWithReference, ContextRecall, Faithfulness, AnswerRelevancy
     base = "https://api.groq.com/openai/v1" if provider == "groq" else "https://openrouter.ai/api/v1"
     client = AsyncOpenAI(api_key=api_key, base_url=base, max_retries=0, timeout=90)
-    llm = llm_factory(model, provider="openai", client=client, max_tokens=8192)
+    output_tokens = args.max_output_tokens or (3072 if provider == "groq" else 8192)
+    llm = llm_factory(model, provider="openai", client=client, max_tokens=output_tokens)
+    print(f"Judge output limit: {output_tokens} tokens", flush=True)
     if args.metric == "context_precision":
         evaluator = ContextPrecisionWithReference(llm=llm)
     elif args.metric == "context_recall":
@@ -120,7 +124,7 @@ async def run():
                     if not is_429 or not is_tpm or is_daily or attempt >= args.rate_limit_retries:
                         raise
                     # Groq includes "Please try again in 1.4175s." in the exception.
-                    match = re.search(r"try again in\\s+([0-9.]+)s", msg, re.IGNORECASE)
+                    match = re.search(r"try again in\s+([0-9.]+)s", msg, re.IGNORECASE)
                     suggested = float(match.group(1)) if match else 20.0
                     pause = min(120.0, max(suggested + 6.0, 12.0, 15.0 * (attempt + 1)))
                     print(f"{row['id']} {args.metric}: temporary TPM 429; "
