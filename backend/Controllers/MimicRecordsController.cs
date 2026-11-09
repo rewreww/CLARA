@@ -27,7 +27,12 @@ public sealed class MimicRecordsController(ClaraDbContext db, IConfiguration con
         var admissions = await docs.GroupBy(x => x.AdmissionId).Select(g => new { id = g.Key ?? "unlinked", documents = g.Count() }).OrderBy(x => x.id).ToListAsync(token);
         var overview = await docs.Where(x => x.Category == "overview").OrderBy(x => x.AdmissionId)
             .Select(x => new { admission = x.AdmissionId, source = x.Document.RelativePath, metadata = x.MetadataJson }).ToListAsync(token);
+        MimicDemographicsCsv.Timeline? timeline = null;
+        try { timeline = MimicDemographicsCsv.ReadTimeline(configuration, patientId); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException) { }
         return Ok(new { patient = patientId, admissions, overview,
+            demo_date_offset_days = timeline?.OffsetDays,
+            demo_year_group = timeline?.YearGroup,
             rows = await db.MimicRows.CountAsync(x => x.PatientId == patientId && x.Document.ExtractionStatus == "completed", token),
             failed_documents = await db.PatientDocuments.CountAsync(x => x.PatientId == patientId && x.ExtractionStatus == "failed", token),
             notice = "Historical MIMIC-IV Demo 2.2. Dates are shifted. No physician-written discharge summaries. Clinical alerts and ML predictions have not been validated for this dataset." });
@@ -167,14 +172,27 @@ public sealed class MimicRecordsController(ClaraDbContext db, IConfiguration con
         {
             lines.Add("No admission-linked CSV demographics for unlinked records.");
         }
+        // The same validated patient-specific offset is returned to the UI and used here
+        // for every retrieved timestamp, regardless of record category.
+        MimicDemographicsCsv.Timeline? timeline = null;
+        try { timeline = MimicDemographicsCsv.ReadTimeline(configuration, patientId); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException) { }
+        if (timeline is not null)
+        {
+            lines.Add($"[ESTIMATED DEMONSTRATION DATES] Fixed patient-specific offset: {timeline.OffsetDays} days. Anchor year group: {timeline.YearGroup}.");
+            lines.Add("All dates below are converted display dates, not actual historical dates. Original source PDFs and database retain shifted MIMIC dates. Do not combine converted and original shifted dates in calculations.");
+        }
+        else lines.Add("No verified timeline anchor; dates remain original privacy-shifted MIMIC timestamps.");
         var chars = 0;
         foreach (var row in selected)
         {
-            var line = $"Source {row.source}, PDF page {row.page}; {row.Category}/{row.RecordType}; recorded {row.ObservedAt?.ToString("s") ?? "time not supplied"}: {row.CellsJson}";
+            var when = row.ObservedAt?.ToString("s") ?? "time not supplied";
+            var line = $"Source {row.source}, PDF page {row.page}; {row.Category}/{row.RecordType}; recorded {MimicDemoDates.Convert(when, timeline)}: {MimicDemoDates.Convert(row.CellsJson, timeline)}";
             if (chars + line.Length > 24000) { lines.Add("Context truncated to fit the model budget."); break; }
             lines.Add(line); chars += line.Length; included.Add(row);
         }
         var sources = included.Select(x => new { type = "patient_pdf", source = x.source, page = x.page, title = Path.GetFileName(x.source) }).Distinct().ToList();
-        return Ok(new { context = string.Join('\n', lines), sources, matched, total, demographics_available = demographicsAvailable });
+        return Ok(new { context = string.Join('\n', lines), sources, matched, total, demographics_available = demographicsAvailable,
+            demo_date_offset_days = timeline?.OffsetDays, demo_year_group = timeline?.YearGroup });
     }
 }
