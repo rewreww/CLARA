@@ -1670,3 +1670,7 @@ svg { flex-shrink: 0; }
   min-height: 0;
   overflow-y: auto;
 }
+
+/* Show CSV retrieval failures explicitly instead of silently implying values were absent. */
+.mimic-demographics-error { margin: 10px 0 0; font-size: 12px; line-height: 1.5; color: #e9a6a6; overflow-wrap: anywhere; }
+.clara-theme-light .mimic-demographics-error { color: #9e3030; }
