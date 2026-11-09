@@ -12,6 +12,7 @@ export default function PatientAdmissionPicker({
   const searchRef = useRef(null)
   const [search, setSearch] = useState('')
   const [focusedPatient, setFocusedPatient] = useState(selectedPatient || null)
+  const [patientPicked, setPatientPicked] = useState(false)
   const [summary, setSummary] = useState(null)
   const [loadingAdmissions, setLoadingAdmissions] = useState(false)
   const [admissionsError, setAdmissionsError] = useState('')
@@ -94,6 +95,16 @@ export default function PatientAdmissionPicker({
     onClose()
   }
 
+  // X confirms an explicitly highlighted patient without choosing an admission.
+  // Simply opening and closing the picker must not clear an existing admission.
+  const closeFromButton = () => {
+    if (patientPicked && focusedPatient) {
+      choose(focusedPatient, '')
+    } else {
+      onClose()
+    }
+  }
+
   return (
     <section ref={dialogRef} className="patient-admission-dialog patient-admission-inline"
       aria-label="Patient and admission picker" onKeyDown={handlePanelKeyDown}>
@@ -101,9 +112,9 @@ export default function PatientAdmissionPicker({
         <header className="patient-admission-header">
           <div>
             <h2 id="patient-admission-title">Choose patient</h2>
-            <p>Select a patient alone, or choose an admission for admission-specific clinical records.</p>
+            <p>Select a patient, or choose an admission date to scope its clinical records.</p>
           </div>
-          <button type="button" className="patient-admission-close" onClick={onClose}
+          <button type="button" className="patient-admission-close" onClick={closeFromButton}
             aria-label="Close patient picker"><X size={18} /></button>
         </header>
 
@@ -129,7 +140,7 @@ export default function PatientAdmissionPicker({
               <button type="button" key={item.id}
                 className={`patient-admission-row ${focusedPatient?.id === item.id ? 'is-selected' : ''}`}
                 aria-pressed={focusedPatient?.id === item.id}
-                onClick={() => setFocusedPatient(item)}>
+                onClick={() => { setFocusedPatient(item); setPatientPicked(true) }}>
                 <UserRound size={18} aria-hidden="true" />
                 <span className="patient-admission-row-main"><strong>{item.name || item.id}</strong>
                   <small>{item.id}</small></span>
@@ -153,13 +164,6 @@ export default function PatientAdmissionPicker({
             )}
             {focusedPatient?.id?.startsWith('Patient_') && <>
               <p className="patient-admission-scope">Admissions for <strong>{focusedPatient.name || focusedPatient.id}</strong></p>
-              <div className="patient-admission-legacy">
-                <button type="button" className="patient-admission-primary"
-                  aria-label="Select patient without an admission"
-                  onClick={() => choose(focusedPatient, '')}>Use patient only</button>
-                <p>Admission not selected. Choose an admission below before requesting admission-specific patient data.</p>
-              </div>
-              <p className="patient-admission-note">Historical MIMIC-IV data: recorded dates are shifted.</p>
               {loadingAdmissions && <p className="patient-admission-info" role="status">Loading admission dates…</p>}
               {admissionsError && <p className="patient-admission-info" role="alert">{admissionsError}</p>}
               {!loadingAdmissions && !admissionsError && currentSummary && admissions.length === 0 &&
