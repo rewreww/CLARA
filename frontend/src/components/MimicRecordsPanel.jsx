@@ -11,7 +11,7 @@ export const MIMIC_CATEGORIES = {
   procedures: 'Procedures', orders: 'Provider orders', care_movements: 'Care movements', administrative: 'Administrative',
 }
 
-export function MimicAdmissionSelector({ patient, admission, onChange, refreshKey }) {
+export function MimicAdmissionSelector({ patient, admission, onChange, refreshKey, onRefresh }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [csvDemographics, setCsvDemographics] = useState(null)
@@ -31,7 +31,7 @@ export function MimicAdmissionSelector({ patient, admission, onChange, refreshKe
   useEffect(() => {
     setCsvDemographics(null)
     setDemographicsError('')
-    if (!/^\\d{8}$/.test(admission || '')) return
+    if (!/^\d{8}$/.test(admission || '')) return
     const controller = new AbortController()
     fetch(`${LABS_URL}/${encodeURIComponent(patient.id)}/mimic/demographics?${new URLSearchParams({ admission })}`,
       { signal: controller.signal })
@@ -67,6 +67,28 @@ export function MimicAdmissionSelector({ patient, admission, onChange, refreshKe
   const csvCurrent = csvDemographics?.scope === `${patient.id}/${admission}` ? csvDemographics : null
   const demographics = csvCurrent || pdfDemographics
   return <>
+  <header className="mimic-patient-header">
+    <div className="mimic-patient-identity">
+      <h1>{patient.name}</h1>
+      <div className="mimic-patient-inline-details" aria-label="Selected admission demographics">
+        {admission && <span className="mimic-header-admission">
+          <strong>{admission === 'unlinked' ? 'Unlinked' : admission}</strong>
+          <small>Admission</small>
+        </span>}
+        {admission && demographics?.fields?.map(field => (
+          <div className="mimic-header-detail" key={field.label}>
+            <strong>{field.value || '—'}</strong>
+            <small>{field.label}</small>
+          </div>
+        ))}
+        {admission && !demographics && !error && <span role="status">Loading demographics…</span>}
+      </div>
+      {admission && demographicsError && <p className="mimic-demographics-error" role="alert">
+        CSV demographics unavailable: {demographicsError}
+      </p>}
+    </div>
+    <button onClick={onRefresh}>Refresh records</button>
+  </header>
   <div className="mimic-date-navigation">
     <button aria-label="Earlier admission dates" onClick={() => strip.current.scrollBy({ left: -240, behavior: 'smooth' })}>‹</button>
     <div ref={strip} className="mimic-date-strip" aria-label="Admission dates"
@@ -86,27 +108,7 @@ export function MimicAdmissionSelector({ patient, admission, onChange, refreshKe
     <button aria-label="Later admission dates" onClick={() => strip.current.scrollBy({ left: 240, behavior: 'smooth' })}>›</button>
     {error && <span role="alert">{error}</span>}
   </div>
-  {admission && <section className="mimic-demographics" aria-label="Selected admission demographics">
-    <div className="mimic-demographics-heading">
-      <h2>Demographics</h2>
-      <span>{admission === 'unlinked' ? 'Unlinked records' : `Admission ${admission}`}</span>
-    </div>
-    {!current && !error ? <p role="status">Loading demographic information…</p>
-      : error ? <p role="alert">Demographics could not be loaded for this patient.</p>
-      : demographics ? <>
-        <dl className="mimic-demographics-grid">
-          {demographics.fields.map(field => <div key={field.label}>
-            <dt>{field.label}</dt>
-            <dd>{field.value || 'Not recorded'}</dd>
-          </div>)}
-        </dl>
-        <p className="mimic-demographics-note">{csvCurrent
-          ? 'Source: patient-specific MIMIC-IV CSV exports, matched by subject ID and admission ID. Age is the reference-year age.'
-          : 'Source: selected admission overview PDF only. CSV demographics have not been loaded.'}</p>
-        {demographicsError && admission !== 'unlinked' &&
-          <p className="mimic-demographics-error" role="alert">CSV demographics unavailable: {demographicsError}</p>}
-      </> : <p>No demographic information available for this admission.</p>}
-  </section>}
+
   </>
 }
 
@@ -158,8 +160,7 @@ export default function MimicRecordsPanel({ patient, admission, activeSection, o
   }, [patient.id, admission, category, mode, page, search, refreshKey])
   function open(source, page = 1) { setSource({ type: 'patient_pdf', source, page, title: source.split('/').pop() }) }
   return <div className="mimic-workspace">
-    <header><h1>{patient.name}</h1><button onClick={onRefresh}>Refresh records</button></header>
-    <MimicAdmissionSelector key={patient.id} patient={patient} admission={admission} onChange={onAdmissionChange} refreshKey={refreshKey} />
+    <MimicAdmissionSelector key={patient.id} patient={patient} admission={admission} onChange={onAdmissionChange} refreshKey={refreshKey} onRefresh={onRefresh} />
     <div className={`mimic-admission-content ${admission && ((!vitals && !vitalError) || (!data && !error)) ? 'is-retrieving' : ''}`} aria-busy={!!admission && ((!vitals && !vitalError) || (!data && !error))}>
     <MimicOverview values={currentVitals} onOpen={open} />
     {vitalError && <p role="alert">{vitalError}</p>}
