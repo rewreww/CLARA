@@ -120,7 +120,11 @@ export function useConversations(account = null) {
     setConversations(items => {
       const old = items.find(item => item.id === conversation.id)
       const title = old?.title || conversation.messages.find(message => message.role === 'doctor').text.slice(0, 100)
-      return [{ ...old, ...conversation, title, updatedAt: Date.now() }, ...items.filter(item => item.id !== conversation.id)]
+      const updated = { ...old, ...conversation, title, updatedAt: Date.now() }
+      // Keep an existing chat at its current position when reopened or updated.
+      // Only genuinely new conversations are inserted at the top.
+      return old ? items.map(item => item.id === conversation.id ? updated : item)
+        : [updated, ...items]
     })
   }, [])
   const rename = useCallback((id, title) => {
