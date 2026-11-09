@@ -2,6 +2,7 @@
 import argparse
 import csv
 import json
+import os
 import subprocess
 import sys
 import time
@@ -46,6 +47,8 @@ def main():
     except ImportError:
         p.error("Install dependencies from tools/ragas/requirements_ragas.txt first")
     cfg = dotenv_values(a.env_file)
+    if not os.environ.get("CLARA_EVAL_TOKEN") and cfg.get("CLARA_EVAL_TOKEN"):
+        os.environ["CLARA_EVAL_TOKEN"] = cfg["CLARA_EVAL_TOKEN"]
     model = a.model or (cfg.get("OPENROUTER_MODEL") if a.provider == "openrouter" else cfg.get("GROQ_MODEL"))
     model = model or ("nvidia/nemotron-3-ultra-550b-a55b:free" if a.provider == "openrouter" else "openai/gpt-oss-20b")
     if a.provider == "openrouter" and not model.endswith(":free"):
