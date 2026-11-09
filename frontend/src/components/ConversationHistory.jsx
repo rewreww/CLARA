@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, Pencil, Trash2, X } from 'lucide-react'
+import { Check, ChevronDown, Pencil, Trash2, X } from 'lucide-react'
 
 export default function ConversationHistory({ conversations, activeId, onOpen, onRename, onDelete, error }) {
   const [expanded, setExpanded] = useState(true)
@@ -10,7 +10,7 @@ export default function ConversationHistory({ conversations, activeId, onOpen, o
     <button type="button" className="history-heading" onClick={() => setExpanded(open => !open)}
       aria-expanded={expanded} aria-controls="clara-recent-conversations">
       <span>Recents</span>
-      <span className={`recent-chevron ${expanded ? 'is-open' : ''}`} aria-hidden="true">⌄</span>
+      <ChevronDown className={`recent-chevron ${expanded ? 'is-open' : ''}`} size={16} aria-hidden="true" />
     </button>
     {error && <p className="sidebar-notice error-text" role="alert">{error}</p>}
     {expanded && <div className="history-list" id="clara-recent-conversations">
