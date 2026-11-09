@@ -14,6 +14,8 @@ export const MIMIC_CATEGORIES = {
 export function MimicAdmissionSelector({ patient, admission, onChange, refreshKey }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
+  const [csvDemographics, setCsvDemographics] = useState(null)
+  const [demographicsError, setDemographicsError] = useState('')
   useEffect(() => {
     const controller = new AbortController()
     setData(null); setError('')
@@ -26,11 +28,33 @@ export function MimicAdmissionSelector({ patient, admission, onChange, refreshKe
       }).catch(e => { if (e.name !== 'AbortError' && !controller.signal.aborted) setError(e.message) })
     return () => controller.abort()
   }, [patient.id, refreshKey])
+  useEffect(() => {
+    setCsvDemographics(null)
+    setDemographicsError('')
+    if (!/^\\d{8}$/.test(admission || '')) return
+    const controller = new AbortController()
+    fetch(`${LABS_URL}/${encodeURIComponent(patient.id)}/mimic/demographics?${new URLSearchParams({ admission })}`,
+      { signal: controller.signal })
+      .then(response => {
+        if (!response.ok) throw new Error('Matching CSV demographics unavailable')
+        return response.json()
+      })
+      .then(result => {
+        if (!controller.signal.aborted && result.patient === patient.id && result.admission === admission
+          && Array.isArray(result.fields)) {
+          setCsvDemographics({ scope: `${patient.id}/${admission}`, fields: result.fields })
+        }
+      })
+      .catch(e => { if (!controller.signal.aborted) setDemographicsError(e.message) })
+    return () => controller.abort()
+  }, [patient.id, admission, refreshKey])
   const strip = useRef(null)
   const drag = useRef(null)
   const current = data?.patient === patient.id ? data : null
   const dates = admissionDates(current)
-  const demographics = admissionDemographics(current, patient.id, admission)
+  const pdfDemographics = admissionDemographics(current, patient.id, admission)
+  const csvCurrent = csvDemographics?.scope === `${patient.id}/${admission}` ? csvDemographics : null
+  const demographics = csvCurrent || pdfDemographics
   return <>
   <div className="mimic-date-navigation">
     <button aria-label="Earlier admission dates" onClick={() => strip.current.scrollBy({ left: -240, behavior: 'smooth' })}>‹</button>
@@ -65,7 +89,10 @@ export function MimicAdmissionSelector({ patient, admission, onChange, refreshKe
             <dd>{field.value || 'Not recorded'}</dd>
           </div>)}
         </dl>
-        <p className="mimic-demographics-note">Only information recorded in this admission's overview PDF is shown. Age is recorded for the dataset reference year, not calculated from shifted dates.</p>
+        <p className="mimic-demographics-note">{csvCurrent
+          ? 'Source: patient-specific MIMIC-IV CSV exports, matched by subject ID and admission ID. Age is the reference-year age.'
+          : 'Source: selected admission overview PDF only. CSV demographics are not loaded for this admission.'}
+          {demographicsError && ' Matching local CSV demographics were unavailable.'}</p>
       </> : <p>No demographic information available for this admission.</p>}
   </section>}
   </>
