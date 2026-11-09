@@ -1585,3 +1585,10 @@ svg { flex-shrink: 0; }
 .chat-welcome .clara-quick-action:nth-child(2):hover {
   background: linear-gradient(132deg, rgba(255,255,255,.13) 0%, rgba(255,255,255,.045) 37%, rgba(255,255,255,0) 80%), #282d32;
 }
+
+
+/* Borderless quick prompts; preserve focus-visible keyboard accessibility. */
+.chat-welcome .clara-quick-action,
+.chat-welcome .clara-quick-action:hover {
+  border-color: transparent;
+}
