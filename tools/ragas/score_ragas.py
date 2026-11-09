@@ -94,7 +94,7 @@ async def run():
         if args.metric in ("context_precision", "context_recall"):
             inputs = {"user_input": row["question"], "retrieved_contexts": row["retrieved_contexts"], "reference": row["reference_answer"]}
         elif args.metric == "faithfulness":
-            inputs = {"response": row["response"], "retrieved_contexts": row["retrieved_contexts"]}
+            inputs = {"user_input": row["question"], "response": row["response"], "retrieved_contexts": row["retrieved_contexts"]}
         else:
             inputs = {"user_input": row["question"], "response": row["response"]}
         record = {"id": row["id"], "metric": args.metric, "provider": provider, "model": model,
