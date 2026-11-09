@@ -1550,3 +1550,38 @@ svg { flex-shrink: 0; }
 @media (prefers-reduced-motion: reduce) {
   .workspace-sidebar .recent-chevron { transition: none; }
 }
+
+
+/* Recents: navigation-sized text and adjacent rotating chevron, with no hover color shift. */
+.workspace-sidebar .clara-sidebar-content .history-heading {
+  justify-content: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #cbd4d7;
+  background: transparent;
+  transition: none;
+}
+.workspace-sidebar .clara-sidebar-content .history-heading:hover {
+  background: transparent;
+  color: #cbd4d7;
+}
+.workspace-sidebar .clara-sidebar-content .history-heading > .recent-chevron {
+  margin-left: 0;
+}
+
+/* Match the doctor's chat-input gray, reserving a delicate white shine for card two. */
+.chat-welcome .clara-quick-action {
+  background: #23272c;
+  border-color: #42484e;
+}
+.chat-welcome .clara-quick-action:hover {
+  background: #282d32;
+  border-color: #5d6871;
+}
+.chat-welcome .clara-quick-action:nth-child(2) {
+  background: linear-gradient(132deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.035) 37%, rgba(255,255,255,0) 80%), #23272c;
+}
+.chat-welcome .clara-quick-action:nth-child(2):hover {
+  background: linear-gradient(132deg, rgba(255,255,255,.13) 0%, rgba(255,255,255,.045) 37%, rgba(255,255,255,0) 80%), #282d32;
+}
