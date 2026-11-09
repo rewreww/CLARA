@@ -1708,3 +1708,9 @@ svg { flex-shrink: 0; }
 .mimic-patient-inline-details .mimic-header-detail { align-items: center; text-align: center; }
 .mimic-patient-inline-details .mimic-header-detail strong,
 .mimic-patient-inline-details .mimic-header-detail small { text-align: center; }
+
+/* Full four-digit admission year, compact and centered beneath the day. */
+.mimic-date-strip button .mimic-admission-year { font-size: 10px; line-height: 1.2; letter-spacing: .01em; }
+@media (max-width: 580px) {
+  .mimic-date-strip button .mimic-admission-year { font-size: 9px; }
+}
