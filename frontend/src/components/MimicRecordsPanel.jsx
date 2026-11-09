@@ -85,7 +85,6 @@ export function MimicAdmissionSelector({ patient, admission, onChange, refreshKe
     </div>
     <button onClick={onRefresh}>Refresh records</button>
   </header>
-  <p className="mimic-date-notice">Admission timeline · Dates shifted for patient privacy (MIMIC-IV)</p>
   <div className="mimic-date-navigation">
     <button aria-label="Earlier admission dates" onClick={() => strip.current.scrollBy({ left: -240, behavior: 'smooth' })}>‹</button>
     <div ref={strip} className="mimic-date-strip" aria-label="Admission dates"
