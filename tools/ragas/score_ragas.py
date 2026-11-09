@@ -37,6 +37,7 @@ async def run():
     p.add_argument("--model", default="")
     p.add_argument("--metric", choices=METRICS, default="context_recall")
     p.add_argument("--max-questions", type=int, default=1)
+    p.add_argument("--question-id", default="", help="Score only this Q001-Q100 ID")
     p.add_argument("--env-file", default="")
     p.add_argument("--allow-unverified-pilot", action="store_true")
     p.add_argument("--delay-seconds", type=float, default=20.0)
@@ -65,7 +66,7 @@ async def run():
         raise SystemExit("OpenRouter evaluator must use a :free model.")
     prior = read_rows(args.output)
     done = {(r.get("id"), r.get("metric"), r.get("provider"), r.get("model")) for r in prior if r.get("status") == "scored"}
-    todo = [r for r in valid if (r["id"], args.metric, provider, model) not in done][:args.max_questions]
+    todo = [r for r in valid if (not args.question_id or r["id"] == args.question_id) and (r["id"], args.metric, provider, model) not in done][:args.max_questions]
     print("Eligible records:", len(valid), "metric:", args.metric, "model:", model, "new records:", len(todo))
     if not args.live:
         print("DRY RUN: no judge requests made")
