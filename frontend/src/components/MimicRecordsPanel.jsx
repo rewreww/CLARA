@@ -74,7 +74,7 @@ export function MimicAdmissionSelector({ patient, admission, onChange, refreshKe
         {admission && demographics?.fields?.map(field => (
           <div className="mimic-header-detail" key={field.label}>
             <strong>{field.value || '—'}</strong>
-            <small>{field.label}</small>
+            <small>{field.label === 'Age (reference year)' ? 'Age' : field.label}</small>
           </div>
         ))}
         {admission && !demographics && !error && <span role="status">Loading demographics…</span>}
