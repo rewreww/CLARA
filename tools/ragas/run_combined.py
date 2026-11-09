@@ -37,7 +37,7 @@ def state(capture_path, nemotron_path, groq_path):
     return captured, latest, scored
 
 def main():
-    p = argparse.ArgumentParser(description="Resume uns cored CLARA RAGAS metric slots, using Groq.")
+    p = argparse.ArgumentParser(description="Resume unscored CLARA RAGAS metric slots, using Groq fallbacks.")
     p.add_argument("--dataset", required=True)
     p.add_argument("--capture", default="tools/ragas/captured_pilot.jsonl")
     p.add_argument("--nemotron-scores", default="tools/ragas/ragas_scores.jsonl")
@@ -50,8 +50,12 @@ def main():
     p.add_argument("--retry-needs-review", action="store_true")
     p.add_argument("--allow-unverified-pilot", action="store_true")
     p.add_argument("--live", action="store_true")
+    p.add_argument("--groq-models", default="openai/gpt-oss-20b,openai/gpt-oss-120b,qwen/qwen3.8-27b",
+                   help="Ordered, comma-separated Groq fallback models")
+    p.add_argument("--max-output-tokens", type=int, default=3072,
+                   help="Judge token limit to control free-tier TPM")
     a = p.parse_args()
-    if not 1 <= a.batch_size <= 100 or a.delay_seconds < 0:
+    if not 1 <= a.batch_size <= 100 or a.delay_seconds < 0 or not 256 <= a.max_output_tokens <= 8192:
         p.error("batch-size must be 1..100 and delay-seconds nonnegative")
     from dotenv import dotenv_values
     config = dotenv_values(a.env_file)
@@ -69,7 +73,10 @@ def main():
     summary = Path(a.summary)
     for path in (cap, groq, Path(a.groq_csv), summary):
         path.parent.mkdir(parents=True, exist_ok=True)
-    model = config.get("GROQ_MODEL") or "openai/gpt-oss-20b"
+    models = [name.strip() for name in a.groq_models.split(",") if name.strip()]
+    if not models:
+        p.error("Specify at least one Groq model")
+    print("Evaluator fallback order:", " -> ".join(models), flush=True)
 
     def report():
         captures, latest, scored = state(cap, nem, groq)
@@ -130,19 +137,44 @@ def main():
             if (qid, metric) in scored:
                 print(f"SKIP {qid} {metric}: scored by {scored[(qid, metric)].get('provider')}", flush=True)
                 continue
-            cmd = ["tools/ragas/score_ragas.py", "--input", str(cap.resolve()),
-                   "--output", str(groq.resolve()), "--csv", str(Path(a.groq_csv).resolve()),
-                   "--provider", "groq", "--model", model, "--metric", metric, "--question-id", qid,
-                   "--max-questions", "1", "--env-file", str(Path(a.env_file).resolve()), "--live"]
-            if a.allow_unverified_pilot:
-                cmd.append("--allow-unverified-pilot")
-            if run(cmd):
-                print(f"STOP: {qid} {metric} scoring process failed; saved results intact")
+            # Keep every attempted model in the append-only Groq score log.
+            # Only fall back on an actual unsuccessful metric; never replace scored values.
+            succeeded = False
+            for model in models:
+                cmd = ["tools/ragas/score_ragas.py", "--input", str(cap.resolve()),
+                       "--output", str(groq.resolve()), "--csv", str(Path(a.groq_csv).resolve()),
+                       "--provider", "groq", "--model", model, "--metric", metric,
+                       "--max-output-tokens", str(a.max_output_tokens),
+                       "--question-id", qid, "--max-questions", "1",
+                       "--env-file", str(Path(a.env_file).resolve()),
+                       "--rate-limit-retries", "2", "--live"]
+                if a.allow_unverified_pilot:
+                    cmd.append("--allow-unverified-pilot")
+                print(f"Judge {qid} {metric} with {model}", flush=True)
+                if run(cmd):
+                    print(f"STOP: evaluator process error on {qid} {metric}; results preserved")
+                    report()
+                    return
+                captures, latest, scored = report()
+                if (qid, metric) in scored:
+                    print(f"SUCCESS {qid} {metric}: {scored[(qid, metric)]['score']} from {model}", flush=True)
+                    succeeded = True
+                    break
+                attempts = [r for r in read(groq) if r.get("id") == qid and
+                            r.get("metric") == metric and r.get("model") == model]
+                failure = attempts[-1].get("error", "") if attempts else ""
+                is_limit = any(term in failure.lower() for term in
+                               ("429", "rate_limit", "tpm", "per minute", "per-day", "per day", "daily"))
+                is_generation_failure = any(term in failure.lower() for term in
+                                            ("incompleteoutput", "length", "max_tokens", "max completion"))
+                if not (is_limit or is_generation_failure):
+                    print(f"STOP: non-rate-limit evaluator error on {qid} {metric}: {failure[:200]}")
+                    return
+                print(f"Fallback: {model} could not score {qid} {metric}; trying next model", flush=True)
+            if not succeeded:
+                print(f"STOP: all configured models failed on {qid} {metric}. "
+                      "Existing metric scores remain intact.")
                 report()
-                return
-            captures, latest, scored = report()
-            if (qid, metric) not in scored:
-                print(f"STOP: {qid} {metric} did not score; inspect Groq logs and rate limit")
                 return
     report()
     print("Batch ended; rerun same command to continue pending metrics.", flush=True)
