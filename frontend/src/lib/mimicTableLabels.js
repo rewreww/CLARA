@@ -20,8 +20,9 @@ const DISPLAY_NAMES = {
   pharmacy: 'Pharmacy orders',
   emar: 'Medication administration',
   emar_detail: 'Medication administration details',
-  diagnoses_icd: 'Diagnoses',
-  procedures_icd: 'Procedures',
+  diagnosesicd: 'Diagnoses',
+  proceduresicd: 'Procedures',
+  emardetail: 'Medication administration details',
   transfers: 'Transfers',
   services: 'Clinical services',
   admissions: 'Admission details',
@@ -31,8 +32,6 @@ const norm = value => String(value || '').trim().toLowerCase().replace(/[^a-z0-9
 const readable = value => String(value || '').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()
   .replace(/\b\w/g, letter => letter.toUpperCase())
 const SPECIMEN_KEYS = new Set(['specimen', 'specimentype', 'specimendescription', 'fluid', 'fluidtype', 'bodysite'])
-const HEADER_SPECIMENS = new Set(['blood', 'urine', 'serum', 'plasma', 'csf', 'cerebrospinalfluid',
-  'wholeblood', 'arterialblood', 'venousblood', 'stool', 'sputum', 'saliva', 'otherbodyfluid'])
 function specimenFromCells(cells) {
   for (const [field, value] of Object.entries(cells || {})) {
     if (SPECIMEN_KEYS.has(norm(field)) && typeof value === 'string' && value.trim()) return value.trim()
