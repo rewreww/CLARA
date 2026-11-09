@@ -6,6 +6,7 @@ import datetime as dt
 import json
 import math
 import os
+import re
 import time
 from pathlib import Path
 
@@ -42,9 +43,11 @@ async def run():
     p.add_argument("--allow-unverified-pilot", action="store_true")
     p.add_argument("--delay-seconds", type=float, default=20.0)
     p.add_argument("--live", action="store_true")
+    p.add_argument("--rate-limit-retries", type=int, default=6,
+                   help="Retry temporary token-per-minute 429 errors; never retry daily quota exhaustion")
     args = p.parse_args()
-    if args.delay_seconds < 0:
-        p.error("delay-seconds must be nonnegative")
+    if args.delay_seconds < 0 or args.rate_limit_retries < 0:
+        p.error("delay-seconds and rate-limit-retries must be nonnegative")
     if not 1 <= args.max_questions <= 100:
         p.error("Batch max-questions must be between 1 and 100")
     if args.env_file:
@@ -102,7 +105,28 @@ async def run():
                   "reference_verified": row.get("reference_verified", False),
                   "evaluated_at_utc": dt.datetime.now(dt.timezone.utc).isoformat()}
         try:
-            outcome = await evaluator.ascore(**inputs)
+            for attempt in range(args.rate_limit_retries + 1):
+                try:
+                    outcome = await evaluator.ascore(**inputs)
+                    break
+                except Exception as error:
+                    msg = str(error)
+                    # RAGAS/Instructor can wrap the underlying Groq RateLimitError.
+                    is_429 = ("429" in msg or "rate_limit_exceeded" in msg.lower())
+                    is_tpm = any(term in msg.lower() for term in
+                                 ("tokens per minute", "tpm", "requests per minute", "rpm"))
+                    is_daily = any(term in msg.lower() for term in
+                                   ("per-day", "per day", "daily", "free-models-per-day"))
+                    if not is_429 or not is_tpm or is_daily or attempt >= args.rate_limit_retries:
+                        raise
+                    # Groq includes "Please try again in 1.4175s." in the exception.
+                    match = re.search(r"try again in\\s+([0-9.]+)s", msg, re.IGNORECASE)
+                    suggested = float(match.group(1)) if match else 20.0
+                    pause = min(120.0, max(suggested + 6.0, 12.0, 15.0 * (attempt + 1)))
+                    print(f"{row['id']} {args.metric}: temporary TPM 429; "
+                          f"retry {attempt + 1}/{args.rate_limit_retries} in {pause:.1f}s",
+                          flush=True)
+                    await asyncio.sleep(pause)
             score = float(outcome.value)
             if not math.isfinite(score):
                 raise ValueError("RAGAS returned non-finite score")
