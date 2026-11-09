@@ -36,6 +36,7 @@ def main():
     p.add_argument("--provider", choices=("openrouter", "groq"), default="openrouter")
     p.add_argument("--model", default="")
     p.add_argument("--batch-size", type=int, default=10)
+    p.add_argument("--retry-needs-review", action="store_true", help="Reattempt previously rejected captures")
     p.add_argument("--delay-seconds", type=float, default=30)
     p.add_argument("--allow-unverified-pilot", action="store_true")
     p.add_argument("--live", action="store_true", help="Required to make API requests")
@@ -62,13 +63,14 @@ def main():
         path.parent.mkdir(parents=True, exist_ok=True)
     def report():
         complete, graded = snapshot(capture, scores, a.provider, model)
+        latest_capture = {r.get("id"): r for r in rows(capture)}
         with Path(a.summary).open("w", newline="", encoding="utf-8-sig") as fh:
             writer = csv.writer(fh)
             writer.writerow(["id", "capture_status", *METRICS, "reference_verified"])
             for item in dataset:
                 id = item["id"]
                 cr = complete.get(id)
-                writer.writerow([id, "completed" if cr else "pending",
+                writer.writerow([id, "completed" if cr else latest_capture.get(id, {}).get("status", "pending"),
                     *[graded.get((id, metric), {}).get("score", "") for metric in METRICS],
                     bool((cr or item).get("reference_verified", (cr or item).get("expert_verified", False)))])
         print(f"Saved summary: {a.summary} | Captured {len(complete)}/100 | Scores {len(graded)}/400", flush=True)
@@ -77,7 +79,9 @@ def main():
         print("DRY RUN: no requests made. Add --live to execute.")
         return
     completed, graded = snapshot(capture, scores, a.provider, model)
-    pending = [id for id in ids if id not in completed or any((id, m) not in graded for m in METRICS)]
+    latest_capture = {r.get("id"): r for r in rows(capture)}
+    pending = [id for id in ids if (id in completed or a.retry_needs_review or latest_capture.get(id, {}).get("status") not in ("needs_review", "failed"))
+               and (id not in completed or any((id, m) not in graded for m in METRICS))]
     target_ids = pending[:a.batch_size]
     if not target_ids:
         print("Everything already scored.")
@@ -94,16 +98,16 @@ def main():
         completed, graded = snapshot(capture, scores, a.provider, model)
         if id not in completed:
             cmd = ["tools/ragas/run_capture_pilot.py", "--dataset", str(Path(a.dataset).resolve()),
-                   "--out", str(capture.resolve()), "--max-questions", "1", "--live"]
+                   "--out", str(capture.resolve()), "--max-questions", "1", "--question-id", id, "--live"]
             if run(cmd) != 0:
                 print(f"STOP: capture script failed while targeting {id}.")
                 report()
-                return
+                continue
             completed, graded = snapshot(capture, scores, a.provider, model)
             if id not in completed:
-                print(f"STOP: {id} lacks an accepted captured response. Inspect {capture}")
+                print(f"SKIP: {id} lacks accepted evidence; recorded for review.")
                 report()
-                return
+                continue
         for metric in METRICS:
             if (id, metric) in graded:
                 print(f"Skipping existing {id} {metric}")
@@ -111,21 +115,21 @@ def main():
             cmd = ["tools/ragas/score_ragas.py", "--input", str(capture.resolve()),
                    "--output", str(scores.resolve()), "--csv", str(Path(a.csv).resolve()),
                    "--provider", a.provider, "--model", model, "--metric", metric,
-                   "--max-questions", "1", "--env-file", str(Path(a.env_file).resolve()), "--live"]
+                   "--max-questions", "1", "--question-id", id, "--env-file", str(Path(a.env_file).resolve()), "--live"]
             if a.allow_unverified_pilot:
                 cmd.append("--allow-unverified-pilot")
             if run(cmd) != 0:
                 print(f"STOP: scoring subprocess failed on {id} {metric}")
                 report()
-                return
+                break
             completed, graded = snapshot(capture, scores, a.provider, model)
             if (id, metric) not in graded:
-                print(f"STOP: scoring failed on {id} {metric}; review {scores}")
+                print(f"SKIP: scoring failed on {id} {metric}; review {scores}")
                 report()
-                return
+                break
             print(f"Success: {id} {metric} = {graded[(id, metric)]['score']}", flush=True)
         report()
-    print("Batch finished. Rerun the same command to continue.", flush=True)
+    print("Batch finished. Rerun to continue; use --retry-needs-review to retry rejected captures.", flush=True)
 
 if __name__ == "__main__":
     main()
