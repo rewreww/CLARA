@@ -1714,3 +1714,12 @@ svg { flex-shrink: 0; }
 @media (max-width: 580px) {
   .mimic-date-strip button .mimic-admission-year { font-size: 9px; }
 }
+
+/* Contextual headings for MIMIC PDF-source groups in every record category. */
+.mimic-table-group { min-width: 0; }
+.mimic-table-heading {
+  display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline;
+  padding: 10px 3px; color: var(--text, #e2e8f0);
+}
+.mimic-table-heading h3 { font-size: 14px; line-height: 1.4; font-weight: 650; margin: 0; }
+.mimic-table-heading time { color: var(--muted, #9eacb9); font-size: 12px; }
