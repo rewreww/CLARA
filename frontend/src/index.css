@@ -1703,3 +1703,8 @@ svg { flex-shrink: 0; }
   .mimic-patient-identity > h1 { flex-basis: 100%; }
   .mimic-patient-inline-details > div, .mimic-patient-inline-details > span.mimic-header-admission { padding-right: 10px; padding-left: 15px; }
 }
+
+/* Center demographics values directly over their labels. */
+.mimic-patient-inline-details .mimic-header-detail { align-items: center; text-align: center; }
+.mimic-patient-inline-details .mimic-header-detail strong,
+.mimic-patient-inline-details .mimic-header-detail small { text-align: center; }
