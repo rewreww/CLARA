@@ -24,7 +24,6 @@ function Message({ msg, onSource, onActivity }) {
 
   return (
     <article className={`chat-message ${isDoctor ? 'from-doctor' : 'from-clara'}`} aria-label={isDoctor ? 'Your message' : 'CLARA response'}>
-      {!isDoctor && <span className="message-avatar"><Activity size={18} /></span>}
       <div className="message-content">
         {!isDoctor && <div className="message-author">CLARA</div>}
         {!isDoctor && (msg.streaming || msg.actions?.length > 0 || msg.error || msg.interrupted) && <ActivityTimeline message={msg} />}
