@@ -1674,3 +1674,32 @@ svg { flex-shrink: 0; }
 /* Show CSV retrieval failures explicitly instead of silently implying values were absent. */
 .mimic-demographics-error { margin: 10px 0 0; font-size: 12px; line-height: 1.5; color: #e9a6a6; overflow-wrap: anywhere; }
 .clara-theme-light .mimic-demographics-error { color: #9e3030; }
+
+
+/* Patient header: value above label, separated by subtle centered dots. */
+.mimic-workspace .mimic-patient-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.mimic-patient-identity { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; min-width: 0; flex: 1 1 600px; }
+.mimic-patient-identity > h1 { margin: 0; white-space: nowrap; }
+.mimic-patient-inline-details { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 0; min-width: 0; }
+.mimic-patient-inline-details > div, .mimic-patient-inline-details > span.mimic-header-admission {
+  display: flex; flex-direction: column; gap: 4px; min-width: 0;
+  padding: 0 13px 0 19px; position: relative;
+}
+.mimic-patient-inline-details > :first-child { padding-left: 0; }
+.mimic-patient-inline-details > :not(:first-child)::before {
+  content: "·"; position: absolute; left: 4px; top: 1px; color: var(--muted); font-size: 18px; line-height: 1;
+}
+.mimic-patient-inline-details strong { font-size: 13px; font-weight: 600; color: var(--text); white-space: normal; overflow-wrap: anywhere; }
+.mimic-patient-inline-details small { font-size: 11px; color: var(--muted); line-height: 1.25; }
+.mimic-patient-identity .mimic-demographics-error { flex-basis: 100%; margin-top: 0; }
+@media (max-width: 650px) {
+  .mimic-patient-identity { align-items: flex-start; gap: 9px; }
+  .mimic-patient-identity > h1 { flex-basis: 100%; }
+  .mimic-patient-inline-details > div, .mimic-patient-inline-details > span.mimic-header-admission { padding-right: 10px; padding-left: 15px; }
+}
