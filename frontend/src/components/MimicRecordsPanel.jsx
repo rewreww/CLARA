@@ -236,7 +236,7 @@ function referenceFlagDescription(row) {
 }
 
 function resultColumn(header) {
-  return /^(result|value|recorded value|recorded result)$/i.test(header.replace(/\\s+/g, ' ').trim())
+  return /^(result|value|recorded value|recorded result)$/i.test(header.replace(/\s+/g, ' ').trim())
 }
 
 function RecordTables({ rows, category, onOpen, offsetDays, groupByTime = false }) {
