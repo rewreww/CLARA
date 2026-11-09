@@ -63,28 +63,18 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
   activeSection, isActive, messages, loading, onSend, onStop, onOpenRecord }) {
   const [input, setInput] = useState('')
   const [pickerOpen, setPickerOpen] = useState(false)
-  const [checkRecordAfterSelection, setCheckRecordAfterSelection] = useState(false)
-  const closePicker = useCallback(() => {
-    setPickerOpen(false)
-    setCheckRecordAfterSelection(false)
-  }, [])
-  const openSearchPatient = () => {
-    setCheckRecordAfterSelection(false)
-    setPickerOpen(true)
+  const closePicker = useCallback(() => setPickerOpen(false), [])
+  const useQuickPrompt = prompt => {
+    // Populate, but never send: doctors review/edit the question first.
+    setInput(prompt)
+    taRef.current?.focus()
   }
-  const openCheckPatientData = () => {
-    if (patient) {
-      onOpenRecord()
-      return
-    }
-    setCheckRecordAfterSelection(true)
-    setPickerOpen(true)
-  }
-  const selectFromQuickStart = (selectedPatient, selectedAdmission) => {
-    onSelectPatientContext(selectedPatient, selectedAdmission)
-    if (checkRecordAfterSelection && selectedPatient) onOpenRecord()
-    setCheckRecordAfterSelection(false)
-  }
+  const promptGuideline = () => useQuickPrompt(
+    'According to the available clinical guidelines, what are the recommendations for [condition or clinical question]? Summarize the key guidance and cite the supporting guideline and page.'
+  )
+  const promptPatientData = () => useQuickPrompt(
+    'Review the selected patient\'s available records for the selected admission. Summarize the key clinical findings, latest vital signs, abnormal laboratory results, and important trends. Cite the patient record sources and clearly identify any missing information. Do not assume unavailable data.'
+  )
   const scrollRef = useRef(null)
   const taRef = useRef(null)
   const followResponse = useRef(true)
@@ -132,7 +122,7 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
   const picker = pickerOpen ? <PatientAdmissionPicker
     patients={patients} patientsLoading={patientsLoading} patientsError={patientsError}
     selectedPatient={patient} selectedAdmission={admission}
-    onSelect={selectFromQuickStart} onClose={closePicker} /> : null
+    onSelect={onSelectPatientContext} onClose={closePicker} /> : null
 
   const composer = (
     <div className={`composer-area ${pickerOpen ? 'picker-is-open' : ''} ${hasConversation ? 'picker-above' : 'picker-below'}`}>
@@ -145,7 +135,7 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
           }}
           placeholder={patient ? 'Ask about this patient...' : 'Ask CLARA...'} aria-label="Message CLARA" rows={1} />
         <div className="composer-controls">
-          <button className="composer-patient-button" type="button" onClick={openSearchPatient}
+          <button className="composer-patient-button" type="button" onClick={() => setPickerOpen(true)}
             title={patient ? 'Change patient or admission' : 'Select a patient'}
             aria-label={patient ? 'Change patient or admission' : 'Select a patient'}
             aria-haspopup="dialog" aria-expanded={pickerOpen}>
@@ -202,21 +192,21 @@ export default function ChatPanel({ patient, admission, patients, patientsLoadin
             <h1>How can I help, Doctor?</h1>
             {composer}
             <div className="clara-quick-actions" aria-label="Quick actions">
-              <button type="button" className="clara-quick-action" onClick={openSearchPatient}
-                aria-label="Search patient records">
+              <button type="button" className="clara-quick-action" onClick={promptGuideline}
+                aria-label="Insert guideline search prompt">
                 <span className="clara-quick-action-icon"><Search size={19} aria-hidden="true" /></span>
                 <span className="clara-quick-action-copy">
-                  <strong>Search Patient</strong>
-                  <small>Find a patient by name or ID and select an admission.</small>
+                  <strong>Search Guideline</strong>
+                  <small>Ask a clinical question using the ingested guidelines.</small>
                 </span>
                 <ArrowUpRight size={17} className="clara-quick-action-arrow" aria-hidden="true" />
               </button>
-              <button type="button" className="clara-quick-action" onClick={openCheckPatientData}
-                aria-label="Check patient data">
+              <button type="button" className="clara-quick-action" onClick={promptPatientData}
+                aria-label="Insert patient data review prompt">
                 <span className="clara-quick-action-icon"><ClipboardList size={19} aria-hidden="true" /></span>
                 <span className="clara-quick-action-copy">
                   <strong>Check Patient Data</strong>
-                  <small>Review the selected patient's available clinical records.</small>
+                  <small>Prepare a summary of findings, vitals, labs, and trends.</small>
                 </span>
                 <ArrowUpRight size={17} className="clara-quick-action-arrow" aria-hidden="true" />
               </button>
