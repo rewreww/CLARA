@@ -1592,3 +1592,28 @@ svg { flex-shrink: 0; }
 .chat-welcome .clara-quick-action:hover {
   border-color: transparent;
 }
+
+
+/* Keep the composer and quick prompts stationary when the patient picker opens.
+   The picker overlays the welcome cards rather than participating in layout. */
+.composer-area { position: relative; }
+.composer-area.picker-is-open { z-index: 15; }
+.composer-area .patient-admission-inline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.composer-area.picker-below .patient-admission-inline {
+  top: calc(100% + 8px);
+  bottom: auto;
+  margin: 0;
+}
+.composer-area.picker-above .patient-admission-inline {
+  bottom: calc(100% + 8px);
+  top: auto;
+  margin: 0;
+}
