@@ -100,8 +100,8 @@ export default function PatientAdmissionPicker({
       <div className="patient-admission-shell">
         <header className="patient-admission-header">
           <div>
-            <h2 id="patient-admission-title">Choose patient & admission</h2>
-            <p>Choose an admission to keep the conversation scoped to one record.</p>
+            <h2 id="patient-admission-title">Choose patient</h2>
+            <p>Select a patient alone, or choose an admission for admission-specific clinical records.</p>
           </div>
           <button type="button" className="patient-admission-close" onClick={onClose}
             aria-label="Close patient picker"><X size={18} /></button>
@@ -153,6 +153,12 @@ export default function PatientAdmissionPicker({
             )}
             {focusedPatient?.id?.startsWith('Patient_') && <>
               <p className="patient-admission-scope">Admissions for <strong>{focusedPatient.name || focusedPatient.id}</strong></p>
+              <div className="patient-admission-legacy">
+                <button type="button" className="patient-admission-primary"
+                  aria-label="Select patient without an admission"
+                  onClick={() => choose(focusedPatient, '')}>Use patient only</button>
+                <p>Admission not selected. Choose an admission below before requesting admission-specific patient data.</p>
+              </div>
               <p className="patient-admission-note">Historical MIMIC-IV data: recorded dates are shifted.</p>
               {loadingAdmissions && <p className="patient-admission-info" role="status">Loading admission dates…</p>}
               {admissionsError && <p className="patient-admission-info" role="alert">{admissionsError}</p>}
