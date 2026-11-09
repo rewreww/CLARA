@@ -137,6 +137,36 @@ public sealed class MimicRecordsController(ClaraDbContext db, IConfiguration con
             $"Matched {matched} of {total} scoped PDF rows; showing at most 40. This is a subset, not the full record.",
             "Dates are shifted. Orders are not proof of administration. Missing values are unknown, not normal.",
             "No physician-written discharge summaries exist. No validated automated clinical alerts or ML assessment is available." };
+        // Supplement the admission-scoped PDF subset with verified LOCAL CSV demographics.
+        // Missing or invalid CSV exports must never be interpreted as negative findings.
+        var demographicsAvailable = false;
+        if (admission != "unlinked")
+        {
+            try
+            {
+                var demographicsJson = JsonSerializer.Serialize(MimicDemographicsCsv.Read(configuration, patientId, admission));
+                using var demographics = JsonDocument.Parse(demographicsJson);
+                lines.Add("[VERIFIED MIMIC-IV CSV DEMOGRAPHICS — SELECTED PATIENT AND ADMISSION]");
+                lines.Add("Source: local patient-specific Source_CSV/hosp_patients.csv and Source_CSV/hosp_admissions.csv; verified subject_id and hadm_id.");
+                lines.Add("Age is anchor_age in the dataset reference year, NOT age today or necessarily age at this admission.");
+                foreach (var field in demographics.RootElement.GetProperty("fields").EnumerateArray())
+                {
+                    var label = field.GetProperty("label").GetString();
+                    var value = field.GetProperty("value");
+                    var text = value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+                    lines.Add($"{label}: {(string.IsNullOrWhiteSpace(text) ? "Not recorded" : text)}");
+                }
+                demographicsAvailable = true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                lines.Add("CSV demographics are unavailable or could not be verified for this admission. Do not infer missing demographic fields.");
+            }
+        }
+        else
+        {
+            lines.Add("No admission-linked CSV demographics for unlinked records.");
+        }
         var chars = 0;
         foreach (var row in selected)
         {
@@ -145,6 +175,6 @@ public sealed class MimicRecordsController(ClaraDbContext db, IConfiguration con
             lines.Add(line); chars += line.Length; included.Add(row);
         }
         var sources = included.Select(x => new { type = "patient_pdf", source = x.source, page = x.page, title = Path.GetFileName(x.source) }).Distinct().ToList();
-        return Ok(new { context = string.Join('\n', lines), sources, matched, total });
+        return Ok(new { context = string.Join('\n', lines), sources, matched, total, demographics_available = demographicsAvailable });
     }
 }
