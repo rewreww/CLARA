@@ -95,11 +95,12 @@ export function MimicAdmissionSelector({ patient, admission, onChange, refreshKe
       onPointerLeave={() => { drag.current = null }}
       onClickCapture={e => { if (drag.current?.moved) { e.preventDefault(); e.stopPropagation() } drag.current = null }}>
       {dates.map(item => {
+        const hasDemoOffset = Number.isInteger(current?.demo_date_offset_days)
         const displayDate = demoDateText(item.date, current?.demo_date_offset_days)
         const parts = dateParts(displayDate)
         return <button key={item.id} aria-pressed={admission === item.id}
-          aria-label={item.date ? `Estimated admission date ${displayDate}, ${item.id}` : item.id === 'unlinked' ? 'Unlinked records' : `Undated admission ${item.id}`}
-          title={item.date ? `${displayDate} · ${item.id} (estimated demo date)` : item.id}
+          aria-label={item.date ? `${hasDemoOffset ? 'Estimated' : 'Shifted'} admission date ${displayDate}, ${item.id}` : item.id === 'unlinked' ? 'Unlinked records' : `Undated admission ${item.id}`}
+          title={item.date ? `${displayDate} · ${item.id} (${hasDemoOffset ? 'estimated demo' : 'original shifted'} date)` : item.id}
           onClick={() => onChange(item.id)}>{parts ? <><span>{parts.month}</span><strong>{parts.day}</strong><span>{parts.year}</span></> : <span>{item.id === 'unlinked' ? 'Unlinked' : 'Undated'}</span>}</button>
       })}
       {!data && !error && <span role="status">Loading dates…</span>}
