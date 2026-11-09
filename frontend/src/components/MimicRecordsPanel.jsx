@@ -101,7 +101,7 @@ export function MimicAdmissionSelector({ patient, admission, onChange, refreshKe
         return <button key={item.id} aria-pressed={admission === item.id}
           aria-label={item.date ? `${hasDemoOffset ? 'Estimated' : 'Shifted'} admission date ${displayDate}, ${item.id}` : item.id === 'unlinked' ? 'Unlinked records' : `Undated admission ${item.id}`}
           title={item.date ? `${displayDate} · ${item.id} (${hasDemoOffset ? 'estimated demo' : 'original shifted'} date)` : item.id}
-          onClick={() => onChange(item.id)}>{parts ? <><span>{parts.month}</span><strong>{parts.day}</strong><span>{parts.year}</span></> : <span>{item.id === 'unlinked' ? 'Unlinked' : 'Undated'}</span>}</button>
+          onClick={() => onChange(item.id)}>{parts ? <><span>{parts.month}</span><strong>{parts.day}</strong><span className="mimic-admission-year">{displayDate.slice(0, 4)}</span></> : <span>{item.id === 'unlinked' ? 'Unlinked' : 'Undated'}</span>}</button>
       })}
       {!data && !error && <span role="status">Loading dates…</span>}
     </div>
