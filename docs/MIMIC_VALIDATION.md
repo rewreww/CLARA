@@ -2,9 +2,18 @@
 
 The configured PDF source is `%USERPROFILE%\Desktop\MIMIC_100_Patients`.
 The configured database is `clara_mimic_test`, using the existing local PostgreSQL credentials.
-`Desktop\Patients` is preserved. CLARA does not read Source_CSV files for this import.
+`Desktop\Patients` is preserved. The PDF ingestion pipeline does not import Source_CSV files; patient-specific CSVs are read only at runtime to supply demographics and the estimated demonstration timeline.
 Background import is disabled so that a restart cannot silently begin a full import.
 Keep the export unchanged during validation; unchanged size, modification time and parser version are used to skip previously completed PDFs.
+
+## Estimated demonstration date rendering (not reconstructed true dates)
+
+The Patients tab, chat admission picker, vitals trends, category tables, and selected-patient LLM evidence use a single **patient-scoped** conversion. CLARA reads only
+`MIMIC_100_Patients/Patient_<subject_id>/Source_CSV/hosp_patients.csv` for the verified `subject_id`, `anchor_year` and `anchor_year_group`. The demonstration reference year is the midpoint of the group; the offset is the number of days between January 1 of that year and January 1 of `anchor_year`. The same fixed day offset is applied to all available shifted timestamps for that patient. This is **not the actual historical calendar date**. Do not compare dates across patients or interpret them as real-world concurrent events.
+
+The original shifted timestamps, source PDFs, CSVs, PostgreSQL rows, and source citations are never overwritten. If the patient-specific anchor is absent, invalid, or inaccessible, leave shifted dates unchanged and tell the LLM no verified demo conversion exists. Missing date fields remain missing. Date conversion changes display years only; it preserves within-patient elapsed time and clock times. Source PDFs and PDF previews continue to show the original privacy-shifted dates. There is no automatic conversion for unrelated legacy patient data.
+
+Review tests with `node --test frontend/tests/mimicDemoDates.test.mjs`; run `dotnet build backend/CLARA.Backend.csproj` and `npm --prefix frontend run build` after pulling. Verify selected patient/admission switching, copied chat replies, charts, all record-category date columns, and source PDF citations against a patient with multiple admissions and events spanning date boundaries.
 
 ## Start and representative import
 
