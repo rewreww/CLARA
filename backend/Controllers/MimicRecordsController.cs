@@ -8,7 +8,7 @@ namespace CLARA.Backend.Controllers;
 
 [ApiController]
 [Route("api/patientdata/{patientId}/mimic")]
-public sealed class MimicRecordsController(ClaraDbContext db) : ControllerBase
+public sealed class MimicRecordsController(ClaraDbContext db, IConfiguration configuration) : ControllerBase
 {
     private static bool ValidPatient(string patientId) => Regex.IsMatch(patientId, @"^Patient_\d{8}$");
     private static bool ValidAdmission(string? admission) => admission == "unlinked" || Regex.IsMatch(admission ?? "", @"^\d{8}$");
@@ -31,6 +31,34 @@ public sealed class MimicRecordsController(ClaraDbContext db) : ControllerBase
             rows = await db.MimicRows.CountAsync(x => x.PatientId == patientId && x.Document.ExtractionStatus == "completed", token),
             failed_documents = await db.PatientDocuments.CountAsync(x => x.PatientId == patientId && x.ExtractionStatus == "failed", token),
             notice = "Historical MIMIC-IV Demo 2.2. Dates are shifted. No physician-written discharge summaries. Clinical alerts and ML predictions have not been validated for this dataset." });
+    }
+
+    [HttpGet("demographics")]
+    public async Task<IActionResult> Demographics(string patientId, string admission, CancellationToken token)
+    {
+        if (!ValidPatient(patientId) || !Regex.IsMatch(admission ?? "", @"^\d{8}$"))
+            return BadRequest(new { error = "Select a valid MIMIC admission." });
+        // A CSV entry alone cannot authorize access to an unimported patient/admission.
+        if (!await db.MimicDocuments.AsNoTracking().AnyAsync(x =>
+                x.Document.PatientId == patientId && x.AdmissionId == admission
+                && x.Document.ExtractionStatus == "completed", token))
+            return NotFound(new { error = "This patient/admission has no imported records." });
+        try
+        {
+            return Ok(MimicDemographicsCsv.Read(configuration, patientId, admission));
+        }
+        catch (FileNotFoundException)
+        {
+            return NotFound(new { error = "Matching local CSV demographics are unavailable." });
+        }
+        catch (IOException)
+        {
+            return StatusCode(422, new { error = "The local CSV demographics could not be verified." });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return StatusCode(422, new { error = "The CSV demographics are inaccessible." });
+        }
     }
 
     [HttpGet("vitals")]
