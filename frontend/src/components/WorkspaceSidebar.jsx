@@ -96,9 +96,9 @@ export default function WorkspaceSidebar({ activeApp, onChangeApp, selectedPatie
           </button>
         </nav>
         <div className="sidebar-content clara-sidebar-content">
-          <ConversationHistory conversations={conversations} activeId={activeConversationId}
+          {activeApp !== 'patients' && <ConversationHistory conversations={conversations} activeId={activeConversationId}
             onOpen={onOpenConversation} onNew={onNewConversation} onRename={onRenameConversation}
-            onDelete={onDeleteConversation} error={historyError} />
+            onDelete={onDeleteConversation} error={historyError} />}
           {activeApp === 'patients' && <section className="clara-patient-directory-section" aria-label="Patient directory">
             <div className="sidebar-section-label">Patient directory</div>
             <div className="patient-search"><Search size={16} />
