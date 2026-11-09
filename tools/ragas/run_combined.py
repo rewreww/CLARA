@@ -152,7 +152,9 @@ def main():
                 low = reason.lower()
                 fatal = any(term in low for term in (
                     "429", "rate_limit", "resource_exhausted", "quota",
-                    "http 401", "http 403", "http 404", "connection refused",
+                    "http 401", "http 403", "http 404", "http 500",
+                    "http 502", "http 503", "http 504",
+                    "openrouter and the groq fallback could not respond", "connection refused",
                     "timed out", "timeout"
                 ))
                 if capture_exit or fatal:
