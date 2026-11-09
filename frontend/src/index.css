@@ -1617,3 +1617,37 @@ svg { flex-shrink: 0; }
   top: auto;
   margin: 0;
 }
+
+
+/* Admission-scoped demographics appear directly beneath the date selector. */
+.mimic-demographics {
+  margin: 12px 24px 16px;
+  padding: 15px 17px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.mimic-demographics-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 14px;
+  align-items: baseline;
+  margin-bottom: 13px;
+}
+.mimic-demographics-heading h2 { margin: 0; font-size: 15px; font-weight: 650; }
+.mimic-demographics-heading span { font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
+.mimic-demographics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 20px;
+  margin: 0;
+}
+.mimic-demographics-grid > div { min-width: 0; }
+.mimic-demographics-grid dt { color: var(--muted); font-size: 11px; margin-bottom: 5px; }
+.mimic-demographics-grid dd { margin: 0; font-size: 13px; font-weight: 550; overflow-wrap: anywhere; }
+.mimic-demographics-note { color: var(--muted); font-size: 11px; line-height: 1.55; margin: 13px 0 0; }
+@media (max-width: 650px) {
+  .mimic-demographics { margin: 10px 12px; padding: 13px; }
+  .mimic-demographics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+}
