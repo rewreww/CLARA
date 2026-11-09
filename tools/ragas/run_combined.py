@@ -28,8 +28,8 @@ def state(capture_path, nemotron_path, groq_path, gemini_path=None):
         if row.get("status") == "completed" and row.get("ragas_ready") and row.get("retrieved_contexts"):
             captured[qid] = row
     scored = {}
-    # Prefer existing Nemotron scores when the same question + metric
-    # has been scored by both. Groq scores fill missing slots only.
+    # Retain existing Nemotron scores first, then Groq, then Gemini.
+    # Never replace a scored metric with a failed attempt.
     for path in (gemini_path, groq_path, nemotron_path):
         if path is None:
             continue
@@ -50,8 +50,9 @@ def main():
     p.add_argument("--summary", default="tools/ragas/ragas_summary_combined.csv")
     p.add_argument("--env-file", default="ai-services/llm_service/.env")
     p.add_argument("--batch-size", type=int, default=10)
-    p.add_argument("--delay-seconds", type=float, default=90)
-    p.add_argument("--retry-needs-review", action="store_true")
+    p.add_argument("--delay-seconds", type=float, default=120)
+    p.add_argument("--retry-needs-review", action="store_true",
+                   help="Explicitly retry prior failed/needs_review captures; normally skip them")
     p.add_argument("--allow-unverified-pilot", action="store_true")
     p.add_argument("--live", action="store_true")
     p.add_argument("--groq-models", default="openai/gpt-oss-20b,openai/gpt-oss-120b",
@@ -114,8 +115,13 @@ def main():
                if not all((qid, m) in scored for m in METRICS)
                and (qid in captures or a.retry_needs_review
                     or latest.get(qid, {}).get("status") not in ("needs_review", "failed"))]
+    held = [qid for qid in ids if qid not in captures and
+            latest.get(qid, {}).get("status") in ("needs_review", "failed")]
+    if held and not a.retry_needs_review:
+        print("Held for manual capture review (not treated as scores):", held, flush=True)
     selected = pending[:a.batch_size]
     print("Pending questions in this batch:", selected, flush=True)
+    print(f"Minimum interval between API-request process starts: {a.delay_seconds:.0f}s", flush=True)
     if not a.live:
         print("DRY RUN (no API requests). Add --live to execute.", flush=True)
         return
@@ -133,13 +139,25 @@ def main():
         if qid not in captures:
             cmd = ["tools/ragas/run_capture_pilot.py", "--dataset", str(Path(a.dataset).resolve()),
                    "--out", str(cap.resolve()), "--max-questions", "1", "--question-id", qid, "--live"]
-            if run(cmd):
-                print(f"STOP: {qid} capture failed; saved results are intact")
-                report()
-                return
+            capture_exit = run(cmd)
             captures, latest, scored = report()
             if qid not in captures:
-                print(f"SKIP {qid}: no accepted guideline evidence. Review separately.")
+                failure = latest.get(qid, {})
+                reason = str(failure.get("error") or failure.get("evaluation_status") or
+                             "No accepted guideline evidence")
+                print(f"SKIP {qid}: capture {failure.get('status', 'missing')} — {reason[:250]}. "
+                      "Not scored; review evidence separately.", flush=True)
+                # Rate limits or endpoint configuration failures require operator action.
+                # Do not continue sending requests against an exhausted quota/service.
+                low = reason.lower()
+                fatal = any(term in low for term in (
+                    "429", "rate_limit", "resource_exhausted", "quota",
+                    "http 401", "http 403", "http 404", "connection refused",
+                    "timed out", "timeout"
+                ))
+                if capture_exit or fatal:
+                    print("STOP: capture service/rate-limit issue. Existing scores remain intact.", flush=True)
+                    return
                 continue
         for metric in METRICS:
             if (qid, metric) in scored:
