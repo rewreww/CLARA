@@ -1723,3 +1723,10 @@ svg { flex-shrink: 0; }
 }
 .mimic-table-heading h3 { font-size: 14px; line-height: 1.4; font-weight: 650; margin: 0; }
 .mimic-table-heading time { color: var(--muted, #9eacb9); font-size: 12px; }
+
+/* Maintain contrast for source-derived table headings in light mode. */
+.clara-theme-light .mimic-table-heading,
+.clara-theme-light .mimic-table-heading h3,
+.clara-theme-light .mimic-table-heading time {
+  color: #17365d;
+}
