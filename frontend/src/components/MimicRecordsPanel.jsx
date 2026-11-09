@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import MimicOverview from './MimicOverview'
 import { admissionDates, admissionDemographics, dateParts } from '../lib/mimicOverview'
 import { LABS_URL } from '../constants'
+import { demoDateText } from '../lib/mimicDemoDates'
 import PdfPreview from './PdfPreview'
 
 export const MIMIC_CATEGORIES = {
@@ -11,7 +12,7 @@ export const MIMIC_CATEGORIES = {
   procedures: 'Procedures', orders: 'Provider orders', care_movements: 'Care movements', administrative: 'Administrative',
 }
 
-export function MimicAdmissionSelector({ patient, admission, onChange, refreshKey, onRefresh }) {
+export function MimicAdmissionSelector({ patient, admission, onChange, refreshKey, onRefresh, onTimeline }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [csvDemographics, setCsvDemographics] = useState(null)
@@ -25,9 +26,10 @@ export function MimicAdmissionSelector({ patient, admission, onChange, refreshKe
         if (controller.signal.aborted) return
         if (result.patient !== patient.id) throw new Error('Patient summary did not match the selected patient')
         setData(result)
+        onTimeline({ patient: patient.id, offsetDays: result.demo_date_offset_days, yearGroup: result.demo_year_group })
       }).catch(e => { if (e.name !== 'AbortError' && !controller.signal.aborted) setError(e.message) })
     return () => controller.abort()
-  }, [patient.id, refreshKey])
+  }, [patient.id, refreshKey, onTimeline])
   useEffect(() => {
     setCsvDemographics(null)
     setDemographicsError('')
@@ -93,7 +95,8 @@ export function MimicAdmissionSelector({ patient, admission, onChange, refreshKe
       onPointerLeave={() => { drag.current = null }}
       onClickCapture={e => { if (drag.current?.moved) { e.preventDefault(); e.stopPropagation() } drag.current = null }}>
       {dates.map(item => {
-        const parts = dateParts(item.date)
+        const displayDate = demoDateText(item.date, current?.demo_date_offset_days)
+        const parts = dateParts(displayDate)
         return <button key={item.id} aria-pressed={admission === item.id}
           aria-label={item.date ? `Admission ${item.date}, ${item.id}` : item.id === 'unlinked' ? 'Unlinked records' : `Undated admission ${item.id}`}
           title={item.date ? `${item.date} · ${item.id}` : item.id}
@@ -110,6 +113,7 @@ export function MimicAdmissionSelector({ patient, admission, onChange, refreshKe
 
 export default function MimicRecordsPanel({ patient, admission, activeSection, onSelectSection, refreshKey, onRefresh, onAdmissionChange }) {
   const [data, setData] = useState(null)
+  const [timeline, setTimeline] = useState(null)
   const [vitals, setVitals] = useState(null)
   const [vitalError, setVitalError] = useState('')
   const [error, setError] = useState('')
@@ -121,7 +125,9 @@ export default function MimicRecordsPanel({ patient, admission, activeSection, o
   const category = activeSection !== 'overview' && MIMIC_CATEGORIES[activeSection] ? activeSection : 'chemistry'
   const scope = `${patient.id}/${admission}`
   const requestKey = `${scope}/${category}/${mode}/${page}/${mode === 'records' ? search : ''}`
-  const currentVitals = vitals?.scope === scope ? vitals.values : []
+  const offsetDays = timeline?.patient === patient.id ? timeline.offsetDays : null
+  const currentVitals = vitals?.scope === scope
+    ? vitals.values.map(row => ({ ...row, at: demoDateText(row.at, offsetDays) })) : []
   useEffect(() => {
     setVitalError(''); setVitals(null)
     if (!admission) return
@@ -156,7 +162,7 @@ export default function MimicRecordsPanel({ patient, admission, activeSection, o
   }, [patient.id, admission, category, mode, page, search, refreshKey])
   function open(source, page = 1) { setSource({ type: 'patient_pdf', source, page, title: source.split('/').pop() }) }
   return <div className="mimic-workspace">
-    <MimicAdmissionSelector key={patient.id} patient={patient} admission={admission} onChange={onAdmissionChange} refreshKey={refreshKey} onRefresh={onRefresh} />
+    <MimicAdmissionSelector key={patient.id} patient={patient} admission={admission} onChange={onAdmissionChange} refreshKey={refreshKey} onRefresh={onRefresh} onTimeline={setTimeline} />
     <div className={`mimic-admission-content ${admission && ((!vitals && !vitalError) || (!data && !error)) ? 'is-retrieving' : ''}`} aria-busy={!!admission && ((!vitals && !vitalError) || (!data && !error))}>
     <MimicOverview values={currentVitals} onOpen={open} />
     {vitalError && <p role="alert">{vitalError}</p>}
@@ -174,7 +180,7 @@ export default function MimicRecordsPanel({ patient, admission, activeSection, o
         </form>}
       </div>
       {error ? <p role="alert">{error}</p> : !data || data.requestKey !== requestKey ? <p role="status">Loading…</p> : <>
-        {mode === 'records' ? <RecordTables rows={data.rows} onOpen={open} groupByTime={category === 'chemistry'} /> : <ul className="mimic-documents">{data.documents.map((doc, index) => <li key={`${doc.source || 'document'}-${index}`}><button disabled={!doc.source} onClick={() => open(doc.source)}>{doc.source || 'Unnamed PDF'}</button><span>{doc.pages ?? 'Unknown'} pages</span></li>)}</ul>}
+        {mode === 'records' ? <RecordTables rows={data.rows} onOpen={open} offsetDays={offsetDays} groupByTime={category === 'chemistry'} /> : <ul className="mimic-documents">{data.documents.map((doc, index) => <li key={`${doc.source || 'document'}-${index}`}><button disabled={!doc.source} onClick={() => open(doc.source)}>{doc.source || 'Unnamed PDF'}</button><span>{doc.pages ?? 'Unknown'} pages</span></li>)}</ul>}
         {data.total === 0 && <p>No extracted {mode === 'records' ? 'rows' : 'PDFs'} in this category and admission.</p>}
         <div className="mimic-toolbar"><button disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Previous</button>
           <span>{data.page} / {Math.max(1, Math.ceil(data.total / 50))}</span>
@@ -186,7 +192,7 @@ export default function MimicRecordsPanel({ patient, admission, activeSection, o
   </div>
 }
 
-function RecordTables({ rows, onOpen, groupByTime = false }) {
+function RecordTables({ rows, onOpen, offsetDays, groupByTime = false }) {
   const groups = new Map()
   for (const row of rows) {
     const cells = JSON.parse(row.cells)
@@ -200,11 +206,11 @@ function RecordTables({ rows, onOpen, groupByTime = false }) {
   }
   return <div className="mimic-tables">{[...groups.entries()].map(([key, group]) => <div key={key} className="mimic-table-scroll" tabIndex={0} aria-label="Patient results">
     <table>
-      {groupByTime && <caption className="mimic-time-heading">{group.timestamp ? <time dateTime={group.timestamp}>{group.timestamp.replace('T', ' ')}</time> : 'Time not recorded'}</caption>}
+      {groupByTime && <caption className="mimic-time-heading">{group.timestamp ? <time dateTime={group.timestamp}>{demoDateText(group.timestamp, offsetDays).replace('T', ' ')}</time> : 'Time not recorded'}</caption>}
       <thead><tr>{!group.hasDate && <th>Date</th>}{group.headers.map(header => <th key={header}>{header.replaceAll('\n', ' ')}</th>)}<th>Source</th></tr></thead>
       <tbody>{group.rows.map(row => <tr key={row.id}>
-        {!group.hasDate && <td>{row.observed_at?.replace('T', ' ') || '—'}</td>}
-        {group.headers.map(header => <td key={header}>{row.cells[header] || '—'}</td>)}
+        {!group.hasDate && <td>{demoDateText(row.observed_at, offsetDays)?.replace('T', ' ') || '—'}</td>}
+        {group.headers.map(header => <td key={header}>{demoDateText(row.cells[header], offsetDays) || '—'}</td>)}
         <td><button onClick={() => onOpen(row.source, row.page)} aria-label={`Open source PDF, page ${row.page}`}>PDF ↗</button></td>
       </tr>)}</tbody></table>
   </div>)}</div>
