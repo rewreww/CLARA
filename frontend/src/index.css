@@ -1469,3 +1469,50 @@ svg { flex-shrink: 0; }
   .clara-account-disabled-banner { top:10px; }
   .clara-admin-enable-control { align-items:stretch; }
 }
+
+
+/* Doctor welcome screen: two lightweight, Perplexity-inspired quick actions. */
+.clara-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+.clara-quick-action {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  min-height: 94px;
+  text-align: left;
+  padding: 17px 15px;
+  color: inherit;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  transition: border-color .16s, background-color .16s, transform .16s;
+}
+.clara-quick-action:hover {
+  background: var(--raised);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.clara-quick-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.clara-quick-action-icon {
+  width: 37px;
+  height: 37px;
+  flex: 0 0 37px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel));
+}
+.clara-quick-action-copy { display: grid; gap: 6px; min-width: 0; flex: 1; }
+.clara-quick-action-copy strong { font-size: 13px; font-weight: 650; line-height: 1.3; }
+.clara-quick-action-copy small { font-size: 11px; line-height: 1.5; color: var(--muted); }
+.clara-quick-action-arrow { color: var(--muted); margin-top: 2px; }
+@media (max-width: 580px) {
+  .clara-quick-actions { grid-template-columns: minmax(0, 1fr); gap: 9px; margin-top: 16px; }
+  .clara-quick-action { min-height: 80px; padding: 13px; }
+}
