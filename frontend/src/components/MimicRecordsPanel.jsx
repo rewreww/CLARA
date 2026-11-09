@@ -98,8 +98,8 @@ export function MimicAdmissionSelector({ patient, admission, onChange, refreshKe
         const displayDate = demoDateText(item.date, current?.demo_date_offset_days)
         const parts = dateParts(displayDate)
         return <button key={item.id} aria-pressed={admission === item.id}
-          aria-label={item.date ? `Admission ${item.date}, ${item.id}` : item.id === 'unlinked' ? 'Unlinked records' : `Undated admission ${item.id}`}
-          title={item.date ? `${item.date} · ${item.id}` : item.id}
+          aria-label={item.date ? `Estimated admission date ${displayDate}, ${item.id}` : item.id === 'unlinked' ? 'Unlinked records' : `Undated admission ${item.id}`}
+          title={item.date ? `${displayDate} · ${item.id} (estimated demo date)` : item.id}
           onClick={() => onChange(item.id)}>{parts ? <><span>{parts.month}</span><strong>{parts.day}</strong><span>{parts.year}</span></> : <span>{item.id === 'unlinked' ? 'Unlinked' : 'Undated'}</span>}</button>
       })}
       {!data && !error && <span role="status">Loading dates…</span>}
@@ -206,7 +206,7 @@ function RecordTables({ rows, onOpen, offsetDays, groupByTime = false }) {
   }
   return <div className="mimic-tables">{[...groups.entries()].map(([key, group]) => <div key={key} className="mimic-table-scroll" tabIndex={0} aria-label="Patient results">
     <table>
-      {groupByTime && <caption className="mimic-time-heading">{group.timestamp ? <time dateTime={group.timestamp}>{demoDateText(group.timestamp, offsetDays).replace('T', ' ')}</time> : 'Time not recorded'}</caption>}
+      {groupByTime && <caption className="mimic-time-heading">{group.timestamp ? <time dateTime={demoDateText(group.timestamp, offsetDays)}>{demoDateText(group.timestamp, offsetDays).replace('T', ' ')}</time> : 'Time not recorded'}</caption>}
       <thead><tr>{!group.hasDate && <th>Date</th>}{group.headers.map(header => <th key={header}>{header.replaceAll('\n', ' ')}</th>)}<th>Source</th></tr></thead>
       <tbody>{group.rows.map(row => <tr key={row.id}>
         {!group.hasDate && <td>{demoDateText(row.observed_at, offsetDays)?.replace('T', ' ') || '—'}</td>}
