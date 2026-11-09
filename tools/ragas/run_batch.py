@@ -102,7 +102,7 @@ def main():
             if run(cmd) != 0:
                 print(f"STOP: capture script failed while targeting {id}.")
                 report()
-                continue
+                return
             completed, graded = snapshot(capture, scores, a.provider, model)
             if id not in completed:
                 print(f"SKIP: {id} lacks accepted evidence; recorded for review.")
@@ -121,12 +121,12 @@ def main():
             if run(cmd) != 0:
                 print(f"STOP: scoring subprocess failed on {id} {metric}")
                 report()
-                break
+                return
             completed, graded = snapshot(capture, scores, a.provider, model)
             if (id, metric) not in graded:
-                print(f"SKIP: scoring failed on {id} {metric}; review {scores}")
+                print(f"STOP: scoring failed on {id} {metric}; review {scores}")
                 report()
-                break
+                return
             print(f"Success: {id} {metric} = {graded[(id, metric)]['score']}", flush=True)
         report()
     print("Batch finished. Rerun to continue; use --retry-needs-review to retry rejected captures.", flush=True)
