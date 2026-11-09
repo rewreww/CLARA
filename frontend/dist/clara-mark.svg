@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 670 560" fill="none">
+  <title>CLARA</title>
+  <defs>
+    <linearGradient id="clara-gradient" x1="130" y1="500" x2="530" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0062E8"/>
+      <stop offset=".46" stop-color="#008FF5"/>
+      <stop offset="1" stop-color="#30D9ED"/>
+    </linearGradient>
+    <linearGradient id="spark-gradient" x1="475" y1="318" x2="551" y2="243" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0078EC"/>
+      <stop offset="1" stop-color="#28D7ED"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#clara-gradient)" d="M631 102 L615 76 599 60 571 43 550 36 492 31 431 46 145 179 82 216 55 243 36 276 30 313 38 347 59 381 100 416 154 444 222 468 353 504 459 526 531 530 575 519 599 506 617 490 632 466 638 447 639 366 630 350 619 342 591 340 578 347 569 358 565 369 565 429 554 451 529 463 501 464 442 454 312 423 172 378 142 363 116 342 103 321 101 296 116 266 147 241 412 120 478 96 520 96 545 107 557 120 564 138 568 211 587 228 616 228 632 217 640 198 639 131Z"/>
+  <path fill="url(#spark-gradient)" d="M516 227 505 253 488 268 467 276 487 283 504 298 516 326 528 297 543 284 565 276 537 264 522 246Z"/>
+</svg>

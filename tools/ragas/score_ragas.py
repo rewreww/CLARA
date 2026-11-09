@@ -6,6 +6,8 @@ import datetime as dt
 import json
 import math
 import os
+import re
+import time
 from pathlib import Path
 
 os.environ.setdefault("RAGAS_DO_NOT_TRACK", "true")
@@ -36,12 +38,18 @@ async def run():
     p.add_argument("--model", default="")
     p.add_argument("--metric", choices=METRICS, default="context_recall")
     p.add_argument("--max-questions", type=int, default=1)
+    p.add_argument("--question-id", default="", help="Score only this Q001-Q100 ID")
     p.add_argument("--env-file", default="")
     p.add_argument("--allow-unverified-pilot", action="store_true")
+    p.add_argument("--delay-seconds", type=float, default=20.0)
     p.add_argument("--live", action="store_true")
+    p.add_argument("--rate-limit-retries", type=int, default=6,
+                   help="Retry temporary token-per-minute 429 errors; never retry daily quota exhaustion")
     args = p.parse_args()
-    if not 1 <= args.max_questions <= 5:
-        p.error("Pilot max-questions must be between 1 and 5")
+    if args.delay_seconds < 0 or args.rate_limit_retries < 0:
+        p.error("delay-seconds and rate-limit-retries must be nonnegative")
+    if not 1 <= args.max_questions <= 100:
+        p.error("Batch max-questions must be between 1 and 100")
     if args.env_file:
         from dotenv import load_dotenv
         load_dotenv(args.env_file, override=False)
@@ -61,7 +69,7 @@ async def run():
         raise SystemExit("OpenRouter evaluator must use a :free model.")
     prior = read_rows(args.output)
     done = {(r.get("id"), r.get("metric"), r.get("provider"), r.get("model")) for r in prior if r.get("status") == "scored"}
-    todo = [r for r in valid if (r["id"], args.metric, provider, model) not in done][:args.max_questions]
+    todo = [r for r in valid if (not args.question_id or r["id"] == args.question_id) and (r["id"], args.metric, provider, model) not in done][:args.max_questions]
     print("Eligible records:", len(valid), "metric:", args.metric, "model:", model, "new records:", len(todo))
     if not args.live:
         print("DRY RUN: no judge requests made")
@@ -74,7 +82,7 @@ async def run():
     from ragas.metrics.collections import ContextPrecisionWithReference, ContextRecall, Faithfulness, AnswerRelevancy
     base = "https://api.groq.com/openai/v1" if provider == "groq" else "https://openrouter.ai/api/v1"
     client = AsyncOpenAI(api_key=api_key, base_url=base, max_retries=0, timeout=90)
-    llm = llm_factory(model, provider="openai", client=client)
+    llm = llm_factory(model, provider="openai", client=client, max_tokens=8192)
     if args.metric == "context_precision":
         evaluator = ContextPrecisionWithReference(llm=llm)
     elif args.metric == "context_recall":
@@ -84,18 +92,41 @@ async def run():
     else:
         from ragas.embeddings import HuggingFaceEmbeddings
         evaluator = AnswerRelevancy(llm=llm, embeddings=HuggingFaceEmbeddings(model="sentence-transformers/all-MiniLM-L6-v2", device="cpu"))
-    for row in todo:
+    for index, row in enumerate(todo):
+        if index:
+            await asyncio.sleep(args.delay_seconds)
         if args.metric in ("context_precision", "context_recall"):
             inputs = {"user_input": row["question"], "retrieved_contexts": row["retrieved_contexts"], "reference": row["reference_answer"]}
         elif args.metric == "faithfulness":
-            inputs = {"response": row["response"], "retrieved_contexts": row["retrieved_contexts"]}
+            inputs = {"user_input": row["question"], "response": row["response"], "retrieved_contexts": row["retrieved_contexts"]}
         else:
             inputs = {"user_input": row["question"], "response": row["response"]}
         record = {"id": row["id"], "metric": args.metric, "provider": provider, "model": model,
                   "reference_verified": row.get("reference_verified", False),
                   "evaluated_at_utc": dt.datetime.now(dt.timezone.utc).isoformat()}
         try:
-            outcome = await evaluator.ascore(**inputs)
+            for attempt in range(args.rate_limit_retries + 1):
+                try:
+                    outcome = await evaluator.ascore(**inputs)
+                    break
+                except Exception as error:
+                    msg = str(error)
+                    # RAGAS/Instructor can wrap the underlying Groq RateLimitError.
+                    is_429 = ("429" in msg or "rate_limit_exceeded" in msg.lower())
+                    is_tpm = any(term in msg.lower() for term in
+                                 ("tokens per minute", "tpm", "requests per minute", "rpm"))
+                    is_daily = any(term in msg.lower() for term in
+                                   ("per-day", "per day", "daily", "free-models-per-day"))
+                    if not is_429 or not is_tpm or is_daily or attempt >= args.rate_limit_retries:
+                        raise
+                    # Groq includes "Please try again in 1.4175s." in the exception.
+                    match = re.search(r"try again in\\s+([0-9.]+)s", msg, re.IGNORECASE)
+                    suggested = float(match.group(1)) if match else 20.0
+                    pause = min(120.0, max(suggested + 6.0, 12.0, 15.0 * (attempt + 1)))
+                    print(f"{row['id']} {args.metric}: temporary TPM 429; "
+                          f"retry {attempt + 1}/{args.rate_limit_retries} in {pause:.1f}s",
+                          flush=True)
+                    await asyncio.sleep(pause)
             score = float(outcome.value)
             if not math.isfinite(score):
                 raise ValueError("RAGAS returned non-finite score")
