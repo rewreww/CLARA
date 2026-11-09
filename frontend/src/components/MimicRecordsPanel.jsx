@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import MimicOverview from './MimicOverview'
-import { admissionDates, dateParts } from '../lib/mimicOverview'
+import { admissionDates, admissionDemographics, dateParts } from '../lib/mimicOverview'
 import { LABS_URL } from '../constants'
 import PdfPreview from './PdfPreview'
 
@@ -19,13 +19,20 @@ export function MimicAdmissionSelector({ patient, admission, onChange, refreshKe
     setData(null); setError('')
     fetch(`${LABS_URL}/${encodeURIComponent(patient.id)}/mimic/summary`, { signal: controller.signal })
       .then(r => { if (!r.ok) throw new Error('Unable to load admissions'); return r.json() })
-      .then(setData).catch(e => { if (e.name !== 'AbortError') setError(e.message) })
+      .then(result => {
+        if (controller.signal.aborted) return
+        if (result.patient !== patient.id) throw new Error('Patient summary did not match the selected patient')
+        setData(result)
+      }).catch(e => { if (e.name !== 'AbortError' && !controller.signal.aborted) setError(e.message) })
     return () => controller.abort()
   }, [patient.id, refreshKey])
   const strip = useRef(null)
   const drag = useRef(null)
-  const dates = admissionDates(data)
-  return <div className="mimic-date-navigation">
+  const current = data?.patient === patient.id ? data : null
+  const dates = admissionDates(current)
+  const demographics = admissionDemographics(current, patient.id, admission)
+  return <>
+  <div className="mimic-date-navigation">
     <button aria-label="Earlier admission dates" onClick={() => strip.current.scrollBy({ left: -240, behavior: 'smooth' })}>‹</button>
     <div ref={strip} className="mimic-date-strip" aria-label="Admission dates"
       onPointerDown={e => { if (e.pointerType === 'mouse') drag.current = { x: e.clientX, scroll: strip.current.scrollLeft, moved: false } }}
@@ -44,6 +51,24 @@ export function MimicAdmissionSelector({ patient, admission, onChange, refreshKe
     <button aria-label="Later admission dates" onClick={() => strip.current.scrollBy({ left: 240, behavior: 'smooth' })}>›</button>
     {error && <span role="alert">{error}</span>}
   </div>
+  {admission && <section className="mimic-demographics" aria-label="Selected admission demographics">
+    <div className="mimic-demographics-heading">
+      <h2>Demographics</h2>
+      <span>{admission === 'unlinked' ? 'Unlinked records' : `Admission ${admission}`}</span>
+    </div>
+    {!current && !error ? <p role="status">Loading demographic information…</p>
+      : error ? <p role="alert">Demographics could not be loaded for this patient.</p>
+      : demographics ? <>
+        <dl className="mimic-demographics-grid">
+          {demographics.fields.map(field => <div key={field.label}>
+            <dt>{field.label}</dt>
+            <dd>{field.value || 'Not recorded'}</dd>
+          </div>)}
+        </dl>
+        <p className="mimic-demographics-note">Only information recorded in this admission's overview PDF is shown. Age is recorded for the dataset reference year, not calculated from shifted dates.</p>
+      </> : <p>No demographic information available for this admission.</p>}
+  </section>}
+  </>
 }
 
 export default function MimicRecordsPanel({ patient, admission, activeSection, onSelectSection, refreshKey, onRefresh, onAdmissionChange }) {
