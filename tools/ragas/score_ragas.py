@@ -6,6 +6,7 @@ import datetime as dt
 import json
 import math
 import os
+import time
 from pathlib import Path
 
 os.environ.setdefault("RAGAS_DO_NOT_TRACK", "true")
@@ -38,10 +39,13 @@ async def run():
     p.add_argument("--max-questions", type=int, default=1)
     p.add_argument("--env-file", default="")
     p.add_argument("--allow-unverified-pilot", action="store_true")
+    p.add_argument("--delay-seconds", type=float, default=20.0)
     p.add_argument("--live", action="store_true")
     args = p.parse_args()
-    if not 1 <= args.max_questions <= 5:
-        p.error("Pilot max-questions must be between 1 and 5")
+    if args.delay_seconds < 0:
+        p.error("delay-seconds must be nonnegative")
+    if not 1 <= args.max_questions <= 100:
+        p.error("Batch max-questions must be between 1 and 100")
     if args.env_file:
         from dotenv import load_dotenv
         load_dotenv(args.env_file, override=False)
@@ -74,7 +78,7 @@ async def run():
     from ragas.metrics.collections import ContextPrecisionWithReference, ContextRecall, Faithfulness, AnswerRelevancy
     base = "https://api.groq.com/openai/v1" if provider == "groq" else "https://openrouter.ai/api/v1"
     client = AsyncOpenAI(api_key=api_key, base_url=base, max_retries=0, timeout=90)
-    llm = llm_factory(model, provider="openai", client=client)
+    llm = llm_factory(model, provider="openai", client=client, max_tokens=8192)
     if args.metric == "context_precision":
         evaluator = ContextPrecisionWithReference(llm=llm)
     elif args.metric == "context_recall":
@@ -84,7 +88,9 @@ async def run():
     else:
         from ragas.embeddings import HuggingFaceEmbeddings
         evaluator = AnswerRelevancy(llm=llm, embeddings=HuggingFaceEmbeddings(model="sentence-transformers/all-MiniLM-L6-v2", device="cpu"))
-    for row in todo:
+    for index, row in enumerate(todo):
+        if index:
+            await asyncio.sleep(args.delay_seconds)
         if args.metric in ("context_precision", "context_recall"):
             inputs = {"user_input": row["question"], "retrieved_contexts": row["retrieved_contexts"], "reference": row["reference_answer"]}
         elif args.metric == "faithfulness":
