@@ -22,7 +22,7 @@ BASE = Path(__file__).resolve().parents[1]
 
 def find_admission(patient_dir, requested):
     choices = sorted(d for d in patient_dir.iterdir()
-                     if d.is_dir() and re.fullmatch(r"Admission_\\d{8}", d.name))
+                     if d.is_dir() and re.fullmatch(r"Admission_\d{8}", d.name))
     if requested:
         target = patient_dir / f"Admission_{requested}"
         if target not in choices:
@@ -109,7 +109,7 @@ def main():
             try:
                 with fitz.open(str(source)) as existing:
                     for p in existing:
-                        hit = re.search(r"Recorded:\\s*(\\d{4}-\\d{2}-\\d{2}(?: \\d{2}:\\d{2}:\\d{2})?)", p.get_text())
+                        hit = re.search(r"Recorded:\s*(\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2}:\d{2})?)", p.get_text())
                         if hit:
                             recorded = hit.group(1)
                             if len(recorded) == 10:
@@ -122,7 +122,7 @@ def main():
         if not recorded:
             raise SystemExit("No existing PDF Recorded date found. Use --recorded 'YYYY-MM-DD HH:MM:SS'.")
     target_dir = admission_dir / "Chemistry" / "Blood"
-    relative = str((target_dir / "CLARA_SYNTHETIC_CHEMISTRY_TEST.pdf").relative_to(patient_dir)).replace("\\\\", "/")
+    relative = str((target_dir / "CLARA_SYNTHETIC_CHEMISTRY_TEST.pdf").relative_to(patient_dir)).replace("\\", "/")
     parser_file = BASE / "ai-services" / "mimic_pdf.py"
     spec = importlib.util.spec_from_file_location("clara_mimic_pdf", parser_file)
     module = importlib.util.module_from_spec(spec)
