@@ -91,6 +91,24 @@ public sealed class MimicRecordsController(ClaraDbContext db, IConfiguration con
         return Ok(new { patient = patientId, admission, values });
     }
 
+    // Presentation-only reference-range indicators. These are derived from
+    // extracted PDF values and reference bounds, NOT validated clinical risk alerts.
+    // Scope by the trusted patient route and explicitly selected admission.
+    [HttpGet("flags")]
+    public async Task<IActionResult> ReferenceRangeFlags(string patientId, string admission, CancellationToken token)
+    {
+        if (!ValidPatient(patientId) || !ValidAdmission(admission))
+            return BadRequest(new { error = "Select a valid patient and admission." });
+        var categories = await Rows(patientId, admission)
+            .Where(x => x.Flag == "high" || x.Flag == "low")
+            .GroupBy(x => x.Category)
+            .Select(g => new { category = g.Key, count = g.Count() })
+            .OrderBy(x => x.category)
+            .ToListAsync(token);
+        return Ok(new { patient = patientId, admission, categories,
+            meaning = "Extracted numeric results outside the source reference range; clinical interpretation is required." });
+    }
+
     [HttpGet("records")]
     public async Task<IActionResult> Records(string patientId, string admission, string? category, string? search, int page = 1, CancellationToken token = default)
     {
