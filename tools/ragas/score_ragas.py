@@ -34,7 +34,7 @@ async def run():
     p.add_argument("--input", default="captured_pilot.jsonl")
     p.add_argument("--output", default="ragas_scores.jsonl")
     p.add_argument("--csv", default="ragas_scores.csv")
-    p.add_argument("--provider", choices=("groq", "openrouter"), default="groq")
+    p.add_argument("--provider", choices=("groq", "openrouter", "gemini"), default="groq")
     p.add_argument("--model", default="")
     p.add_argument("--metric", choices=METRICS, default="context_recall")
     p.add_argument("--max-questions", type=int, default=1)
@@ -43,10 +43,12 @@ async def run():
     p.add_argument("--allow-unverified-pilot", action="store_true")
     p.add_argument("--delay-seconds", type=float, default=20.0)
     p.add_argument("--live", action="store_true")
+    p.add_argument("--max-output-tokens", type=int, default=0,
+                   help="Judge output token ceiling; Groq/Gemini default 3072, OpenRouter 8192")
     p.add_argument("--rate-limit-retries", type=int, default=6,
                    help="Retry temporary token-per-minute 429 errors; never retry daily quota exhaustion")
     args = p.parse_args()
-    if args.delay_seconds < 0 or args.rate_limit_retries < 0:
+    if args.delay_seconds < 0 or args.rate_limit_retries < 0 or args.max_output_tokens < 0:
         p.error("delay-seconds and rate-limit-retries must be nonnegative")
     if not 1 <= args.max_questions <= 100:
         p.error("Batch max-questions must be between 1 and 100")
@@ -63,8 +65,12 @@ async def run():
     if any(not r.get("reference_verified") for r in valid) and not args.allow_unverified_pilot:
         raise SystemExit("Reference answers not physician verified; use --allow-unverified-pilot for preliminary tests.")
     provider = args.provider
-    model = args.model or (os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
-                           if provider == "groq" else os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3-ultra-550b-a55b:free"))
+    defaults = {
+        "groq": os.getenv("GROQ_MODEL") or "openai/gpt-oss-20b",
+        "openrouter": os.getenv("OPENROUTER_MODEL") or "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "gemini": os.getenv("GEMINI_MODEL") or "gemini-3.5-flash-lite",
+    }
+    model = args.model or defaults[provider]
     if provider == "openrouter" and not model.endswith(":free"):
         raise SystemExit("OpenRouter evaluator must use a :free model.")
     prior = read_rows(args.output)
@@ -74,15 +80,22 @@ async def run():
     if not args.live:
         print("DRY RUN: no judge requests made")
         return
-    api_key = os.getenv("GROQ_API_KEY" if provider == "groq" else "OPENROUTER_API_KEY", "")
+    key_names = {"groq": "GROQ_API_KEY", "openrouter": "OPENROUTER_API_KEY", "gemini": "GEMINI_API_KEY"}
+    api_key = os.getenv(key_names[provider], "")
     if not api_key:
         raise SystemExit("Missing evaluator API key in env-file or environment.")
     from openai import AsyncOpenAI
     from ragas.llms import llm_factory
     from ragas.metrics.collections import ContextPrecisionWithReference, ContextRecall, Faithfulness, AnswerRelevancy
-    base = "https://api.groq.com/openai/v1" if provider == "groq" else "https://openrouter.ai/api/v1"
-    client = AsyncOpenAI(api_key=api_key, base_url=base, max_retries=0, timeout=90)
-    llm = llm_factory(model, provider="openai", client=client, max_tokens=8192)
+    endpoints = {
+        "groq": "https://api.groq.com/openai/v1",
+        "openrouter": "https://openrouter.ai/api/v1",
+        "gemini": "https://generativelanguage.googleapis.com/v1beta/openai/",
+    }
+    client = AsyncOpenAI(api_key=api_key, base_url=endpoints[provider], max_retries=0, timeout=180)
+    output_tokens = args.max_output_tokens or (8192 if provider == "openrouter" else 3072)
+    llm = llm_factory(model, provider="openai", client=client, max_tokens=output_tokens)
+    print(f"Judge output limit: {output_tokens} tokens", flush=True)
     if args.metric == "context_precision":
         evaluator = ContextPrecisionWithReference(llm=llm)
     elif args.metric == "context_recall":
@@ -120,7 +133,7 @@ async def run():
                     if not is_429 or not is_tpm or is_daily or attempt >= args.rate_limit_retries:
                         raise
                     # Groq includes "Please try again in 1.4175s." in the exception.
-                    match = re.search(r"try again in\\s+([0-9.]+)s", msg, re.IGNORECASE)
+                    match = re.search(r"try again in\s+([0-9.]+)s", msg, re.IGNORECASE)
                     suggested = float(match.group(1)) if match else 20.0
                     pause = min(120.0, max(suggested + 6.0, 12.0, 15.0 * (attempt + 1)))
                     print(f"{row['id']} {args.metric}: temporary TPM 429; "

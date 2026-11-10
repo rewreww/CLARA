@@ -1,0 +1,9 @@
+﻿id,metric,score,status,provider,model,reference_verified,evaluated_at_utc,error
+Q005,context_precision,0.699999999965,scored,gemini,gemini-3.5-flash-lite,False,2026-11-09T16:07:34.427877+00:00,
+Q008,context_precision,0.9999999999666667,scored,gemini,gemini-3.5-flash-lite,False,2026-11-09T16:09:10.952982+00:00,
+Q008,faithfulness,0.3333333333333333,scored,gemini,gemini-3.5-flash-lite,False,2026-11-09T16:10:37.267661+00:00,
+Q008,answer_relevancy,0.7253717945706785,scored,gemini,gemini-3.5-flash-lite,False,2026-11-09T16:12:33.911250+00:00,
+Q013,context_recall,0.0,scored,gemini,gemini-3.5-flash-lite,False,2026-11-09T16:32:46.000654+00:00,
+Q013,context_precision,0.0,scored,gemini,gemini-3.5-flash-lite,False,2026-11-09T16:34:47.478497+00:00,
+Q013,faithfulness,0.0,scored,gemini,gemini-3.5-flash-lite,False,2026-11-09T16:36:44.515348+00:00,
+Q013,answer_relevancy,0.0,scored,gemini,gemini-3.5-flash-lite,False,2026-11-09T16:39:31.715857+00:00,

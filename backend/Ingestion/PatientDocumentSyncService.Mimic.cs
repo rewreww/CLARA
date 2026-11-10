@@ -78,6 +78,12 @@ public sealed partial class PatientDocumentSyncService
         result.StructuredItemsSaved += inserted.Count;
         if (created) result.DocumentsCreated++;
         _progress.Success($"Parsed {inserted.Count} PDF table rows", patient.Id, file.Name);
+        // Notify only after the new chemistry document and extracted results are committed.
+        // Updates and unchanged files must not be reported as newly added lab tests.
+        if (created && info.Category == "chemistry" && inserted.Count > 0)
+        {
+            _progress.Success($"New chemistry lab test added ({inserted.Count} results)", patient.Id, file.Name);
+        }
         foreach (var row in inserted) _db.Entry(row).State = EntityState.Detached;
         _db.Entry(info).State = EntityState.Detached;
         _db.Entry(document).State = EntityState.Detached;

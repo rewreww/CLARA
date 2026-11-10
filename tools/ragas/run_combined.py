@@ -1,6 +1,6 @@
 """CLARA RAGAS: fill missing metric slots without duplicating successful scores.
 
-Combines *distinct* Nemotron and Groq judging logs. The summary retains
+Combines *distinct* Nemotron, Groq and Gemini judging logs. The summary retains
 provider/model for each metric. Mixed-judge scores must be disclosed in reports.
 """
 import argparse
@@ -20,7 +20,7 @@ def read(path):
         return []
     return [json.loads(line) for line in path.read_text(encoding="utf-8-sig").splitlines() if line.strip()]
 
-def state(capture_path, nemotron_path, groq_path):
+def state(capture_path, nemotron_path, groq_path, gemini_path=None):
     captured, latest = {}, {}
     for row in read(capture_path):
         qid = row.get("id")
@@ -28,51 +28,67 @@ def state(capture_path, nemotron_path, groq_path):
         if row.get("status") == "completed" and row.get("ragas_ready") and row.get("retrieved_contexts"):
             captured[qid] = row
     scored = {}
-    # Prefer existing Nemotron scores when the same question + metric
-    # has been scored by both. Groq scores fill missing slots only.
-    for path in (groq_path, nemotron_path):
+    # Retain existing Nemotron scores first, then Groq, then Gemini.
+    # Never replace a scored metric with a failed attempt.
+    for path in (gemini_path, groq_path, nemotron_path):
+        if path is None:
+            continue
         for row in read(path):
             if row.get("status") == "scored" and row.get("metric") in METRICS:
                 scored[(row.get("id"), row.get("metric"))] = row
     return captured, latest, scored
 
 def main():
-    p = argparse.ArgumentParser(description="Resume uns cored CLARA RAGAS metric slots, using Groq.")
+    p = argparse.ArgumentParser(description="Resume missing CLARA RAGAS scores using Groq and Gemini fallbacks.")
     p.add_argument("--dataset", required=True)
     p.add_argument("--capture", default="tools/ragas/captured_pilot.jsonl")
     p.add_argument("--nemotron-scores", default="tools/ragas/ragas_scores.jsonl")
     p.add_argument("--groq-scores", default="tools/ragas/ragas_scores_groq.jsonl")
     p.add_argument("--groq-csv", default="tools/ragas/ragas_scores_groq.csv")
+    p.add_argument("--gemini-scores", default="tools/ragas/ragas_scores_gemini.jsonl")
+    p.add_argument("--gemini-csv", default="tools/ragas/ragas_scores_gemini.csv")
     p.add_argument("--summary", default="tools/ragas/ragas_summary_combined.csv")
     p.add_argument("--env-file", default="ai-services/llm_service/.env")
     p.add_argument("--batch-size", type=int, default=10)
-    p.add_argument("--delay-seconds", type=float, default=90)
-    p.add_argument("--retry-needs-review", action="store_true")
+    p.add_argument("--delay-seconds", type=float, default=120)
+    p.add_argument("--retry-needs-review", action="store_true",
+                   help="Explicitly retry prior failed/needs_review captures; normally skip them")
     p.add_argument("--allow-unverified-pilot", action="store_true")
     p.add_argument("--live", action="store_true")
+    p.add_argument("--groq-models", default="openai/gpt-oss-20b,openai/gpt-oss-120b",
+                   help="Ordered Groq model list, comma-separated; blank disables Groq")
+    p.add_argument("--gemini-models", default="gemini-3.5-flash-lite",
+                   help="Ordered Gemini model list, comma-separated; blank disables Gemini")
+    p.add_argument("--max-output-tokens", type=int, default=3072,
+                   help="Judge token limit to control free-tier TPM")
     a = p.parse_args()
-    if not 1 <= a.batch_size <= 100 or a.delay_seconds < 0:
+    if not 1 <= a.batch_size <= 100 or a.delay_seconds < 0 or not 256 <= a.max_output_tokens <= 8192:
         p.error("batch-size must be 1..100 and delay-seconds nonnegative")
     from dotenv import dotenv_values
     config = dotenv_values(a.env_file)
-    for name in ("CLARA_EVAL_TOKEN", "GROQ_API_KEY"):
+    for name in ("CLARA_EVAL_TOKEN", "GROQ_API_KEY", "GEMINI_API_KEY"):
         if not os.environ.get(name) and config.get(name):
             os.environ[name] = config[name]
-    if a.live and not os.environ.get("GROQ_API_KEY"):
-        p.error("GROQ_API_KEY not found in environment or .env")
+
 
     dataset = read(Path(a.dataset))
     ids = [r.get("id") for r in dataset]
     if ids != [f"Q{i:03d}" for i in range(1, 101)]:
         p.error("Dataset must contain Q001-Q100, in order")
-    cap, nem, groq = (Path(a.capture), Path(a.nemotron_scores), Path(a.groq_scores))
+    cap, nem, groq, gemini = (Path(a.capture), Path(a.nemotron_scores), Path(a.groq_scores), Path(a.gemini_scores))
     summary = Path(a.summary)
-    for path in (cap, groq, Path(a.groq_csv), summary):
+    for path in (cap, groq, gemini, Path(a.groq_csv), Path(a.gemini_csv), summary):
         path.parent.mkdir(parents=True, exist_ok=True)
-    model = config.get("GROQ_MODEL") or "openai/gpt-oss-20b"
+    models = ([("groq", name.strip()) for name in a.groq_models.split(",") if name.strip()]
+              + [("gemini", name.strip()) for name in a.gemini_models.split(",") if name.strip()])
+    if not models:
+        p.error("Specify at least one evaluator model")
+    if a.live and not any(os.environ.get({"groq": "GROQ_API_KEY", "gemini": "GEMINI_API_KEY"}[provider]) for provider, _ in models):
+        p.error("No configured evaluator API keys found in environment or .env")
+    print("Evaluator fallback order:", " -> ".join(f"{provider}:{model}" for provider, model in models), flush=True)
 
     def report():
-        captures, latest, scored = state(cap, nem, groq)
+        captures, latest, scored = state(cap, nem, groq, gemini)
         with summary.open("w", encoding="utf-8-sig", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(["id", "capture_status", "reference_verified",
@@ -99,8 +115,13 @@ def main():
                if not all((qid, m) in scored for m in METRICS)
                and (qid in captures or a.retry_needs_review
                     or latest.get(qid, {}).get("status") not in ("needs_review", "failed"))]
+    held = [qid for qid in ids if qid not in captures and
+            latest.get(qid, {}).get("status") in ("needs_review", "failed")]
+    if held and not a.retry_needs_review:
+        print("Held for manual capture review (not treated as scores):", held, flush=True)
     selected = pending[:a.batch_size]
     print("Pending questions in this batch:", selected, flush=True)
+    print(f"Minimum interval between API-request process starts: {a.delay_seconds:.0f}s", flush=True)
     if not a.live:
         print("DRY RUN (no API requests). Add --live to execute.", flush=True)
         return
@@ -118,31 +139,73 @@ def main():
         if qid not in captures:
             cmd = ["tools/ragas/run_capture_pilot.py", "--dataset", str(Path(a.dataset).resolve()),
                    "--out", str(cap.resolve()), "--max-questions", "1", "--question-id", qid, "--live"]
-            if run(cmd):
-                print(f"STOP: {qid} capture failed; saved results are intact")
-                report()
-                return
+            capture_exit = run(cmd)
             captures, latest, scored = report()
             if qid not in captures:
-                print(f"SKIP {qid}: no accepted guideline evidence. Review separately.")
+                failure = latest.get(qid, {})
+                reason = str(failure.get("error") or failure.get("evaluation_status") or
+                             "No accepted guideline evidence")
+                print(f"SKIP {qid}: capture {failure.get('status', 'missing')} — {reason[:250]}. "
+                      "Not scored; review evidence separately.", flush=True)
+                # Rate limits or endpoint configuration failures require operator action.
+                # Do not continue sending requests against an exhausted quota/service.
+                low = reason.lower()
+                fatal = any(term in low for term in (
+                    "429", "rate_limit", "resource_exhausted", "quota",
+                    "http 401", "http 403", "http 404", "connection refused",
+                    "timed out", "timeout"
+                ))
+                if capture_exit or fatal:
+                    print("STOP: capture service/rate-limit issue. Existing scores remain intact.", flush=True)
+                    return
                 continue
         for metric in METRICS:
             if (qid, metric) in scored:
                 print(f"SKIP {qid} {metric}: scored by {scored[(qid, metric)].get('provider')}", flush=True)
                 continue
-            cmd = ["tools/ragas/score_ragas.py", "--input", str(cap.resolve()),
-                   "--output", str(groq.resolve()), "--csv", str(Path(a.groq_csv).resolve()),
-                   "--provider", "groq", "--model", model, "--metric", metric, "--question-id", qid,
-                   "--max-questions", "1", "--env-file", str(Path(a.env_file).resolve()), "--live"]
-            if a.allow_unverified_pilot:
-                cmd.append("--allow-unverified-pilot")
-            if run(cmd):
-                print(f"STOP: {qid} {metric} scoring process failed; saved results intact")
+            # Keep every attempted model in its own provider-specific append-only score log.
+            # Only fall back on an actual unsuccessful metric; never replace scored values.
+            succeeded = False
+            for provider, model in models:
+                if not os.environ.get({"groq": "GROQ_API_KEY", "gemini": "GEMINI_API_KEY"}[provider]):
+                    print(f"SKIP {provider}: API key missing", flush=True)
+                    continue
+                score_path = groq if provider == "groq" else gemini
+                csv_path = Path(a.groq_csv) if provider == "groq" else Path(a.gemini_csv)
+                cmd = ["tools/ragas/score_ragas.py", "--input", str(cap.resolve()),
+                       "--output", str(score_path.resolve()), "--csv", str(csv_path.resolve()),
+                       "--provider", provider, "--model", model, "--metric", metric,
+                       "--max-output-tokens", str(a.max_output_tokens),
+                       "--question-id", qid, "--max-questions", "1",
+                       "--env-file", str(Path(a.env_file).resolve()),
+                       "--rate-limit-retries", "2", "--live"]
+                if a.allow_unverified_pilot:
+                    cmd.append("--allow-unverified-pilot")
+                print(f"Judge {qid} {metric} with {model}", flush=True)
+                if run(cmd):
+                    print(f"STOP: evaluator process error on {qid} {metric}; results preserved")
+                    report()
+                    return
+                captures, latest, scored = report()
+                if (qid, metric) in scored:
+                    print(f"SUCCESS {qid} {metric}: {scored[(qid, metric)]['score']} from {model}", flush=True)
+                    succeeded = True
+                    break
+                attempts = [r for r in read(score_path) if r.get("id") == qid and
+                            r.get("metric") == metric and r.get("model") == model]
+                failure = attempts[-1].get("error", "") if attempts else ""
+                is_limit = any(term in failure.lower() for term in
+                               ("429", "rate_limit", "tpm", "per minute", "per-day", "per day", "daily"))
+                is_generation_failure = any(term in failure.lower() for term in
+                                            ("incompleteoutput", "length", "max_tokens", "max completion"))
+                if not (is_limit or is_generation_failure):
+                    print(f"STOP: non-rate-limit evaluator error on {qid} {metric}: {failure[:200]}")
+                    return
+                print(f"Fallback: {provider}/{model} could not score {qid} {metric}; trying next model", flush=True)
+            if not succeeded:
+                print(f"STOP: all configured models failed on {qid} {metric}. "
+                      "Existing metric scores remain intact.")
                 report()
-                return
-            captures, latest, scored = report()
-            if (qid, metric) not in scored:
-                print(f"STOP: {qid} {metric} did not score; inspect Groq logs and rate limit")
                 return
     report()
     print("Batch ended; rerun same command to continue pending metrics.", flush=True)
